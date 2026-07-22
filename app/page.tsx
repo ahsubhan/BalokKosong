@@ -5,7 +5,7 @@ type Direction=0|90|180|270;
 type Shape="I"|"L"|"J"|"T"|"F"|"Z";
 type Piece={id:string;x:number;y:number;dir:Direction;shape:Shape;color:string};
 type Cell={x:number;y:number};
-const COLS=14,ROWS=22;
+const COLS=24,ROWS=36;
 const colors=["red","blue","yellow","mint","purple","orange","pink"];
 const shapes:Shape[]=["I","L","J","T","F","Z","L","T"];
 const vector=(dir:Direction)=>dir===0?{x:1,y:0}:dir===90?{x:0,y:1}:dir===180?{x:-1,y:0}:{x:0,y:-1};
@@ -41,7 +41,7 @@ function makeLevel(level:number,count:number){
   }
   return{name:`${best.length} balok panjang bervariasi`,pieces:best};
 }
-const levels=Array.from({length:13},(_,i)=>makeLevel(i+1,8+Math.round(i*32/12)));
+const levels=Array.from({length:13},(_,i)=>makeLevel(i+1,8+Math.round(i*92/12)));
 const fmt=(ms:number)=>{const s=Math.floor(ms/1000);return`${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}.${Math.floor(ms%1000/100)}`};
 
 export default function Home(){
@@ -66,7 +66,7 @@ export default function Home(){
   function undo(){const previous=history.at(-1);if(!previous)return;setPieces(clone(previous));setHistory(h=>h.slice(0,-1));setMoves(m=>Math.max(0,m-1));setWon(false)}
   return <main className="app-shell"><section className="game-card">
     <header className="mobile-top"><button className="mobile-brand" onClick={()=>setHelp(true)}>KELUAR<span>.</span></button><div className="mobile-level"><button onClick={()=>load(level-1)}>‹</button><span><small>LEVEL</small>{String(level+1).padStart(2,"0")}</span><button onClick={()=>load(level+1)}>›</button></div><div className="mobile-stats"><strong>{fmt(time)}</strong><small>{pieces.length} SISA · {moves} LANGKAH</small></div></header>
-    <div className={`block-board ${blocked?"board-blocked":""}`}>{Array.from({length:COLS*ROWS},(_,i)=><i key={i} className="block-grid" style={{"--x":i%COLS,"--y":Math.floor(i/COLS)} as React.CSSProperties}/>)}
+    <div className={`block-board ${blocked?"board-blocked":""}`}>
       {pieces.flatMap(p=>{const own=cells(p),offset=dragOffset?.id===p.id?dragOffset:null;return own.map((c,index)=><button key={`${p.id}-${index}`} className={`block-cell shape-${p.shape.toLowerCase()} ${edges(own,c)} ${p.color} ${selected===p.id?"selected":""} ${offset?"dragging":""}`} style={{"--x":c.x,"--y":c.y,"--drag-x":`${offset?.dx??0}px`,"--drag-y":`${offset?.dy??0}px`} as React.CSSProperties} onPointerDown={e=>dragStart(e,p.id)} onPointerMove={dragMove} onPointerUp={dragEnd} onPointerCancel={()=>{drag.current=null;setDragOffset(null)}} aria-label="Balok variasi, geret lurus"/>)})}
     </div>
     <nav className="mobile-bottom"><button onClick={undo} disabled={!history.length}><b>↶</b>Urungkan</button><button onClick={()=>load(level)}><b>↻</b>Ulangi</button><button onClick={()=>setHelp(true)}><b>?</b>Petunjuk</button></nav>
