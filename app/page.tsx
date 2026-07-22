@@ -11,6 +11,7 @@ const vector=(dir:Direction)=>dir===0?{x:1,y:0}:dir===90?{x:0,y:1}:dir===180?{x:
 const rotate=(x:number,y:number,dir:Direction):Cell=>dir===0?{x,y}:dir===90?{x:-y,y:x}:dir===180?{x:-x,y:-y}:{x:y,y:-x};
 const base=(shape:Shape):Cell[]=>shape==="I"?[{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:3,y:0}]:[{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:2,y:1}];
 const cells=(p:Piece)=>base(p.shape).map(c=>{const r=rotate(c.x,c.y,p.dir);return{x:p.x+r.x,y:p.y+r.y}});
+const edges=(own:Cell[],c:Cell)=>{const set=new Set(own.map(v=>`${v.x},${v.y}`));return[[0,-1,"top"],[1,0,"right"],[0,1,"bottom"],[-1,0,"left"]].filter(([dx,dy])=>!set.has(`${c.x+Number(dx)},${c.y+Number(dy)}`)).map(v=>`edge-${v[2]}`).join(" ")};
 const clone=(pieces:Piece[])=>pieces.map(p=>({...p}));
 
 function makeLevel(level:number,count:number){
@@ -61,8 +62,8 @@ export default function Home(){
     <header className="topbar"><div><span className="eyebrow">PUZZLE BALOK 2D</span><h1>KELUAR<span>.</span></h1></div><button className="icon-btn" onClick={()=>setHelp(true)}>?</button></header>
     <div className="level-row"><button className="level-nav" onClick={()=>load(level-1)}>‹</button><div className="level-title"><small>LEVEL {String(level+1).padStart(2,"0")}</small><strong>{data.name}</strong></div><button className="level-nav" onClick={()=>load(level+1)}>›</button></div>
     <div className="stats"><div><span>LANGKAH</span><strong>{String(moves).padStart(2,"0")}</strong></div><div className="goal-pill"><i/><strong>{fmt(time)}</strong><small>WAKTU</small></div><div><span>TERSISA</span><strong>{pieces.length}</strong></div></div>
-    <div className="block-board"><div className="block-exit">EXIT</div>{Array.from({length:SIZE*SIZE},(_,i)=><i key={i} className="block-grid" style={{"--x":i%SIZE,"--y":Math.floor(i/SIZE)} as React.CSSProperties}/>)}
-      {pieces.flatMap(p=>cells(p).map((c,index)=><button key={`${p.id}-${index}`} className={`block-cell ${p.shape==="L"?"shape-l":"shape-i"} ${p.color} ${selected===p.id?"selected":""}`} style={{"--x":c.x,"--y":c.y} as React.CSSProperties} onPointerDown={e=>dragStart(e,p.id)} onPointerUp={dragEnd} onPointerCancel={()=>{drag.current=null}} aria-label={`Balok ${p.shape}, geret lurus`}/>))}
+    <div className="block-board">{Array.from({length:SIZE*SIZE},(_,i)=><i key={i} className="block-grid" style={{"--x":i%SIZE,"--y":Math.floor(i/SIZE)} as React.CSSProperties}/>)}
+      {pieces.flatMap(p=>{const own=cells(p);return own.map((c,index)=><button key={`${p.id}-${index}`} className={`block-cell ${edges(own,c)} ${p.shape==="L"?"shape-l":"shape-i"} ${p.color} ${selected===p.id?"selected":""}`} style={{"--x":c.x,"--y":c.y} as React.CSSProperties} onPointerDown={e=>dragStart(e,p.id)} onPointerUp={dragEnd} onPointerCancel={()=>{drag.current=null}} aria-label={`Balok ${p.shape}, geret lurus`}/>)})}
     </div>
     <p className={`tip ${blocked?"blocked-tip":""}`}><span>☝</span>{current?`Balok ${current.shape} dipilih — tarik lurus pada sumbunya`:`Horizontal: kiri–kanan. Vertikal: atas–bawah.`}</p>
     <div className="controls"><button onClick={undo} disabled={!history.length}><span>↶</span>Urungkan</button><button className="reset" onClick={()=>load(level)}><span>↻</span>Ulangi</button><button onClick={()=>setHelp(true)}><span>?</span>Petunjuk</button></div>
