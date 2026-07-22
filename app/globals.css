@@ -170,3 +170,4 @@ footer span { font:900 13px Arial,sans-serif; } footer small { font-size:8px; le
 @media(max-height:720px){.app-shell{padding:0}.game-card{padding:0}.game-hud{flex-basis:61px}.mobile-top{flex-basis:47px}.mobile-bottom{flex-basis:47px}footer{display:none}}
 @media(min-width:650px){.game-card{padding:0}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+.game-card{overflow:visible}.block-cell.exiting.exit-right{--drag-x:260vw!important}.block-cell.exiting.exit-left{--drag-x:-260vw!important}.block-cell.exiting.exit-down{--drag-y:260dvh!important}.block-cell.exiting.exit-up{--drag-y:-260dvh!important}
