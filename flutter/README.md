@@ -1,17 +1,16 @@
-# balok_kosong
+# BALOK KOSONG — Flutter
 
-A new Flutter project.
+Aplikasi native Flutter untuk Android dan iOS. Papan permainan menggunakan `GestureDetector` dan `CustomPainter`, bukan WebView atau aplikasi browser.
 
-## Getting Started
+## Menjalankan di Mac (iPhone)
 
-This project is a starting point for a Flutter application.
+1. Tarik repository ini.
+2. Buka folder `flutter`.
+3. Jalankan `flutter pub get`.
+4. Buka `ios/Runner.xcworkspace` dengan Xcode atau jalankan `flutter run` saat iPhone tersambung.
 
-A few resources to get you started if this is your first Flutter project:
+Untuk build distribusi iOS, atur Team Signing dan Bundle Identifier melalui Xcode terlebih dahulu.
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+## Menjalankan Android
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Jalankan `flutter run` pada emulator Android x64 atau perangkat Android yang tersambung.
