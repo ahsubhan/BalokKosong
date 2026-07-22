@@ -3,20 +3,20 @@ import { useEffect, useRef, useState } from "react";
 
 type Direction=0|90|180|270;
 type Shape="I"|"L"|"J"|"T"|"F"|"Z";
-type Piece={id:string;x:number;y:number;dir:Direction;shape:Shape;color:string};
+type Piece={id:string;x:number;y:number;dir:Direction;shape:Shape;length:number;color:string};
 type Cell={x:number;y:number};
-const COLS=24,ROWS=36;
+const COLS=28,ROWS=42;
 const colors=["red","blue","yellow","mint","purple","orange","pink"];
 const shapes:Shape[]=["I","L","J","T","F","Z","L","T"];
 const vector=(dir:Direction)=>dir===0?{x:1,y:0}:dir===90?{x:0,y:1}:dir===180?{x:-1,y:0}:{x:0,y:-1};
 const rotate=(x:number,y:number,dir:Direction):Cell=>dir===0?{x,y}:dir===90?{x:-y,y:x}:dir===180?{x:-x,y:-y}:{x:y,y:-x};
-const base=(shape:Shape):Cell[]=>shape==="I"?[{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:3,y:0}]
-  :shape==="L"?[{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:3,y:0},{x:3,y:1}]
-  :shape==="J"?[{x:0,y:1},{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:3,y:0}]
-  :shape==="T"?[{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:3,y:0},{x:1,y:1}]
-  :shape==="F"?[{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:3,y:0},{x:1,y:1},{x:2,y:1}]
-  :[{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:3,y:0},{x:1,y:1},{x:2,y:-1}];
-const cells=(p:Piece)=>base(p.shape).map(c=>{const r=rotate(c.x,c.y,p.dir);return{x:p.x+r.x,y:p.y+r.y}});
+const base=(shape:Shape,length:number):Cell[]=>{const line=Array.from({length},(_,x)=>({x,y:0})),mid=Math.max(1,Math.floor((length-1)/2));return shape==="I"?line
+  :shape==="L"?[...line,{x:length-1,y:1}]
+  :shape==="J"?[{x:0,y:1},...line]
+  :shape==="T"?[...line,{x:mid,y:1}]
+  :shape==="F"?[...line,{x:mid,y:1},{x:Math.min(length-1,mid+1),y:1}]
+  :[...line,{x:mid,y:-1},{x:Math.max(0,mid-1),y:1}]};
+const cells=(p:Piece)=>base(p.shape,p.length).map(c=>{const r=rotate(c.x,c.y,p.dir);return{x:p.x+r.x,y:p.y+r.y}});
 const edges=(own:Cell[],c:Cell)=>{const set=new Set(own.map(v=>`${v.x},${v.y}`));return[[0,-1,"top"],[1,0,"right"],[0,1,"bottom"],[-1,0,"left"]].filter(([dx,dy])=>!set.has(`${c.x+Number(dx)},${c.y+Number(dy)}`)).map(v=>`edge-${v[2]}`).join(" ")};
 const clone=(pieces:Piece[])=>pieces.map(p=>({...p}));
 
@@ -26,11 +26,11 @@ function makeLevel(level:number,count:number){
   for(let restart=0;restart<80&&best.length<count;restart++){
     const pieces:Piece[]=[],used=new Set<string>();
     for(let i=0;i<count;i++){
-      const shape=shapes[(i+level)%shapes.length];let placed=false;
+      const shape=shapes[(i+level)%shapes.length],length=shape==="I"?2+(i+level)%6:3+(i*3+level)%5;let placed=false;
       for(let attempt=0;attempt<700&&!placed;attempt++){
         const x=Math.floor(rnd()*COLS),y=Math.floor(rnd()*ROWS),horizontal=rnd()>.5;
         const dir:Direction=horizontal?(x<COLS/2?180:0):(y<ROWS/2?270:90);
-        const probe:Piece={id:`${level}-${i}`,x,y,dir,shape,color:colors[(i+level)%colors.length]};
+        const probe:Piece={id:`${level}-${i}`,x,y,dir,shape,length,color:colors[(i+level)%colors.length]};
         const own=cells(probe);
         if(own.some(c=>c.x<0||c.x>=COLS||c.y<0||c.y>=ROWS||used.has(`${c.x},${c.y}`)))continue;
         own.forEach(c=>used.add(`${c.x},${c.y}`));pieces.push(probe);placed=true;
@@ -39,7 +39,7 @@ function makeLevel(level:number,count:number){
     }
     if(pieces.length>best.length)best=pieces;
   }
-  return{name:`${best.length} balok panjang bervariasi`,pieces:best};
+  return{name:`${best.length} balok pendek & panjang`,pieces:best};
 }
 const levels=Array.from({length:13},(_,i)=>makeLevel(i+1,8+Math.round(i*92/12)));
 const fmt=(ms:number)=>{const s=Math.floor(ms/1000);return`${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}.${Math.floor(ms%1000/100)}`};
@@ -71,7 +71,7 @@ export default function Home(){
     </div>
     <nav className="mobile-bottom"><button onClick={undo} disabled={!history.length}><b>↶</b>Urungkan</button><button onClick={()=>load(level)}><b>↻</b>Ulangi</button><button onClick={()=>setHelp(true)}><b>?</b>Petunjuk</button></nav>
   </section>
-  {help&&<div className="overlay"><div className="modal"><span className="modal-kicker">CARA BERMAIN</span><h2>Balok Variasi</h2><p>Keluarkan semua balok panjang bercabang, berbentuk lurus, L, T, kait, dan bertingkat.</p><p>Balok horizontal hanya bisa ditarik kiri–kanan. Balok vertikal hanya bisa ditarik atas–bawah. Keluarkan penghalangnya lebih dahulu.</p><button className="play-btn" onClick={()=>{localStorage.setItem("block-puzzle-seen","1");setHelp(false)}}>Mulai bermain →</button></div></div>}
+  {help&&<div className="overlay"><div className="modal"><span className="modal-kicker">CARA BERMAIN</span><h2>Balok Variasi</h2><p>Keluarkan semua balok pendek dan panjang dengan bentuk lurus, bercabang, L, T, kait, dan bertingkat.</p><p>Balok horizontal hanya bisa ditarik kiri–kanan. Balok vertikal hanya bisa ditarik atas–bawah. Keluarkan penghalangnya lebih dahulu.</p><button className="play-btn" onClick={()=>{localStorage.setItem("block-puzzle-seen","1");setHelp(false)}}>Mulai bermain →</button></div></div>}
   {won&&<div className="overlay"><div className="modal"><div className="burst">✓</div><h2>Papan kosong!</h2><p>Semua balok keluar dalam {fmt(time)}.</p><button className="play-btn" onClick={()=>load(level===levels.length-1?0:level+1)}>Level berikutnya →</button></div></div>}
   </main>
 }
