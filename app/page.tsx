@@ -3,11 +3,13 @@ import { useEffect, useRef, useState } from "react";
 
 type Direction=0|90|180|270;
 type Shape="I"|"L"|"J"|"T"|"F"|"Z";
+type Theme="dark"|"midnight"|"forest"|"plum"|"sand";
 type Piece={id:string;x:number;y:number;dir:Direction;shape:Shape;length:number;color:string};
 type Cell={x:number;y:number};
 const COLS=28,ROWS=42;
 const colors=["red","blue","yellow","mint","purple","orange","pink"];
 const shapes:Shape[]=["I","L","J","T","F","Z","L","T"];
+const themes:{id:Theme;name:string}[]=[{id:"dark",name:"Gelap"},{id:"midnight",name:"Midnight"},{id:"forest",name:"Forest"},{id:"plum",name:"Plum"},{id:"sand",name:"Sand"}];
 const vector=(dir:Direction)=>dir===0?{x:1,y:0}:dir===90?{x:0,y:1}:dir===180?{x:-1,y:0}:{x:0,y:-1};
 const rotate=(x:number,y:number,dir:Direction):Cell=>dir===0?{x,y}:dir===90?{x:-y,y:x}:dir===180?{x:-x,y:-y}:{x:y,y:-x};
 const base=(shape:Shape,length:number):Cell[]=>{const line=Array.from({length},(_,x)=>({x,y:0})),mid=Math.max(1,Math.floor((length-1)/2));return shape==="I"?line
@@ -46,9 +48,9 @@ const fmt=(ms:number)=>{const s=Math.floor(ms/1000);return`${String(Math.floor(s
 
 export default function Home(){
   const[level,setLevel]=useState(0),[pieces,setPieces]=useState(()=>clone(levels[0].pieces));
-  const[selected,setSelected]=useState<string|null>(null),[moves,setMoves]=useState(0),[history,setHistory]=useState<Piece[][]>([]),[won,setWon]=useState(false),[help,setHelp]=useState(true),[time,setTime]=useState(0),[blocked,setBlocked]=useState(false),[showGrid,setShowGrid]=useState(true),[dragOffset,setDragOffset]=useState<{id:string;dx:number;dy:number}|null>(null);
+  const[selected,setSelected]=useState<string|null>(null),[moves,setMoves]=useState(0),[history,setHistory]=useState<Piece[][]>([]),[won,setWon]=useState(false),[help,setHelp]=useState(true),[time,setTime]=useState(0),[blocked,setBlocked]=useState(false),[showGrid,setShowGrid]=useState(true),[theme,setTheme]=useState<Theme>("dark"),[themeOpen,setThemeOpen]=useState(false),[dragOffset,setDragOffset]=useState<{id:string;dx:number;dy:number}|null>(null);
   const started=useRef(0);const drag=useRef<{id:string;x:number;y:number}|null>(null);
-  useEffect(()=>{if(localStorage.getItem("block-puzzle-seen"))setHelp(false);if(localStorage.getItem("block-grid-visible")==="0")setShowGrid(false)},[]);
+  useEffect(()=>{if(localStorage.getItem("block-puzzle-seen"))setHelp(false);if(localStorage.getItem("block-grid-visible")==="0")setShowGrid(false);const saved=localStorage.getItem("block-theme") as Theme|null;if(saved&&themes.some(t=>t.id===saved))setTheme(saved)},[]);
   useEffect(()=>{if(won)return;started.current=performance.now();setTime(0);const t=setInterval(()=>setTime(performance.now()-started.current),100);return()=>clearInterval(t)},[level,won]);
   useEffect(()=>{if(!won&&pieces.length===0)setWon(true)},[pieces.length,won]);
   function load(i:number){const n=(i+levels.length)%levels.length;setLevel(n);setPieces(clone(levels[n].pieces));setSelected(null);setDragOffset(null);setMoves(0);setHistory([]);setWon(false)}
@@ -65,13 +67,15 @@ export default function Home(){
   }
   function undo(){const previous=history.at(-1);if(!previous)return;setPieces(clone(previous));setHistory(h=>h.slice(0,-1));setMoves(m=>Math.max(0,m-1));setWon(false)}
   function toggleGrid(){setShowGrid(v=>{const next=!v;localStorage.setItem("block-grid-visible",next?"1":"0");return next})}
-  return <main className="app-shell"><section className="game-card">
+  function chooseTheme(next:Theme){setTheme(next);localStorage.setItem("block-theme",next);setThemeOpen(false)}
+  return <main className={`app-shell theme-${theme}`}><section className="game-card">
     <header className="mobile-top"><button className="mobile-brand" onClick={()=>setHelp(true)}>KELUAR<span>.</span></button><div className="mobile-level"><button onClick={()=>load(level-1)}>‹</button><span><small>LEVEL</small>{String(level+1).padStart(2,"0")}</span><button onClick={()=>load(level+1)}>›</button></div><div className="mobile-stats"><strong>{fmt(time)}</strong><small>{pieces.length} SISA · {moves} LANGKAH</small></div></header>
     <div className={`block-board ${blocked?"board-blocked":""} ${showGrid?"":"grid-off"}`}>
       {pieces.flatMap(p=>{const own=cells(p),offset=dragOffset?.id===p.id?dragOffset:null;return own.map((c,index)=><button key={`${p.id}-${index}`} className={`block-cell shape-${p.shape.toLowerCase()} ${edges(own,c)} ${p.color} ${selected===p.id?"selected":""} ${offset?"dragging":""}`} style={{"--x":c.x,"--y":c.y,"--drag-x":`${offset?.dx??0}px`,"--drag-y":`${offset?.dy??0}px`} as React.CSSProperties} onPointerDown={e=>dragStart(e,p.id)} onPointerMove={dragMove} onPointerUp={dragEnd} onPointerCancel={()=>{drag.current=null;setDragOffset(null)}} aria-label="Balok variasi, geret lurus"/>)})}
     </div>
-    <nav className="mobile-bottom"><button onClick={undo} disabled={!history.length}><b>↶</b>Urungkan</button><button onClick={()=>load(level)}><b>↻</b>Ulangi</button><button onClick={toggleGrid}><b>{showGrid?"▦":"□"}</b>Grid {showGrid?"ON":"OFF"}</button><button onClick={()=>setHelp(true)}><b>?</b>Petunjuk</button></nav>
+    <nav className="mobile-bottom"><button onClick={undo} disabled={!history.length}><b>↶</b>Urungkan</button><button onClick={()=>load(level)}><b>↻</b>Ulangi</button><button onClick={toggleGrid}><b>{showGrid?"▦":"□"}</b>Grid</button><button onClick={()=>setThemeOpen(true)}><b>◐</b>Tema</button><button onClick={()=>setHelp(true)}><b>?</b>Petunjuk</button></nav>
   </section>
+  {themeOpen&&<div className="overlay"><div className="modal theme-modal"><span className="modal-kicker">PILIH LATAR</span><h2>Tema permainan</h2><div className="theme-grid">{themes.map(t=><button key={t.id} className={`theme-choice swatch-${t.id} ${theme===t.id?"active":""}`} onClick={()=>chooseTheme(t.id)}><i/><span>{t.name}</span>{theme===t.id&&<b>✓</b>}</button>)}</div><button className="text-btn" onClick={()=>setThemeOpen(false)}>Tutup</button></div></div>}
   {help&&<div className="overlay"><div className="modal"><span className="modal-kicker">CARA BERMAIN</span><h2>Balok Variasi</h2><p>Keluarkan semua balok pendek dan panjang dengan bentuk lurus, bercabang, L, T, kait, dan bertingkat.</p><p>Balok horizontal hanya bisa ditarik kiri–kanan. Balok vertikal hanya bisa ditarik atas–bawah. Keluarkan penghalangnya lebih dahulu.</p><button className="play-btn" onClick={()=>{localStorage.setItem("block-puzzle-seen","1");setHelp(false)}}>Mulai bermain →</button></div></div>}
   {won&&<div className="overlay"><div className="modal"><div className="burst">✓</div><h2>Papan kosong!</h2><p>Semua balok keluar dalam {fmt(time)}.</p><button className="play-btn" onClick={()=>load(level===levels.length-1?0:level+1)}>Level berikutnya →</button></div></div>}
   </main>
