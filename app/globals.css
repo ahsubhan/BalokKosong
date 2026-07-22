@@ -1,5 +1,7 @@
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap');
 :root { --paper:#f4efdf; --ink:#142a32; --muted:#737d79; --orange:#f17d42; --asphalt:#34454b; --grid:7; }
 * { box-sizing:border-box; }
+*,*::before,*::after { font-family:"Fredoka","Arial Rounded MT Bold","Trebuchet MS",sans-serif !important; }
 html,body { margin:0; min-height:100%; overscroll-behavior:none; }
 body { background:var(--paper); color:var(--ink); font-family:"Trebuchet MS","Avenir Next",Arial,sans-serif; }
 button { font:inherit; }
