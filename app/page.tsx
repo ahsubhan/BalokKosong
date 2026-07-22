@@ -2,14 +2,20 @@
 import { useEffect, useRef, useState } from "react";
 
 type Direction=0|90|180|270;
-type Shape="I"|"L";
+type Shape="I"|"L"|"J"|"T"|"F"|"Z";
 type Piece={id:string;x:number;y:number;dir:Direction;shape:Shape;color:string};
 type Cell={x:number;y:number};
-const COLS=12,ROWS=20;
+const COLS=14,ROWS=22;
 const colors=["red","blue","yellow","mint","purple","orange","pink"];
+const shapes:Shape[]=["I","L","J","T","F","Z","L","T"];
 const vector=(dir:Direction)=>dir===0?{x:1,y:0}:dir===90?{x:0,y:1}:dir===180?{x:-1,y:0}:{x:0,y:-1};
 const rotate=(x:number,y:number,dir:Direction):Cell=>dir===0?{x,y}:dir===90?{x:-y,y:x}:dir===180?{x:-x,y:-y}:{x:y,y:-x};
-const base=(shape:Shape):Cell[]=>shape==="I"?[{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:3,y:0}]:[{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:2,y:1}];
+const base=(shape:Shape):Cell[]=>shape==="I"?[{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:3,y:0}]
+  :shape==="L"?[{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:3,y:0},{x:3,y:1}]
+  :shape==="J"?[{x:0,y:1},{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:3,y:0}]
+  :shape==="T"?[{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:3,y:0},{x:1,y:1}]
+  :shape==="F"?[{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:3,y:0},{x:1,y:1},{x:2,y:1}]
+  :[{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:3,y:0},{x:1,y:1},{x:2,y:-1}];
 const cells=(p:Piece)=>base(p.shape).map(c=>{const r=rotate(c.x,c.y,p.dir);return{x:p.x+r.x,y:p.y+r.y}});
 const edges=(own:Cell[],c:Cell)=>{const set=new Set(own.map(v=>`${v.x},${v.y}`));return[[0,-1,"top"],[1,0,"right"],[0,1,"bottom"],[-1,0,"left"]].filter(([dx,dy])=>!set.has(`${c.x+Number(dx)},${c.y+Number(dy)}`)).map(v=>`edge-${v[2]}`).join(" ")};
 const clone=(pieces:Piece[])=>pieces.map(p=>({...p}));
@@ -20,7 +26,7 @@ function makeLevel(level:number,count:number){
   for(let restart=0;restart<80&&best.length<count;restart++){
     const pieces:Piece[]=[],used=new Set<string>();
     for(let i=0;i<count;i++){
-      const shape:Shape=(i+level)%3===0?"L":"I";let placed=false;
+      const shape=shapes[(i+level)%shapes.length];let placed=false;
       for(let attempt=0;attempt<700&&!placed;attempt++){
         const x=Math.floor(rnd()*COLS),y=Math.floor(rnd()*ROWS),horizontal=rnd()>.5;
         const dir:Direction=horizontal?(x<COLS/2?180:0):(y<ROWS/2?270:90);
@@ -33,7 +39,7 @@ function makeLevel(level:number,count:number){
     }
     if(pieces.length>best.length)best=pieces;
   }
-  return{name:`${best.length} balok panjang I & L`,pieces:best};
+  return{name:`${best.length} balok panjang bervariasi`,pieces:best};
 }
 const levels=Array.from({length:13},(_,i)=>makeLevel(i+1,8+Math.round(i*32/12)));
 const fmt=(ms:number)=>{const s=Math.floor(ms/1000);return`${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}.${Math.floor(ms%1000/100)}`};
@@ -61,11 +67,11 @@ export default function Home(){
   return <main className="app-shell"><section className="game-card">
     <header className="mobile-top"><button className="mobile-brand" onClick={()=>setHelp(true)}>KELUAR<span>.</span></button><div className="mobile-level"><button onClick={()=>load(level-1)}>‹</button><span><small>LEVEL</small>{String(level+1).padStart(2,"0")}</span><button onClick={()=>load(level+1)}>›</button></div><div className="mobile-stats"><strong>{fmt(time)}</strong><small>{pieces.length} SISA · {moves} LANGKAH</small></div></header>
     <div className={`block-board ${blocked?"board-blocked":""}`}>{Array.from({length:COLS*ROWS},(_,i)=><i key={i} className="block-grid" style={{"--x":i%COLS,"--y":Math.floor(i/COLS)} as React.CSSProperties}/>)}
-      {pieces.flatMap(p=>{const own=cells(p),offset=dragOffset?.id===p.id?dragOffset:null;return own.map((c,index)=><button key={`${p.id}-${index}`} className={`block-cell ${edges(own,c)} ${p.shape==="L"?"shape-l":"shape-i"} ${p.color} ${selected===p.id?"selected":""} ${offset?"dragging":""}`} style={{"--x":c.x,"--y":c.y,"--drag-x":`${offset?.dx??0}px`,"--drag-y":`${offset?.dy??0}px`} as React.CSSProperties} onPointerDown={e=>dragStart(e,p.id)} onPointerMove={dragMove} onPointerUp={dragEnd} onPointerCancel={()=>{drag.current=null;setDragOffset(null)}} aria-label={`Balok ${p.shape}, geret lurus`}/>)})}
+      {pieces.flatMap(p=>{const own=cells(p),offset=dragOffset?.id===p.id?dragOffset:null;return own.map((c,index)=><button key={`${p.id}-${index}`} className={`block-cell shape-${p.shape.toLowerCase()} ${edges(own,c)} ${p.color} ${selected===p.id?"selected":""} ${offset?"dragging":""}`} style={{"--x":c.x,"--y":c.y,"--drag-x":`${offset?.dx??0}px`,"--drag-y":`${offset?.dy??0}px`} as React.CSSProperties} onPointerDown={e=>dragStart(e,p.id)} onPointerMove={dragMove} onPointerUp={dragEnd} onPointerCancel={()=>{drag.current=null;setDragOffset(null)}} aria-label="Balok variasi, geret lurus"/>)})}
     </div>
     <nav className="mobile-bottom"><button onClick={undo} disabled={!history.length}><b>↶</b>Urungkan</button><button onClick={()=>load(level)}><b>↻</b>Ulangi</button><button onClick={()=>setHelp(true)}><b>?</b>Petunjuk</button></nav>
   </section>
-  {help&&<div className="overlay"><div className="modal"><span className="modal-kicker">CARA BERMAIN</span><h2>Balok I & L</h2><p>Keluarkan semua balok panjang berbentuk I dan L dari papan.</p><p>Balok horizontal hanya bisa ditarik kiri–kanan. Balok vertikal hanya bisa ditarik atas–bawah. Keluarkan penghalangnya lebih dahulu.</p><button className="play-btn" onClick={()=>{localStorage.setItem("block-puzzle-seen","1");setHelp(false)}}>Mulai bermain →</button></div></div>}
+  {help&&<div className="overlay"><div className="modal"><span className="modal-kicker">CARA BERMAIN</span><h2>Balok Variasi</h2><p>Keluarkan semua balok panjang bercabang, berbentuk lurus, L, T, kait, dan bertingkat.</p><p>Balok horizontal hanya bisa ditarik kiri–kanan. Balok vertikal hanya bisa ditarik atas–bawah. Keluarkan penghalangnya lebih dahulu.</p><button className="play-btn" onClick={()=>{localStorage.setItem("block-puzzle-seen","1");setHelp(false)}}>Mulai bermain →</button></div></div>}
   {won&&<div className="overlay"><div className="modal"><div className="burst">✓</div><h2>Papan kosong!</h2><p>Semua balok keluar dalam {fmt(time)}.</p><button className="play-btn" onClick={()=>load(level===levels.length-1?0:level+1)}>Level berikutnya →</button></div></div>}
   </main>
 }
