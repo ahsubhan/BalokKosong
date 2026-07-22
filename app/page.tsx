@@ -52,7 +52,7 @@ function makeLevel(level:number,count:number){
   return{name:`${best.length} balok pendek & panjang`,pieces:best};
 }
 const levels=Array.from({length:17},(_,i)=>makeLevel(i+4,8+Math.round((i+3)*92/19)));
-const fmt=(ms:number)=>{const s=Math.floor(ms/1000);return`${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}.${Math.floor(ms%1000/100)}`};
+const fmt=(ms:number)=>{const s=Math.floor(ms/1000);return`${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`};
 const parFor=(i:number)=>(20+levels[i].pieces.length*2.2)*1000;
 const challengeFor=(i:number)=>(45+levels[i].pieces.length*2.8)*1000;
 
