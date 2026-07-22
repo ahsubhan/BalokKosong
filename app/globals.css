@@ -98,6 +98,91 @@ h1 span { color: var(--orange); }
 .grip.vertical { width: 8px; height: 30%; border-left: 2px solid var(--ink); border-right: 2px solid var(--ink); }
 .block-cell { left: calc((100% / 6) * var(--cx) + var(--gap)); top: calc((100% / 6) * var(--cy) + var(--gap)); width: calc((100% / 6) - var(--gap) * 2); height: calc((100% / 6) - var(--gap) * 2); }
 
+/* Top-view truck artwork */
+.block.orange { --truck: #f17d42; --truck-dark: #b94f25; --truck-light: #ffad72; }
+.block.mint { --truck: #62bd98; --truck-dark: #318268; --truck-light: #a4e1ca; }
+.block.sky { --truck: #5eb4c6; --truck-dark: #2c7787; --truck-light: #9edce7; }
+.block.lilac { --truck: #9e89c5; --truck-dark: #665293; --truck-light: #cbbce7; }
+.block.coral { --truck: #e87f68; --truck-dark: #a84435; --truck-light: #ffb09e; }
+.block.lemon { --truck: #dfb64e; --truck-dark: #9c7620; --truck-light: #ffe18d; }
+.block.aqua { --truck: #55aaa1; --truck-dark: #28746e; --truck-light: #9adbd5; }
+
+.block .block-cell { background: transparent; box-shadow: none; }
+.truck-visual {
+  position: absolute;
+  inset: 3px;
+  z-index: 2;
+  overflow: visible;
+  filter: drop-shadow(0 3px 2px rgba(0,0,0,.3));
+  pointer-events: none;
+}
+.truck-visual > span, .truck-visual > i, .truck-visual span > i { position: absolute; display: block; }
+
+.truck-container {
+  overflow: hidden;
+  border: 2px solid var(--truck-dark);
+  border-radius: 5px;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.28), transparent 34%),
+    repeating-linear-gradient(90deg, transparent 0 12px, rgba(20,42,50,.12) 12px 14px),
+    var(--truck);
+  box-shadow: inset 0 2px rgba(255,255,255,.32), inset 0 -3px rgba(0,0,0,.12);
+}
+.truck-cab {
+  border: 2px solid var(--truck-dark);
+  border-radius: 5px 10px 10px 5px;
+  background: linear-gradient(135deg, var(--truck-light), var(--truck) 58%, var(--truck-dark));
+  box-shadow: inset 0 2px rgba(255,255,255,.35);
+}
+.windshield {
+  background: linear-gradient(145deg, #c9eff5, #4d7884 65%);
+  border: 1px solid rgba(8,31,39,.7);
+  box-shadow: inset 2px 1px rgba(255,255,255,.45);
+}
+.cab-line { background: rgba(20,42,50,.35); border-radius: 4px; }
+.headlight { width: 4px; height: 5px; border-radius: 2px; background: #fff2a4; box-shadow: 0 0 5px #ffe466; }
+.truck-coupler { z-index: -1; background: #1e3035; border-radius: 3px; }
+.wheel { z-index: -1; border: 1px solid #07161b; border-radius: 4px; background: #152229; box-shadow: inset 0 0 0 1px #4e6269; }
+.container-rib { background: rgba(255,255,255,.28); border-radius: 2px; }
+.container-door { border: 1px solid rgba(20,42,50,.4); border-radius: 2px; }
+
+.truck-h .truck-container { left: 2px; right: 29%; top: 6px; bottom: 6px; }
+.truck-h .truck-cab { right: 1px; top: 8px; bottom: 8px; width: 28%; }
+.truck-h .truck-coupler { right: 25%; top: 42%; width: 9%; height: 16%; }
+.truck-h .windshield { right: 13%; top: 13%; bottom: 13%; width: 34%; border-radius: 2px 6px 6px 2px; }
+.truck-h .cab-line { left: 15%; top: 24%; bottom: 24%; width: 2px; }
+.truck-h .light-one { right: -1px; top: 16%; }
+.truck-h .light-two { right: -1px; bottom: 16%; }
+.truck-h .container-rib { top: 9%; bottom: 9%; width: 2px; }
+.truck-h .rib-one { left: 34%; }
+.truck-h .rib-two { left: 67%; }
+.truck-h .container-door { left: 2px; top: 13%; bottom: 13%; width: 7px; }
+.truck-h .wheel { width: 6px; height: 13px; }
+.truck-h .wheel-one { right: 12%; top: 1px; }
+.truck-h .wheel-two { right: 12%; bottom: 1px; }
+.truck-h .wheel-three { left: 13%; top: 1px; }
+.truck-h .wheel-four { left: 13%; bottom: 1px; }
+
+.truck-v .truck-container { left: 6px; right: 6px; top: 29%; bottom: 2px; }
+.truck-v .truck-cab { left: 8px; right: 8px; top: 1px; height: 28%; border-radius: 10px 10px 5px 5px; }
+.truck-v .truck-coupler { left: 42%; top: 25%; width: 16%; height: 9%; }
+.truck-v .windshield { left: 13%; right: 13%; top: 13%; height: 34%; border-radius: 6px 6px 2px 2px; }
+.truck-v .cab-line { left: 24%; right: 24%; bottom: 15%; height: 2px; }
+.truck-v .light-one { left: 16%; top: -1px; }
+.truck-v .light-two { right: 16%; top: -1px; }
+.truck-v .container-rib { left: 9%; right: 9%; height: 2px; }
+.truck-v .rib-one { top: 34%; }
+.truck-v .rib-two { top: 67%; }
+.truck-v .container-door { left: 13%; right: 13%; bottom: 2px; height: 7px; }
+.truck-v .wheel { width: 13px; height: 6px; }
+.truck-v .wheel-one { left: 1px; top: 12%; }
+.truck-v .wheel-two { right: 1px; top: 12%; }
+.truck-v .wheel-three { left: 1px; bottom: 13%; }
+.truck-v .wheel-four { right: 1px; bottom: 13%; }
+
+.truck-singkat .truck-container { background-color: var(--truck); }
+.truck-gandeng .truck-container { box-shadow: inset 0 2px rgba(255,255,255,.32), inset 0 -3px rgba(0,0,0,.12), 0 0 0 1px rgba(255,255,255,.12); }
+
 .tip { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 12px 0 14px; color: var(--muted); font-size: 10px; font-weight: 700; }
 .tip span { font-size: 17px; }
 .controls { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }

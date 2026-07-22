@@ -418,7 +418,7 @@ export default function Home() {
       <section className="game-card" aria-label="Game puzzle Dorong">
         <header className="topbar">
           <div>
-            <span className="eyebrow">PUZZLE BALOK</span>
+            <span className="eyebrow">PUZZLE TRUCK</span>
             <h1>DORONG<span>.</span></h1>
           </div>
           <div className="header-actions">
@@ -454,13 +454,13 @@ export default function Home() {
               return (
                 <button
                   key={item.id}
-                  className={`block ${item.color} ${hintId === item.id ? "active" : ""}`}
+                  className={`block ${item.color} truck-${item.axis} ${item.shape.length > 1 ? "truck-gandeng" : "truck-singkat"} ${hintId === item.id ? "active" : ""}`}
                   style={{ "--x": item.x, "--y": item.y, "--w": b.w, "--h": b.h } as React.CSSProperties}
                   onPointerDown={(e) => pointerDown(e, item)}
                   onPointerMove={(e) => pointerMove(e, item)}
                   onPointerUp={pointerUp}
                   onPointerCancel={pointerUp}
-                  aria-label={`Balok, dorong ${isHorizontal ? "kiri atau kanan" : "atas atau bawah"}`}
+                  aria-label={`Truk kontainer ${item.shape.length > 1 ? "gandeng" : "singkat"}, dorong ${isHorizontal ? "kiri atau kanan" : "atas atau bawah"}`}
                 >
                   {item.shape.map((cell, idx) => (
                     <span
@@ -469,14 +469,31 @@ export default function Home() {
                       style={{ "--cx": cell.x, "--cy": cell.y } as React.CSSProperties}
                     />
                   ))}
-                  <span className={isHorizontal ? "grip horizontal" : "grip vertical"} />
+                  <span className="truck-visual" aria-hidden="true">
+                    <span className="truck-container">
+                      <i className="container-rib rib-one" />
+                      <i className="container-rib rib-two" />
+                      <i className="container-door" />
+                    </span>
+                    <span className="truck-coupler" />
+                    <span className="truck-cab">
+                      <i className="windshield" />
+                      <i className="cab-line" />
+                      <i className="headlight light-one" />
+                      <i className="headlight light-two" />
+                    </span>
+                    <i className="wheel wheel-one" />
+                    <i className="wheel wheel-two" />
+                    <i className="wheel wheel-three" />
+                    <i className="wheel wheel-four" />
+                  </span>
                 </button>
               );
             })}
           </div>
         </div>
 
-        <p className="tip"><span>☝</span> Balok tidak diputar, hanya didorong searah panjangnya.</p>
+        <p className="tip"><span>☝</span> Truk tidak diputar, hanya didorong searah panjangnya.</p>
 
         <div className="controls">
           <button onClick={undo} disabled={!history.length}><span>↶</span> Urungkan</button>
