@@ -4,7 +4,9 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "BalokKosong",
   description: "Game puzzle mobile untuk membebaskan semua balok.",
-  themeColor: "#f4efdf"
+  themeColor: "#4d217d",
+  manifest: "/manifest.webmanifest",
+  icons: { icon: "/icon.svg", apple: "/icon.svg" }
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

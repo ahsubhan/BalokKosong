@@ -1,0 +1,10 @@
+{
+  "name": "BalokKosong",
+  "short_name": "BalokKosong",
+  "description": "Game puzzle untuk menghabiskan semua balok.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#17072f",
+  "theme_color": "#4d217d",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
