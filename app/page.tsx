@@ -46,9 +46,9 @@ const fmt=(ms:number)=>{const s=Math.floor(ms/1000);return`${String(Math.floor(s
 
 export default function Home(){
   const[level,setLevel]=useState(0),[pieces,setPieces]=useState(()=>clone(levels[0].pieces));
-  const[selected,setSelected]=useState<string|null>(null),[moves,setMoves]=useState(0),[history,setHistory]=useState<Piece[][]>([]),[won,setWon]=useState(false),[help,setHelp]=useState(true),[time,setTime]=useState(0),[blocked,setBlocked]=useState(false),[dragOffset,setDragOffset]=useState<{id:string;dx:number;dy:number}|null>(null);
+  const[selected,setSelected]=useState<string|null>(null),[moves,setMoves]=useState(0),[history,setHistory]=useState<Piece[][]>([]),[won,setWon]=useState(false),[help,setHelp]=useState(true),[time,setTime]=useState(0),[blocked,setBlocked]=useState(false),[showGrid,setShowGrid]=useState(true),[dragOffset,setDragOffset]=useState<{id:string;dx:number;dy:number}|null>(null);
   const started=useRef(0);const drag=useRef<{id:string;x:number;y:number}|null>(null);
-  useEffect(()=>{if(localStorage.getItem("block-puzzle-seen"))setHelp(false)},[]);
+  useEffect(()=>{if(localStorage.getItem("block-puzzle-seen"))setHelp(false);if(localStorage.getItem("block-grid-visible")==="0")setShowGrid(false)},[]);
   useEffect(()=>{if(won)return;started.current=performance.now();setTime(0);const t=setInterval(()=>setTime(performance.now()-started.current),100);return()=>clearInterval(t)},[level,won]);
   useEffect(()=>{if(!won&&pieces.length===0)setWon(true)},[pieces.length,won]);
   function load(i:number){const n=(i+levels.length)%levels.length;setLevel(n);setPieces(clone(levels[n].pieces));setSelected(null);setDragOffset(null);setMoves(0);setHistory([]);setWon(false)}
@@ -64,12 +64,13 @@ export default function Home(){
     if(!clear){fail();return}setHistory(h=>[...h,clone(pieces)]);setPieces(old=>old.filter(p=>p.id!==piece.id));setMoves(m=>m+1);setSelected(null);
   }
   function undo(){const previous=history.at(-1);if(!previous)return;setPieces(clone(previous));setHistory(h=>h.slice(0,-1));setMoves(m=>Math.max(0,m-1));setWon(false)}
+  function toggleGrid(){setShowGrid(v=>{const next=!v;localStorage.setItem("block-grid-visible",next?"1":"0");return next})}
   return <main className="app-shell"><section className="game-card">
     <header className="mobile-top"><button className="mobile-brand" onClick={()=>setHelp(true)}>KELUAR<span>.</span></button><div className="mobile-level"><button onClick={()=>load(level-1)}>‹</button><span><small>LEVEL</small>{String(level+1).padStart(2,"0")}</span><button onClick={()=>load(level+1)}>›</button></div><div className="mobile-stats"><strong>{fmt(time)}</strong><small>{pieces.length} SISA · {moves} LANGKAH</small></div></header>
-    <div className={`block-board ${blocked?"board-blocked":""}`}>
+    <div className={`block-board ${blocked?"board-blocked":""} ${showGrid?"":"grid-off"}`}>
       {pieces.flatMap(p=>{const own=cells(p),offset=dragOffset?.id===p.id?dragOffset:null;return own.map((c,index)=><button key={`${p.id}-${index}`} className={`block-cell shape-${p.shape.toLowerCase()} ${edges(own,c)} ${p.color} ${selected===p.id?"selected":""} ${offset?"dragging":""}`} style={{"--x":c.x,"--y":c.y,"--drag-x":`${offset?.dx??0}px`,"--drag-y":`${offset?.dy??0}px`} as React.CSSProperties} onPointerDown={e=>dragStart(e,p.id)} onPointerMove={dragMove} onPointerUp={dragEnd} onPointerCancel={()=>{drag.current=null;setDragOffset(null)}} aria-label="Balok variasi, geret lurus"/>)})}
     </div>
-    <nav className="mobile-bottom"><button onClick={undo} disabled={!history.length}><b>↶</b>Urungkan</button><button onClick={()=>load(level)}><b>↻</b>Ulangi</button><button onClick={()=>setHelp(true)}><b>?</b>Petunjuk</button></nav>
+    <nav className="mobile-bottom"><button onClick={undo} disabled={!history.length}><b>↶</b>Urungkan</button><button onClick={()=>load(level)}><b>↻</b>Ulangi</button><button onClick={toggleGrid}><b>{showGrid?"▦":"□"}</b>Grid {showGrid?"ON":"OFF"}</button><button onClick={()=>setHelp(true)}><b>?</b>Petunjuk</button></nav>
   </section>
   {help&&<div className="overlay"><div className="modal"><span className="modal-kicker">CARA BERMAIN</span><h2>Balok Variasi</h2><p>Keluarkan semua balok pendek dan panjang dengan bentuk lurus, bercabang, L, T, kait, dan bertingkat.</p><p>Balok horizontal hanya bisa ditarik kiri–kanan. Balok vertikal hanya bisa ditarik atas–bawah. Keluarkan penghalangnya lebih dahulu.</p><button className="play-btn" onClick={()=>{localStorage.setItem("block-puzzle-seen","1");setHelp(false)}}>Mulai bermain →</button></div></div>}
   {won&&<div className="overlay"><div className="modal"><div className="burst">✓</div><h2>Papan kosong!</h2><p>Semua balok keluar dalam {fmt(time)}.</p><button className="play-btn" onClick={()=>load(level===levels.length-1?0:level+1)}>Level berikutnya →</button></div></div>}
