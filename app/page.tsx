@@ -41,7 +41,7 @@ function makeLevel(level:number,count:number){
   }
   return{name:`${best.length} balok pendek & panjang`,pieces:best};
 }
-const levels=Array.from({length:13},(_,i)=>makeLevel(i+1,8+Math.round(i*92/12)));
+const levels=Array.from({length:20},(_,i)=>makeLevel(i+1,8+Math.round(i*92/19)));
 const fmt=(ms:number)=>{const s=Math.floor(ms/1000);return`${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}.${Math.floor(ms%1000/100)}`};
 
 export default function Home(){
