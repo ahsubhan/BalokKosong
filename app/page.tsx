@@ -79,7 +79,7 @@ export default function Home(){
     const start=drag.current;if(!start)return;drag.current=null;setDragOffset(null);const dx=e.clientX-start.x,dy=e.clientY-start.y;const piece=pieces.find(p=>p.id===start.id);if(!piece)return;
     const horizontal=piece.dir===0||piece.dir===180,axisDistance=horizontal?dx:dy;if(Math.abs(axisDistance)<16)return;
     const desired:Direction=horizontal?(axisDistance>0?0:180):(axisDistance>0?90:270);
-    if(!canExit(piece,desired)){fail();return}setHistory(h=>[...h,clone(pieces)]);setExiting({piece:{...piece},direction:desired});setPieces(old=>old.filter(p=>p.id!==piece.id));setMoves(m=>m+1);setSelected(null);exitTimer.current=setTimeout(()=>{setExiting(null);exitTimer.current=null},1250);
+    if(!canExit(piece,desired)){fail();return}setHistory(h=>[...h,clone(pieces)]);setExiting({piece:{...piece},direction:desired});setPieces(old=>old.filter(p=>p.id!==piece.id));setMoves(m=>m+1);setSelected(null);exitTimer.current=setTimeout(()=>{setExiting(null);exitTimer.current=null},1850);
   }
   function undo(){const previous=history.at(-1);if(!previous)return;if(exitTimer.current)clearTimeout(exitTimer.current);exitTimer.current=null;setExiting(null);setPieces(clone(previous));setHistory(h=>h.slice(0,-1));setMoves(m=>Math.max(0,m-1));setWon(false)}
   function toggleGrid(){setShowGrid(v=>{const next=!v;localStorage.setItem("block-grid-visible",next?"1":"0");return next})}
