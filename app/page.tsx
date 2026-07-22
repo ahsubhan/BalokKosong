@@ -5,7 +5,7 @@ type Direction=0|90|180|270;
 type Shape="I"|"L";
 type Piece={id:string;x:number;y:number;dir:Direction;shape:Shape;color:string};
 type Cell={x:number;y:number};
-const COLS=10,ROWS=16;
+const COLS=12,ROWS=20;
 const colors=["red","blue","yellow","mint","purple","orange","pink"];
 const vector=(dir:Direction)=>dir===0?{x:1,y:0}:dir===90?{x:0,y:1}:dir===180?{x:-1,y:0}:{x:0,y:-1};
 const rotate=(x:number,y:number,dir:Direction):Cell=>dir===0?{x,y}:dir===90?{x:-y,y:x}:dir===180?{x:-x,y:-y}:{x:y,y:-x};
@@ -35,7 +35,7 @@ function makeLevel(level:number,count:number){
   }
   return{name:`${best.length} balok panjang I & L`,pieces:best};
 }
-const levels=Array.from({length:13},(_,i)=>makeLevel(i+1,i+8));
+const levels=Array.from({length:13},(_,i)=>makeLevel(i+1,8+Math.round(i*32/12)));
 const fmt=(ms:number)=>{const s=Math.floor(ms/1000);return`${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}.${Math.floor(ms%1000/100)}`};
 
 export default function Home(){
