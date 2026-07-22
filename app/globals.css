@@ -59,6 +59,13 @@ h1 span { color:var(--orange); }
 .sedan.blocked { animation:shake .28s ease; filter:saturate(.4); }
 
 .mall-board { --cell:10%; position:relative; width:100%; aspect-ratio:1; overflow:visible; border:7px solid #26363b; border-radius:17px; background:linear-gradient(#4a5b60 0 40%,#34474d 40% 60%,#4a5b60 60%); box-shadow:0 15px 28px rgba(13,39,47,.24); touch-action:none; user-select:none; }
+.mall-board.jam-board { overflow:hidden; background:#46575c; border-width:9px; }
+.jam-board::before,.jam-board::after { display:none; }
+.jam-slot { position:absolute; left:calc(var(--x)*10%); top:calc(var(--y)*10%); width:10%; height:10%; border:1px solid rgba(255,255,255,.06); background:linear-gradient(135deg,rgba(255,255,255,.025),transparent); }
+.jam-board .aisle-mark { left:31%; top:47%; z-index:1; color:rgba(255,255,255,.08); font-size:12px; }
+.jam-board .pillar { display:none; }
+.jam-board .exit-gate { right:auto; left:5px; top:5px; transform:none; opacity:.9; }
+.blocked-tip { color:#c1473e; animation:shake .28s ease; }
 .mall-board::before,.mall-board::after { content:""; position:absolute; left:0; right:0; height:2px; background:repeating-linear-gradient(90deg,#e9df9d 0 20px,transparent 20px 34px); opacity:.55; }
 .mall-board::before { top:40%; }.mall-board::after { top:60%; }
 .parking-line { position:absolute; width:10%; height:39%; border-left:2px solid rgba(255,255,255,.35); border-right:1px solid rgba(255,255,255,.18); left:calc(var(--slot) * 10%); }
