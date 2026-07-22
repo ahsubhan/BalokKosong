@@ -171,3 +171,4 @@ footer span { font:900 13px Arial,sans-serif; } footer small { font-size:8px; le
 @media(min-width:650px){.game-card{padding:0}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 .game-card{overflow:visible}.block-cell.exiting.exit-right{--drag-x:260vw!important}.block-cell.exiting.exit-left{--drag-x:-260vw!important}.block-cell.exiting.exit-down{--drag-y:260dvh!important}.block-cell.exiting.exit-up{--drag-y:-260dvh!important}
+.auth-logo{display:grid;place-items:center;flex:0 0 29px;width:29px;height:29px;border-radius:8px;box-shadow:inset 0 1px #ffffff45}.auth-logo img{display:block;width:18px;height:18px}.apple-logo{background:#111}.facebook-logo{border-radius:50%;background:#1877f2}.facebook-logo img{width:17px;height:17px}
