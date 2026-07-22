@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Dorong — Puzzle Balok",
-  description: "Game puzzle mobile: dorong setiap balok hanya searah panjangnya dan bebaskan balok jingga.",
+  title: "BalokKosong",
+  description: "Game puzzle mobile untuk membebaskan semua balok.",
   themeColor: "#f4efdf"
 };
 
