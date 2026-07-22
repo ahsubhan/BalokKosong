@@ -16,56 +16,179 @@ type Level = { name: string; blocks: Block[] };
 
 const SIZE = 6;
 
-const levels: Level[] = [
-  {
-    name: "Pemanasan",
-    blocks: [
-      { id: "orange", x: 0, y: 2, axis: "h", color: "orange", shape: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }] },
-      { id: "a", x: 4, y: 0, axis: "v", color: "mint", shape: [{ x: 0, y: 0 }, { x: 0, y: 1 }, { x: 0, y: 2 }] },
-      { id: "b", x: 2, y: 4, axis: "h", color: "sky", shape: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }] },
-      { id: "c", x: 4, y: 4, axis: "h", color: "lilac", shape: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }] },
-      { id: "d", x: 5, y: 1, axis: "v", color: "coral", shape: [{ x: 0, y: 0 }, { x: 0, y: 1 }] },
-      { id: "e", x: 1, y: 0, axis: "h", color: "lemon", shape: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }, { x: 1, y: 1 }] },
-      { id: "f", x: 1, y: 5, axis: "v", color: "aqua", shape: [{ x: 0, y: 0 }] }
-    ]
-  },
-  {
-    name: "Lorong Tipis",
-    blocks: [
-      { id: "orange", x: 1, y: 0, axis: "v", color: "orange", shape: [{ x: 0, y: 0 }, { x: 0, y: 1 }, { x: 0, y: 2 }, { x: 0, y: 3 }] },
-      { id: "a", x: 0, y: 2, axis: "v", color: "mint", shape: [{ x: 0, y: 0 }, { x: 0, y: 1 }, { x: 0, y: 2 }] },
-      { id: "b", x: 4, y: 1, axis: "v", color: "lilac", shape: [{ x: 0, y: 0 }, { x: 0, y: 1 }, { x: 0, y: 2 }] },
-      { id: "c", x: 2, y: 4, axis: "h", color: "coral", shape: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }] },
-      { id: "d", x: 3, y: 0, axis: "v", color: "aqua", shape: [{ x: 0, y: 0 }, { x: 0, y: 1 }, { x: 0, y: 2 }] },
-      { id: "e", x: 5, y: 0, axis: "v", color: "sky", shape: [{ x: 0, y: 0 }, { x: 0, y: 1 }, { x: 0, y: 2 }] },
-      { id: "f", x: 0, y: 5, axis: "h", color: "lemon", shape: [{ x: 0, y: 0 }, { x: 1, y: 0 }] }
-    ]
-  },
-  {
-    name: "Bertemu Bentuk",
-    blocks: [
-      { id: "orange", x: 0, y: 1, axis: "h", color: "orange", shape: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }, { x: 2, y: 1 }] },
-      { id: "a", x: 4, y: 3, axis: "v", color: "mint", shape: [{ x: 0, y: 0 }, { x: 0, y: 1 }, { x: 0, y: 2 }] },
-      { id: "b", x: 2, y: 3, axis: "h", color: "sky", shape: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: 2 }] },
-      { id: "c", x: 0, y: 4, axis: "h", color: "lilac", shape: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }] },
-      { id: "d", x: 5, y: 0, axis: "v", color: "coral", shape: [{ x: 0, y: 0 }, { x: 0, y: 1 }, { x: 0, y: 2 }] },
-      { id: "e", x: 0, y: 2, axis: "h", color: "lemon", shape: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }] },
-      { id: "f", x: 3, y: 0, axis: "v", color: "aqua", shape: [{ x: 0, y: 0 }, { x: 0, y: 1 }] }
-    ]
-  },
-  {
-    name: "Peta Ruwet",
-    blocks: [
-      { id: "orange", x: 0, y: 0, axis: "h", color: "orange", shape: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }] },
-      { id: "a", x: 5, y: 0, axis: "v", color: "mint", shape: [{ x: 0, y: 0 }, { x: 0, y: 1 }] },
-      { id: "b", x: 2, y: 2, axis: "h", color: "sky", shape: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 1 }] },
-      { id: "c", x: 0, y: 4, axis: "h", color: "lilac", shape: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 1 }] },
-      { id: "d", x: 5, y: 3, axis: "v", color: "coral", shape: [{ x: 0, y: 0 }, { x: 0, y: 1 }, { x: 0, y: 2 }] },
-      { id: "e", x: 3, y: 5, axis: "h", color: "lemon", shape: [{ x: 0, y: 0 }, { x: 1, y: 0 }] },
-      { id: "f", x: 0, y: 3, axis: "h", color: "aqua", shape: [{ x: 0, y: 0 }, { x: 1, y: 0 }] }
-    ]
+const palette = ["orange", "mint", "sky", "lilac", "coral", "aqua", "lemon"];
+
+type PairCandidate = {
+  x: number;
+  y: number;
+  axis: Axis;
+  shape: Cell[];
+};
+
+function makeRng(seed: number) {
+  return function random() {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+}
+
+function colorFor(index: number) {
+  return palette[index % palette.length];
+}
+
+function collectSingles(occupied: boolean[][]) {
+  const cells: Cell[] = [];
+  for (let y = 0; y < SIZE; y++) {
+    for (let x = 0; x < SIZE; x++) {
+      if (!occupied[y][x]) cells.push({ x, y });
+    }
   }
-];
+  return cells;
+}
+
+function collectPairs(occupied: boolean[][]) {
+  const pairs: PairCandidate[] = [];
+  for (let y = 0; y < SIZE; y++) {
+    for (let x = 0; x < SIZE; x++) {
+      if (!occupied[y][x] && x + 1 < SIZE && !occupied[y][x + 1]) {
+        pairs.push({ x, y, axis: "h", shape: [{ x: 0, y: 0 }, { x: 1, y: 0 }] });
+      }
+      if (!occupied[y][x] && y + 1 < SIZE && !occupied[y + 1][x]) {
+        pairs.push({ x, y, axis: "v", shape: [{ x: 0, y: 0 }, { x: 0, y: 1 }] });
+      }
+    }
+  }
+  return pairs;
+}
+
+function markOccupancy(occupied: boolean[][], cells: Cell[]) {
+  for (const cell of cells) {
+    if (cell.x < 0 || cell.x >= SIZE || cell.y < 0 || cell.y >= SIZE) return false;
+    if (occupied[cell.y][cell.x]) return false;
+  }
+  for (const cell of cells) {
+    occupied[cell.y][cell.x] = true;
+  }
+  return true;
+}
+
+function makeTruckLevel(levelIndex: number, pieceCount: number): Level {
+  const rng = makeRng(12_345 + levelIndex * 97 + pieceCount * 17);
+  const occupied = Array.from({ length: SIZE }, () => Array(SIZE).fill(false));
+  const blocks: Block[] = [];
+
+  const pairProbability = Math.min(0.75, 0.38 + levelIndex * 0.025);
+  let pairCount = 0;
+  let singleCount = 0;
+
+  for (let i = 0; i < pieceCount; i++) {
+    let placed = false;
+    const preferPair = rng() < pairProbability;
+
+    if (preferPair) {
+      const candidates = collectPairs(occupied);
+      if (candidates.length > 0) {
+        const pick = candidates[Math.floor(rng() * candidates.length)];
+        const ok = markOccupancy(
+          occupied,
+          pick.shape.map((cell) => ({ x: pick.x + cell.x, y: pick.y + cell.y }))
+        );
+        if (ok) {
+          blocks.push({
+            id: `lvl-${levelIndex}-truck-${i}`,
+            x: pick.x,
+            y: pick.y,
+            axis: pick.axis,
+          color: colorFor(i),
+          shape: pick.shape
+        });
+          pairCount += 1;
+          placed = true;
+        }
+      }
+    }
+
+    if (placed) continue;
+
+    const singles = collectSingles(occupied);
+    if (singles.length === 0) break;
+    const pick = singles[Math.floor(rng() * singles.length)];
+    occupied[pick.y][pick.x] = true;
+    blocks.push({
+      id: `lvl-${levelIndex}-truck-${i}`,
+      x: pick.x,
+      y: pick.y,
+      axis: rng() < 0.5 ? "h" : "v",
+      color: colorFor(i + 3),
+      shape: [{ x: 0, y: 0 }]
+    });
+    singleCount += 1;
+  }
+
+  // Make sure each level tetap terasa seperti campuran truck: ada yang non-gandeng dan ada yang gandeng.
+  if (pairCount === 0 && singleCount >= 2) {
+    const fallback: PairCandidate[] = collectPairs(occupied);
+    if (fallback.length > 0) {
+      const pick = fallback[0];
+      const merged = markOccupancy(
+        occupied,
+        pick.shape.map((cell) => ({ x: pick.x + cell.x, y: pick.y + cell.y }))
+      );
+      if (merged) {
+        if (singleCount > 0 && blocks.length > 0) {
+          const removed = blocks.shift();
+          if (removed) {
+            for (const c of getCells(removed)) {
+              occupied[c.y][c.x] = false;
+            }
+            singleCount -= 1;
+          }
+        }
+        blocks.push({
+          id: `lvl-${levelIndex}-truck-pair`,
+          x: pick.x,
+          y: pick.y,
+          axis: pick.axis,
+          color: colorFor(blocks.length),
+          shape: pick.shape
+        });
+        pairCount += 1;
+      }
+    }
+  }
+
+  if (singleCount === 0 && pairCount >= 1 && blocks.length >= 2) {
+    const lone = blocks.pop();
+    if (lone) {
+      for (const c of getCells(lone)) {
+        occupied[c.y][c.x] = false;
+      }
+      pairCount -= 1;
+
+      const singles = collectSingles(occupied);
+      if (!singles.length) return { name: `Truck Campuran #${levelIndex} — ${pieceCount} mobil`, blocks };
+
+      const pick = singles[0];
+      blocks.push({
+        id: `lvl-${levelIndex}-truck-single-${blocks.length}`,
+        x: pick.x,
+        y: pick.y,
+        axis: "h",
+        color: colorFor(blocks.length + 1),
+        shape: [{ x: 0, y: 0 }]
+      });
+      occupied[pick.y][pick.x] = true;
+      singleCount += 1;
+    }
+  }
+
+  return {
+    name: `Truck Campuran #${levelIndex} — ${pieceCount} mobil`,
+    blocks
+  };
+}
+
+const levels: Level[] = Array.from({ length: 13 }, (_, idx) => makeTruckLevel(idx + 1, idx + 8));
 
 function cloneBlocks(items: Block[]) {
   return items.map((block) => ({ ...block, shape: block.shape.map((cell) => ({ ...cell })) }));
@@ -372,7 +495,7 @@ export default function Home() {
             <div className="mini-block"><span /></div>
             <span className="modal-kicker">CARA BERMAIN</span>
             <h2 id="help-title">Keluarkan semua balok dari ruangan</h2>
-            <p>Tarik balok ke arah panahnya. Seluruh balok bisa lurus, ada juga bentuk L/T, tapi tetap tidak boleh diputar.</p>
+            <p>Gerakkan truck container ke arah panahnya saja. Bentuk yang dipakai hanya kontainer tunggal (1 mobil) dan gandeng (2 mobil), tidak ada rotasi.</p>
             <p>Jika seluruh posisi gerak berikutnya keluar papan, balok langsung hilang. Level selesai saat tidak ada balok tersisa.</p>
             <p>Skor terbaik ditentukan dari waktu tercepat.</p>
             <div className="rule"><b>↔</b><span><strong>Axis horizontal</strong><small>dorong kiri atau kanan</small></span></div>
