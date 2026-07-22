@@ -1,542 +1,253 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-type Axis = "h" | "v";
 type Cell = { x: number; y: number };
-type Block = {
-  id: string;
-  x: number;
-  y: number;
-  axis: Axis;
-  color: string;
-  shape: Cell[];
-};
-type Level = { name: string; blocks: Block[] };
+type Car = { id: string; pathIndex: number; color: string };
+type Level = { name: string; route: Cell[]; cars: Car[]; exit: "top" | "right" | "bottom" | "left" };
 
-const SIZE = 6;
+const GRID = 7;
+const COLORS = ["red", "blue", "yellow", "mint", "purple", "orange", "pink"];
 
-const palette = ["orange", "mint", "sky", "lilac", "coral", "aqua", "lemon"];
-
-type PairCandidate = {
-  x: number;
-  y: number;
-  axis: Axis;
-  shape: Cell[];
-};
-
-function makeRng(seed: number) {
-  return function random() {
-    seed = (seed * 1664525 + 1013904223) >>> 0;
-    return seed / 4294967296;
-  };
+function horizontalMaze(): Cell[] {
+  const route: Cell[] = [];
+  const rows = [6, 4, 2, 0];
+  rows.forEach((y, row) => {
+    const forward = row % 2 === 0;
+    for (let step = 0; step < GRID; step++) route.push({ x: forward ? step : GRID - 1 - step, y });
+    if (row < rows.length - 1) {
+      const edge = forward ? GRID - 1 : 0;
+      route.push({ x: edge, y: y - 1 });
+    }
+  });
+  return route;
 }
 
-function colorFor(index: number) {
-  return palette[index % palette.length];
+function verticalMaze(): Cell[] {
+  const route: Cell[] = [];
+  const columns = [0, 2, 4, 6];
+  columns.forEach((x, column) => {
+    const upward = column % 2 === 0;
+    for (let step = 0; step < GRID; step++) route.push({ x, y: upward ? GRID - 1 - step : step });
+    if (column < columns.length - 1) route.push({ x: x + 1, y: upward ? 0 : GRID - 1 });
+  });
+  return route;
 }
 
-function collectSingles(occupied: boolean[][]) {
-  const cells: Cell[] = [];
-  for (let y = 0; y < SIZE; y++) {
-    for (let x = 0; x < SIZE; x++) {
-      if (!occupied[y][x]) cells.push({ x, y });
+function spiralMaze(): Cell[] {
+  const route: Cell[] = [];
+  let left = 0, right = GRID - 1, top = 0, bottom = GRID - 1;
+  while (left <= right && top <= bottom) {
+    for (let x = left; x <= right; x++) route.push({ x, y: top });
+    top++;
+    for (let y = top; y <= bottom; y++) route.push({ x: right, y });
+    right--;
+    if (top <= bottom) {
+      for (let x = right; x >= left; x--) route.push({ x, y: bottom });
+      bottom--;
+    }
+    if (left <= right) {
+      for (let y = bottom; y >= top; y--) route.push({ x: left, y });
+      left++;
     }
   }
-  return cells;
+  return route.reverse();
 }
 
-function collectPairs(occupied: boolean[][]) {
-  const pairs: PairCandidate[] = [];
-  for (let y = 0; y < SIZE; y++) {
-    for (let x = 0; x < SIZE; x++) {
-      if (!occupied[y][x] && x + 1 < SIZE && !occupied[y][x + 1]) {
-        pairs.push({ x, y, axis: "h", shape: [{ x: 0, y: 0 }, { x: 1, y: 0 }] });
-      }
-      if (!occupied[y][x] && y + 1 < SIZE && !occupied[y + 1][x]) {
-        pairs.push({ x, y, axis: "v", shape: [{ x: 0, y: 0 }, { x: 0, y: 1 }] });
-      }
-    }
-  }
-  return pairs;
-}
-
-function markOccupancy(occupied: boolean[][], cells: Cell[]) {
-  for (const cell of cells) {
-    if (cell.x < 0 || cell.x >= SIZE || cell.y < 0 || cell.y >= SIZE) return false;
-    if (occupied[cell.y][cell.x]) return false;
-  }
-  for (const cell of cells) {
-    occupied[cell.y][cell.x] = true;
-  }
-  return true;
-}
-
-function makeTruckLevel(levelIndex: number, pieceCount: number): Level {
-  const rng = makeRng(12_345 + levelIndex * 97 + pieceCount * 17);
-  const occupied = Array.from({ length: SIZE }, () => Array(SIZE).fill(false));
-  const blocks: Block[] = [];
-
-  const pairProbability = Math.min(0.75, 0.38 + levelIndex * 0.025);
-  let pairCount = 0;
-  let singleCount = 0;
-
-  for (let i = 0; i < pieceCount; i++) {
-    let placed = false;
-    const preferPair = rng() < pairProbability;
-
-    if (preferPair) {
-      const candidates = collectPairs(occupied);
-      if (candidates.length > 0) {
-        const pick = candidates[Math.floor(rng() * candidates.length)];
-        const ok = markOccupancy(
-          occupied,
-          pick.shape.map((cell) => ({ x: pick.x + cell.x, y: pick.y + cell.y }))
-        );
-        if (ok) {
-          blocks.push({
-            id: `lvl-${levelIndex}-truck-${i}`,
-            x: pick.x,
-            y: pick.y,
-            axis: pick.axis,
-          color: colorFor(i),
-          shape: pick.shape
-        });
-          pairCount += 1;
-          placed = true;
-        }
-      }
-    }
-
-    if (placed) continue;
-
-    const singles = collectSingles(occupied);
-    if (singles.length === 0) break;
-    const pick = singles[Math.floor(rng() * singles.length)];
-    occupied[pick.y][pick.x] = true;
-    blocks.push({
-      id: `lvl-${levelIndex}-truck-${i}`,
-      x: pick.x,
-      y: pick.y,
-      axis: rng() < 0.5 ? "h" : "v",
-      color: colorFor(i + 3),
-      shape: [{ x: 0, y: 0 }]
-    });
-    singleCount += 1;
-  }
-
-  // Make sure each level tetap terasa seperti campuran truck: ada yang non-gandeng dan ada yang gandeng.
-  if (pairCount === 0 && singleCount >= 2) {
-    const fallback: PairCandidate[] = collectPairs(occupied);
-    if (fallback.length > 0) {
-      const pick = fallback[0];
-      const merged = markOccupancy(
-        occupied,
-        pick.shape.map((cell) => ({ x: pick.x + cell.x, y: pick.y + cell.y }))
-      );
-      if (merged) {
-        if (singleCount > 0 && blocks.length > 0) {
-          const removed = blocks.shift();
-          if (removed) {
-            for (const c of getCells(removed)) {
-              occupied[c.y][c.x] = false;
-            }
-            singleCount -= 1;
-          }
-        }
-        blocks.push({
-          id: `lvl-${levelIndex}-truck-pair`,
-          x: pick.x,
-          y: pick.y,
-          axis: pick.axis,
-          color: colorFor(blocks.length),
-          shape: pick.shape
-        });
-        pairCount += 1;
-      }
-    }
-  }
-
-  if (singleCount === 0 && pairCount >= 1 && blocks.length >= 2) {
-    const lone = blocks.pop();
-    if (lone) {
-      for (const c of getCells(lone)) {
-        occupied[c.y][c.x] = false;
-      }
-      pairCount -= 1;
-
-      const singles = collectSingles(occupied);
-      if (!singles.length) return { name: `Truck Campuran #${levelIndex} — ${pieceCount} mobil`, blocks };
-
-      const pick = singles[0];
-      blocks.push({
-        id: `lvl-${levelIndex}-truck-single-${blocks.length}`,
-        x: pick.x,
-        y: pick.y,
-        axis: "h",
-        color: colorFor(blocks.length + 1),
-        shape: [{ x: 0, y: 0 }]
-      });
-      occupied[pick.y][pick.x] = true;
-      singleCount += 1;
-    }
-  }
-
+function createLevel(index: number, count: number): Level {
+  const variant = index % 3;
+  const route = variant === 1 ? horizontalMaze() : variant === 2 ? verticalMaze() : spiralMaze();
+  const usable = Math.max(count, route.length - 3);
+  const chosen = new Set<number>();
+  for (let i = 0; i < count; i++) chosen.add(Math.floor((i * usable) / count));
+  let cursor = 0;
+  while (chosen.size < count) chosen.add(cursor++);
+  const positions = [...chosen].sort((a, b) => a - b).slice(0, count);
+  const cars = positions.map((pathIndex, car) => ({ id: `level-${index}-car-${car}`, pathIndex, color: COLORS[(car + index) % COLORS.length] }));
   return {
-    name: `Truck Campuran #${levelIndex} — ${pieceCount} mobil`,
-    blocks
+    name: variant === 1 ? `Lorong Zigzag — ${count} mobil` : variant === 2 ? `Lorong Berliku — ${count} mobil` : `Parkiran Spiral — ${count} mobil`,
+    route,
+    cars,
+    exit: variant === 1 ? "left" : variant === 2 ? "bottom" : "top"
   };
 }
 
-const levels: Level[] = Array.from({ length: 13 }, (_, idx) => makeTruckLevel(idx + 1, idx + 8));
+const LEVELS = Array.from({ length: 13 }, (_, index) => createLevel(index + 1, index + 8));
 
-function cloneBlocks(items: Block[]) {
-  return items.map((block) => ({ ...block, shape: block.shape.map((cell) => ({ ...cell })) }));
+function cloneCars(cars: Car[]) { return cars.map((car) => ({ ...car })); }
+function key(cell: Cell) { return `${cell.x},${cell.y}`; }
+function direction(from: Cell, to: Cell) {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? 0 : 180;
+  return dy > 0 ? 90 : 270;
 }
-
-function getCells(block: Block) {
-  return block.shape.map((cell) => ({ x: block.x + cell.x, y: block.y + cell.y }));
-}
-
-function bounds(block: Block) {
-  let maxX = 0;
-  let maxY = 0;
-  block.shape.forEach((cell) => {
-    if (cell.x > maxX) maxX = cell.x;
-    if (cell.y > maxY) maxY = cell.y;
-  });
-  return { w: maxX + 1, h: maxY + 1 };
-}
-
-function isInside(cell: Cell) {
-  return cell.x >= 0 && cell.x < SIZE && cell.y >= 0 && cell.y < SIZE;
-}
-
-function makeCellKey(cell: Cell) {
-  return `${cell.x},${cell.y}`;
-}
-
+function exitAngle(exit: Level["exit"]) { return exit === "right" ? 0 : exit === "bottom" ? 90 : exit === "left" ? 180 : 270; }
 function formatTime(ms: number) {
-  const totalSeconds = Math.floor(ms / 1000);
-  const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
-  const seconds = String(totalSeconds % 60).padStart(2, "0");
-  const millis = String(Math.floor((ms % 1000) / 100));
-  return `${minutes}:${seconds}.${millis}`;
+  const seconds = Math.floor(ms / 1000);
+  return `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}.${Math.floor((ms % 1000) / 100)}`;
 }
-
-function bestLabel(ms: number) {
-  return Number.isFinite(ms) ? formatTime(ms) : "—";
-}
-
-function equalState(before: Block[], after: Block[]) {
-  if (before.length !== after.length) return false;
-  const map = new Map(before.map((b) => [b.id, b]));
-  return after.every((b) => {
-    const prev = map.get(b.id);
-    return prev?.x === b.x && prev?.y === b.y;
-  });
-}
+function bestLabel(value: number) { return Number.isFinite(value) ? formatTime(value) : "—"; }
 
 export default function Home() {
   const [levelIndex, setLevelIndex] = useState(0);
-  const [blocks, setBlocks] = useState(() => cloneBlocks(levels[0].blocks));
+  const [cars, setCars] = useState(() => cloneCars(LEVELS[0].cars));
   const [moves, setMoves] = useState(0);
-  const [history, setHistory] = useState<Block[][]>([]);
+  const [history, setHistory] = useState<Car[][]>([]);
   const [won, setWon] = useState(false);
   const [showHelp, setShowHelp] = useState(true);
-  const [hintId, setHintId] = useState<string | null>(null);
+  const [blockedId, setBlockedId] = useState<string | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
-  const [bestTimes, setBestTimes] = useState<number[]>(() => levels.map(() => Number.POSITIVE_INFINITY));
-  const boardRef = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ id: string; start: number; lastStep: number; initial: Block[] } | null>(null);
-  const levelStart = useRef<number>(0);
+  const [bestTimes, setBestTimes] = useState<number[]>(() => LEVELS.map(() => Number.POSITIVE_INFINITY));
+  const levelStart = useRef(0);
+
+  const level = LEVELS[levelIndex];
+  const routeSet = useMemo(() => new Set(level.route.map(key)), [level]);
 
   useEffect(() => {
-    const raw = localStorage.getItem("dorong-best-times");
-    if (!raw) return;
-    try {
+    const raw = localStorage.getItem("sedan-parking-best");
+    if (raw) try {
       const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) return;
-      setBestTimes((prev) => prev.map((item, idx) => (Number.isFinite(parsed[idx]) ? parsed[idx] : item)));
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  useEffect(() => {
-    const seen = localStorage.getItem("dorong-seen");
-    if (seen) setShowHelp(false);
+      if (Array.isArray(parsed)) setBestTimes((old) => old.map((value, i) => Number.isFinite(parsed[i]) ? parsed[i] : value));
+    } catch { /* ignore */ }
+    if (localStorage.getItem("sedan-parking-seen")) setShowHelp(false);
   }, []);
 
   useEffect(() => {
     if (won) return;
     levelStart.current = performance.now();
     setElapsedMs(0);
-    const timer = window.setInterval(() => {
-      setElapsedMs(Math.floor(performance.now() - levelStart.current));
-    }, 100);
+    const timer = window.setInterval(() => setElapsedMs(Math.floor(performance.now() - levelStart.current)), 100);
     return () => window.clearInterval(timer);
   }, [levelIndex, won]);
 
   useEffect(() => {
-    if (won) return;
-    if (blocks.length !== 0) return;
+    if (won || cars.length) return;
     setWon(true);
-    setHistory([]);
-    setBestTimes((prev) => {
-      const current = prev[levelIndex];
-      if (elapsedMs >= current) return prev;
-      const next = [...prev];
+    setBestTimes((old) => {
+      if (elapsedMs >= old[levelIndex]) return old;
+      const next = [...old];
       next[levelIndex] = elapsedMs;
-      try {
-        localStorage.setItem("dorong-best-times", JSON.stringify(next));
-      } catch {
-        // ignore
-      }
+      localStorage.setItem("sedan-parking-best", JSON.stringify(next));
       return next;
     });
-  }, [blocks.length, won, elapsedMs, levelIndex]);
-
-  const level = levels[levelIndex];
+  }, [cars.length, elapsedMs, levelIndex, won]);
 
   function loadLevel(index: number) {
-    const next = (index + levels.length) % levels.length;
+    const next = (index + LEVELS.length) % LEVELS.length;
     setLevelIndex(next);
-    setBlocks(cloneBlocks(levels[next].blocks));
+    setCars(cloneCars(LEVELS[next].cars));
     setMoves(0);
     setHistory([]);
     setWon(false);
-    setHintId(null);
-    levelStart.current = performance.now();
-    setElapsedMs(0);
+    setBlockedId(null);
   }
 
-  function pushStep(item: Block, state: Block[], direction: number) {
-    const deltaX = item.axis === "h" ? direction : 0;
-    const deltaY = item.axis === "v" ? direction : 0;
-    const nextCells = getCells(item).map((cell) => ({ x: cell.x + deltaX, y: cell.y + deltaY }));
-    const willExit = nextCells.some((cell) => !isInside(cell));
-
-    if (willExit) {
-      return { next: state.filter((block) => block.id !== item.id), moved: true };
-    }
-
-    const occupancy = new Set<string>();
-    for (const block of state) {
-      if (block.id === item.id) continue;
-      for (const cell of getCells(block)) {
-        occupancy.add(makeCellKey(cell));
-      }
-    }
-
-    const blocked = nextCells.some((cell) => occupancy.has(makeCellKey(cell)));
-    if (blocked) return { next: state, moved: false };
-
-    return {
-      next: state.map((block) =>
-        block.id === item.id ? { ...block, x: block.x + deltaX, y: block.y + deltaY } : block
-      ),
-      moved: true
-    };
-  }
-
-  function moveFromInitial(id: string, requested: number, initial: Block[]) {
-    if (requested === 0) return initial;
-    const direction = Math.sign(requested);
-    if (direction === 0) return initial;
-
-    let changed = false;
-    let working = cloneBlocks(initial);
-
-    for (let i = 0; i < Math.abs(requested); i++) {
-      const current = working.find((block) => block.id === id);
-      if (!current) {
-        changed = true;
-        break;
-      }
-      const attempt = pushStep(current, working, direction);
-      if (!attempt.moved) break;
-      changed = true;
-      working = attempt.next;
-      if (!working.some((block) => block.id === id)) {
-        break;
-      }
-    }
-
-    return changed ? working : initial;
-  }
-
-  function pointerDown(event: React.PointerEvent, item: Block) {
+  function advanceCar(id: string) {
     if (won) return;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    const start = item.axis === "h" ? event.clientX : event.clientY;
-    drag.current = { id: item.id, start, lastStep: 0, initial: cloneBlocks(blocks) };
-    setHintId(item.id);
-  }
-
-  function pointerMove(event: React.PointerEvent, item: Block) {
-    if (!drag.current || drag.current.id !== item.id || !boardRef.current) return;
-    const current = item.axis === "h" ? event.clientX : event.clientY;
-    const cell = boardRef.current.clientWidth / SIZE;
-    const step = Math.round((current - drag.current.start) / cell);
-    if (step === drag.current.lastStep) return;
-    drag.current.lastStep = step;
-    setBlocks(moveFromInitial(item.id, step, drag.current.initial));
-  }
-
-  function pointerUp() {
-    if (!drag.current) return;
-    const before = drag.current.initial;
-    const changed = !equalState(before, blocks);
-    if (changed) {
-      setHistory((old) => [...old, before]);
-      setMoves((count) => count + 1);
+    const car = cars.find((item) => item.id === id);
+    if (!car) return;
+    const nextIndex = car.pathIndex + 1;
+    const occupied = new Set(cars.filter((item) => item.id !== id).map((item) => item.pathIndex));
+    if (nextIndex < level.route.length && occupied.has(nextIndex)) {
+      setBlockedId(id);
+      window.setTimeout(() => setBlockedId(null), 320);
+      return;
     }
-    drag.current = null;
-    setHintId(null);
+    setHistory((old) => [...old, cloneCars(cars)]);
+    setMoves((value) => value + 1);
+    if (nextIndex >= level.route.length) setCars((old) => old.filter((item) => item.id !== id));
+    else setCars((old) => old.map((item) => item.id === id ? { ...item, pathIndex: nextIndex } : item));
   }
 
   function undo() {
     const previous = history.at(-1);
     if (!previous) return;
-    setBlocks(cloneBlocks(previous));
+    setCars(cloneCars(previous));
     setHistory((old) => old.slice(0, -1));
-    setMoves((count) => Math.max(0, count - 1));
+    setMoves((value) => Math.max(0, value - 1));
   }
 
   function closeHelp() {
-    localStorage.setItem("dorong-seen", "1");
+    localStorage.setItem("sedan-parking-seen", "1");
     setShowHelp(false);
   }
 
-  const isCleared = blocks.length === 0;
-  const isLastLevel = levelIndex === levels.length - 1;
-  const nextLevel = isLastLevel ? 0 : levelIndex + 1;
+  const finalCell = level.route[level.route.length - 1];
+  const isLast = levelIndex === LEVELS.length - 1;
 
   return (
     <main className="app-shell">
-      <section className="game-card" aria-label="Game puzzle Dorong">
+      <section className="game-card" aria-label="Game parkiran mobil sedan">
         <header className="topbar">
-          <div>
-            <span className="eyebrow">PUZZLE TRUCK</span>
-            <h1>DORONG<span>.</span></h1>
-          </div>
-          <div className="header-actions">
-            <button className="icon-btn" onClick={() => setShowHelp(true)} aria-label="Buka petunjuk">?</button>
-          </div>
+          <div><span className="eyebrow">ONE WAY PARKING</span><h1>KELUAR<span>.</span></h1></div>
+          <button className="icon-btn" onClick={() => setShowHelp(true)} aria-label="Buka petunjuk">?</button>
         </header>
 
         <div className="level-row">
           <button className="level-nav" onClick={() => loadLevel(levelIndex - 1)} aria-label="Level sebelumnya">‹</button>
-          <div className="level-title">
-            <small>LEVEL {String(levelIndex + 1).padStart(2, "0")}</small>
-            <strong>{level.name}</strong>
-          </div>
+          <div className="level-title"><small>LEVEL {String(levelIndex + 1).padStart(2, "0")}</small><strong>{level.name}</strong></div>
           <button className="level-nav" onClick={() => loadLevel(levelIndex + 1)} aria-label="Level berikutnya">›</button>
         </div>
 
         <div className="stats">
           <div><span>LANGKAH</span><strong>{String(moves).padStart(2, "0")}</strong></div>
-          <div className="goal-pill">
-            <i />
-            <strong>{formatTime(elapsedMs)}</strong>
-            <small>WAKTU</small>
-          </div>
-          <div><span>BEST</span><strong>{bestLabel(bestTimes[levelIndex])}</strong></div>
+          <div className="goal-pill"><i /><strong>{formatTime(elapsedMs)}</strong><small>WAKTU</small></div>
+          <div><span>TERBAIK</span><strong>{bestLabel(bestTimes[levelIndex])}</strong></div>
         </div>
 
-        <div className="board-wrap">
-          <div className="board" ref={boardRef}>
-            <div className="grid-lines" />
-            {blocks.map((item) => {
-              const b = bounds(item);
-              const isHorizontal = item.axis === "h";
+        <div className={`parking-wrap exit-${level.exit}`}>
+          <div className="exit-sign" style={{ "--exit-x": finalCell.x, "--exit-y": finalCell.y } as React.CSSProperties}><b>EXIT</b><span>➜</span></div>
+          <div className="parking-board">
+            {Array.from({ length: GRID * GRID }, (_, index) => {
+              const cell = { x: index % GRID, y: Math.floor(index / GRID) };
+              return <span key={index} className={routeSet.has(key(cell)) ? "road-cell" : "island-cell"} style={{ "--x": cell.x, "--y": cell.y } as React.CSSProperties} />;
+            })}
+            {level.route.map((cell, index) => {
+              if (index % 3 !== 1) return null;
+              const next = level.route[index + 1];
+              const angle = next ? direction(cell, next) : exitAngle(level.exit);
+              return <i key={`arrow-${index}`} className="lane-arrow" style={{ "--x": cell.x, "--y": cell.y, "--rot": `${angle}deg` } as React.CSSProperties}>➜</i>;
+            })}
+            {cars.map((car) => {
+              const cell = level.route[car.pathIndex];
+              const next = level.route[car.pathIndex + 1];
+              const angle = next ? direction(cell, next) : exitAngle(level.exit);
               return (
-                <button
-                  key={item.id}
-                  className={`block ${item.color} truck-${item.axis} ${item.shape.length > 1 ? "truck-gandeng" : "truck-singkat"} ${hintId === item.id ? "active" : ""}`}
-                  style={{ "--x": item.x, "--y": item.y, "--w": b.w, "--h": b.h } as React.CSSProperties}
-                  onPointerDown={(e) => pointerDown(e, item)}
-                  onPointerMove={(e) => pointerMove(e, item)}
-                  onPointerUp={pointerUp}
-                  onPointerCancel={pointerUp}
-                  aria-label={`Truk kontainer ${item.shape.length > 1 ? "gandeng" : "singkat"}, dorong ${isHorizontal ? "kiri atau kanan" : "atas atau bawah"}`}
-                >
-                  {item.shape.map((cell, idx) => (
-                    <span
-                      key={idx}
-                      className={`block-cell ${item.color}`}
-                      style={{ "--cx": cell.x, "--cy": cell.y } as React.CSSProperties}
-                    />
-                  ))}
-                  <span className="truck-visual" aria-hidden="true">
-                    <span className="truck-container">
-                      <i className="container-rib rib-one" />
-                      <i className="container-rib rib-two" />
-                      <i className="container-door" />
-                    </span>
-                    <span className="truck-coupler" />
-                    <span className="truck-cab">
-                      <i className="windshield" />
-                      <i className="cab-line" />
-                      <i className="headlight light-one" />
-                      <i className="headlight light-two" />
-                    </span>
-                    <i className="wheel wheel-one" />
-                    <i className="wheel wheel-two" />
-                    <i className="wheel wheel-three" />
-                    <i className="wheel wheel-four" />
-                  </span>
+                <button key={car.id} className={`sedan ${car.color} ${blockedId === car.id ? "blocked" : ""}`} style={{ "--x": cell.x, "--y": cell.y, "--rot": `${angle}deg` } as React.CSSProperties} onClick={() => advanceCar(car.id)} aria-label={`Mobil sedan ${car.color}, maju mengikuti jalan`}>
+                  <span className="car-body"><i className="rear-glass" /><i className="roof" /><i className="front-glass" /><i className="lamp left" /><i className="lamp right" /></span>
+                  <i className="tire t1" /><i className="tire t2" /><i className="tire t3" /><i className="tire t4" />
                 </button>
               );
             })}
           </div>
         </div>
 
-        <p className="tip"><span>☝</span> Truk tidak diputar, hanya didorong searah panjangnya.</p>
-
+        <p className="tip"><span>☝</span> Ketuk mobil untuk maju. Mobil otomatis berbelok mengikuti jalan satu arah.</p>
         <div className="controls">
           <button onClick={undo} disabled={!history.length}><span>↶</span> Urungkan</button>
           <button className="reset" onClick={() => loadLevel(levelIndex)}><span>↻</span> Ulangi</button>
-          <button onClick={() => { setHintId("orange"); window.setTimeout(() => setHintId(null), 900); }}>
-            <span>✦</span> Petunjuk
-          </button>
+          <button onClick={() => setShowHelp(true)}><span>↱</span> Aturan</button>
         </div>
-
-        <footer><span>dorong.</span><small>Dorong, Kosongkan, Menangkan</small></footer>
+        <footer><span>keluar.</span><small>Satu jalan, satu pintu keluar</small></footer>
       </section>
 
-      {showHelp && (
-        <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="help-title">
-          <div className="modal">
-            <div className="mini-block"><span /></div>
-            <span className="modal-kicker">CARA BERMAIN</span>
-            <h2 id="help-title">Keluarkan semua balok dari ruangan</h2>
-            <p>Gerakkan truck container ke arah panahnya saja. Bentuk yang dipakai hanya kontainer tunggal (1 mobil) dan gandeng (2 mobil), tidak ada rotasi.</p>
-            <p>Jika seluruh posisi gerak berikutnya keluar papan, balok langsung hilang. Level selesai saat tidak ada balok tersisa.</p>
-            <p>Skor terbaik ditentukan dari waktu tercepat.</p>
-            <div className="rule"><b>↔</b><span><strong>Axis horizontal</strong><small>dorong kiri atau kanan</small></span></div>
-            <div className="rule"><b>↕</b><span><strong>Axis vertikal</strong><small>dorong atas atau bawah</small></span></div>
-            <button className="play-btn" onClick={closeHelp}>Mulai bermain <b>→</b></button>
-          </div>
-        </div>
-      )}
+      {showHelp && <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="help-title"><div className="modal">
+        <div className="mini-car"><i /></div><span className="modal-kicker">CARA BERMAIN</span>
+        <h2 id="help-title">Keluarkan semua sedan</h2>
+        <p>Setiap parkiran hanya memiliki satu pintu keluar. Ketuk mobil untuk maju satu petak pada jalur berliku.</p>
+        <p>Mobil bisa belok kiri atau kanan secara otomatis mengikuti panah satu arah, tetapi tidak dapat menabrak mobil di depannya.</p>
+        <div className="rule"><b>➜</b><span><strong>Ikuti panah</strong><small>jalan di dalam parkiran hanya satu arah</small></span></div>
+        <div className="rule"><b>🚗</b><span><strong>Dahulukan mobil depan</strong><small>buka jalan untuk mobil di belakang</small></span></div>
+        <button className="play-btn" onClick={closeHelp}>Mulai bermain <b>→</b></button>
+      </div></div>}
 
-      {won && isCleared && (
-        <div className="overlay win" role="dialog" aria-modal="true">
-          <div className="modal win-modal">
-            <div className="burst">✓</div>
-            <span className="modal-kicker">LEVEL SELESAI</span>
-            <h2>Tuntas!</h2>
-            <p>Semua balok keluar, waktu kamu {formatTime(elapsedMs)}.</p>
-            <p>Langkah: <strong>{moves}</strong>.</p>
-            <button className="play-btn" onClick={() => loadLevel(nextLevel)}>
-              {isLastLevel ? "Kembali ke level 1" : "Level berikutnya"} <b>→</b>
-            </button>
-            <button className="text-btn" onClick={() => loadLevel(levelIndex)}>Main lagi</button>
-          </div>
-        </div>
-      )}
+      {won && <div className="overlay win" role="dialog" aria-modal="true"><div className="modal win-modal">
+        <div className="burst">✓</div><span className="modal-kicker">PARKIRAN KOSONG</span><h2>Semua mobil keluar!</h2>
+        <p>Waktu {formatTime(elapsedMs)} dengan {moves} langkah.</p>
+        <button className="play-btn" onClick={() => loadLevel(isLast ? 0 : levelIndex + 1)}>{isLast ? "Kembali ke level 1" : "Level berikutnya"} <b>→</b></button>
+        <button className="text-btn" onClick={() => loadLevel(levelIndex)}>Main lagi</button>
+      </div></div>}
     </main>
   );
 }
