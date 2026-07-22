@@ -81,6 +81,22 @@ h1 span { color:var(--orange); }
 .vehicle .lamp{right:-1px;width:4px;height:5px;border-radius:2px;background:#fff2a4;box-shadow:0 0 4px #ffe466}.vehicle .l1{top:15%}.vehicle .l2{bottom:15%}
 .vehicle>.wheel{z-index:-1;width:7px;height:12px;border-radius:4px;background:#101a1e;border:1px solid #58686e}.vehicle>.w1{left:0;top:8px}.vehicle>.w2{left:0;bottom:8px}.vehicle>.w3{right:0;top:8px}.vehicle>.w4{right:0;bottom:8px}
 .vehicle small { position:absolute; z-index:4; inset:auto 18% 5px; overflow:hidden; color:#ffffffaa; font:900 6px Arial,sans-serif; letter-spacing:.05em; pointer-events:none; }
+.vehicle.sedan-car { left:calc(var(--x)*10% + 5px); top:calc(var(--y)*10% + 5px); width:calc(var(--w)*10% - 10px); height:calc(var(--h)*10% - 10px); }
+.sedan-car .vehicle-shell { inset:2px; border-radius:11px; background:linear-gradient(90deg,var(--dark),var(--car) 16% 84%,var(--dark)); }
+.sedan-car.direction-180 .front { left:12%; right:auto; border-radius:6px 2px 2px 6px; }
+.sedan-car.direction-180 .rear { right:12%; left:auto; border-radius:2px 6px 6px 2px; }
+.sedan-car.direction-180 .lamp { left:-1px; right:auto; }
+.sedan-car.vertical .vehicle-shell { background:linear-gradient(180deg,var(--dark),var(--car) 16% 84%,var(--dark)); }
+.sedan-car.vertical .roof { left:24%; right:24%; top:28%; bottom:28%; background:linear-gradient(180deg,#43616c,#a9d4da 45%,#43616c); }
+.sedan-car.vertical .front { left:20%; right:20%; top:auto; bottom:12%; width:auto; height:16%; border-radius:2px 2px 6px 6px; }
+.sedan-car.vertical .rear { left:20%; right:20%; top:12%; bottom:auto; width:auto; height:13%; border-radius:6px 6px 2px 2px; }
+.sedan-car.vertical .lamp { right:auto; bottom:-1px; width:5px; height:4px; }
+.sedan-car.vertical .l1 { left:15%; top:auto; }.sedan-car.vertical .l2 { left:auto; right:15%; top:auto; }
+.sedan-car.vertical>.wheel { width:12px; height:7px; }
+.sedan-car.vertical>.w1 { left:8px; top:0; }.sedan-car.vertical>.w2 { right:8px; left:auto; top:0; bottom:auto; }.sedan-car.vertical>.w3 { left:8px; right:auto; top:auto; bottom:0; }.sedan-car.vertical>.w4 { right:8px; top:auto; bottom:0; }
+.sedan-car.direction-270 .front { top:12%; bottom:auto; border-radius:6px 6px 2px 2px; }
+.sedan-car.direction-270 .rear { top:auto; bottom:12%; border-radius:2px 2px 6px 6px; }
+.sedan-car.direction-270 .lamp { top:-1px; bottom:auto; }
 .vehicle.selected{filter:brightness(1.2) drop-shadow(0 0 5px #ffe174);z-index:8}.vehicle:active{cursor:grabbing;transform:scale(.96)}
 .drive-controls { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:10px; }.drive-controls button{border:1px solid #142a3225;border-radius:11px;background:#ffffff66;padding:7px 2px;color:var(--ink);font-size:18px;font-weight:900}.drive-controls button:disabled{opacity:.3}.drive-controls small{display:block;font-size:7px}.drive-controls.blocked{animation:shake .28s ease}
 .tip { display:flex; align-items:center; justify-content:center; gap:7px; margin:9px 3px 11px; color:var(--muted); text-align:center; font-size:10px; font-weight:700; }
