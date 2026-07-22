@@ -40,18 +40,19 @@ const fmt=(ms:number)=>{const s=Math.floor(ms/1000);return`${String(Math.floor(s
 
 export default function Home(){
   const[level,setLevel]=useState(0),[pieces,setPieces]=useState(()=>clone(levels[0].pieces));
-  const[selected,setSelected]=useState<string|null>(null),[moves,setMoves]=useState(0),[history,setHistory]=useState<Piece[][]>([]),[won,setWon]=useState(false),[help,setHelp]=useState(true),[time,setTime]=useState(0),[blocked,setBlocked]=useState(false);
+  const[selected,setSelected]=useState<string|null>(null),[moves,setMoves]=useState(0),[history,setHistory]=useState<Piece[][]>([]),[won,setWon]=useState(false),[help,setHelp]=useState(true),[time,setTime]=useState(0),[blocked,setBlocked]=useState(false),[dragOffset,setDragOffset]=useState<{id:string;dx:number;dy:number}|null>(null);
   const started=useRef(0);const drag=useRef<{id:string;x:number;y:number}|null>(null);const data=levels[level];
   useEffect(()=>{if(localStorage.getItem("block-puzzle-seen"))setHelp(false)},[]);
   useEffect(()=>{if(won)return;started.current=performance.now();setTime(0);const t=setInterval(()=>setTime(performance.now()-started.current),100);return()=>clearInterval(t)},[level,won]);
   useEffect(()=>{if(!won&&pieces.length===0)setWon(true)},[pieces.length,won]);
-  function load(i:number){const n=(i+levels.length)%levels.length;setLevel(n);setPieces(clone(levels[n].pieces));setSelected(null);setMoves(0);setHistory([]);setWon(false)}
-  function dragStart(e:React.PointerEvent,id:string){e.currentTarget.setPointerCapture(e.pointerId);drag.current={id,x:e.clientX,y:e.clientY};setSelected(id)}
+  function load(i:number){const n=(i+levels.length)%levels.length;setLevel(n);setPieces(clone(levels[n].pieces));setSelected(null);setDragOffset(null);setMoves(0);setHistory([]);setWon(false)}
+  function dragStart(e:React.PointerEvent,id:string){e.currentTarget.setPointerCapture(e.pointerId);drag.current={id,x:e.clientX,y:e.clientY};setDragOffset({id,dx:0,dy:0});setSelected(id)}
+  function dragMove(e:React.PointerEvent){const start=drag.current;if(!start)return;const piece=pieces.find(p=>p.id===start.id);if(!piece)return;const horizontal=piece.dir===0||piece.dir===180;setDragOffset({id:start.id,dx:horizontal?e.clientX-start.x:0,dy:horizontal?0:e.clientY-start.y})}
   function fail(){setBlocked(true);setTimeout(()=>setBlocked(false),300)}
   function dragEnd(e:React.PointerEvent){
-    const start=drag.current;if(!start)return;drag.current=null;const dx=e.clientX-start.x,dy=e.clientY-start.y;if(Math.hypot(dx,dy)<16)return;
-    const desired:Direction=Math.abs(dx)>Math.abs(dy)?(dx>0?0:180):(dy>0?90:270);const piece=pieces.find(p=>p.id===start.id);if(!piece)return;
-    const horizontal=piece.dir===0||piece.dir===180;if((horizontal&&desired!==0&&desired!==180)||(!horizontal&&desired!==90&&desired!==270)){fail();return}
+    const start=drag.current;if(!start)return;drag.current=null;setDragOffset(null);const dx=e.clientX-start.x,dy=e.clientY-start.y;const piece=pieces.find(p=>p.id===start.id);if(!piece)return;
+    const horizontal=piece.dir===0||piece.dir===180,axisDistance=horizontal?dx:dy;if(Math.abs(axisDistance)<16)return;
+    const desired:Direction=horizontal?(axisDistance>0?0:180):(axisDistance>0?90:270);
     const d=vector(desired),occupied=new Set<string>();pieces.filter(p=>p.id!==piece.id).forEach(p=>cells(p).forEach(c=>occupied.add(`${c.x},${c.y}`)));
     let clear=true;for(const c of cells(piece)){let x=c.x+d.x,y=c.y+d.y;while(x>=0&&x<SIZE&&y>=0&&y<SIZE){if(occupied.has(`${x},${y}`)){clear=false;break}x+=d.x;y+=d.y}if(!clear)break}
     if(!clear){fail();return}setHistory(h=>[...h,clone(pieces)]);setPieces(old=>old.filter(p=>p.id!==piece.id));setMoves(m=>m+1);setSelected(null);
@@ -63,7 +64,7 @@ export default function Home(){
     <div className="level-row"><button className="level-nav" onClick={()=>load(level-1)}>‹</button><div className="level-title"><small>LEVEL {String(level+1).padStart(2,"0")}</small><strong>{data.name}</strong></div><button className="level-nav" onClick={()=>load(level+1)}>›</button></div>
     <div className="stats"><div><span>LANGKAH</span><strong>{String(moves).padStart(2,"0")}</strong></div><div className="goal-pill"><i/><strong>{fmt(time)}</strong><small>WAKTU</small></div><div><span>TERSISA</span><strong>{pieces.length}</strong></div></div>
     <div className="block-board">{Array.from({length:SIZE*SIZE},(_,i)=><i key={i} className="block-grid" style={{"--x":i%SIZE,"--y":Math.floor(i/SIZE)} as React.CSSProperties}/>)}
-      {pieces.flatMap(p=>{const own=cells(p);return own.map((c,index)=><button key={`${p.id}-${index}`} className={`block-cell ${edges(own,c)} ${p.shape==="L"?"shape-l":"shape-i"} ${p.color} ${selected===p.id?"selected":""}`} style={{"--x":c.x,"--y":c.y} as React.CSSProperties} onPointerDown={e=>dragStart(e,p.id)} onPointerUp={dragEnd} onPointerCancel={()=>{drag.current=null}} aria-label={`Balok ${p.shape}, geret lurus`}/>)})}
+      {pieces.flatMap(p=>{const own=cells(p),offset=dragOffset?.id===p.id?dragOffset:null;return own.map((c,index)=><button key={`${p.id}-${index}`} className={`block-cell ${edges(own,c)} ${p.shape==="L"?"shape-l":"shape-i"} ${p.color} ${selected===p.id?"selected":""} ${offset?"dragging":""}`} style={{"--x":c.x,"--y":c.y,"--drag-x":`${offset?.dx??0}px`,"--drag-y":`${offset?.dy??0}px`} as React.CSSProperties} onPointerDown={e=>dragStart(e,p.id)} onPointerMove={dragMove} onPointerUp={dragEnd} onPointerCancel={()=>{drag.current=null;setDragOffset(null)}} aria-label={`Balok ${p.shape}, geret lurus`}>{index===0&&<span className="block-mark">{p.shape}</span>}</button>)})}
     </div>
     <p className={`tip ${blocked?"blocked-tip":""}`}><span>☝</span>{current?`Balok ${current.shape} dipilih — tarik lurus pada sumbunya`:`Horizontal: kiri–kanan. Vertikal: atas–bawah.`}</p>
     <div className="controls"><button onClick={undo} disabled={!history.length}><span>↶</span>Urungkan</button><button className="reset" onClick={()=>load(level)}><span>↻</span>Ulangi</button><button onClick={()=>setHelp(true)}><span>?</span>Petunjuk</button></div>
