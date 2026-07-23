@@ -4,123 +4,1321 @@ import { onAuthStateChanged, signInWithPopup, type User } from "firebase/auth";
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db, googleProvider } from "./firebase";
 
-type Direction=0|90|180|270;
-type Shape="I"|"L"|"J"|"T"|"F"|"Z";
-type Theme="dark"|"midnight"|"forest"|"plum"|"sand"|"neon"|"ocean";
-type Piece={id:string;x:number;y:number;dir:Direction;shape:Shape;length:number;color:string};
-type Cell={x:number;y:number};
-type Result={score:number;stars:number;time:number};
-const COLS=28,ROWS=42;
-const TEST_ALL_LEVELS=true;
-const colors=["red","blue","yellow","mint","purple","orange","pink"];
-const shapes:Shape[]=["I","L","J","T","F","Z","L","T"];
-const themes:{id:Theme;name:string;premium?:boolean}[]=[{id:"dark",name:"Gelap"},{id:"midnight",name:"Midnight"},{id:"forest",name:"Forest"},{id:"plum",name:"Plum"},{id:"sand",name:"Sand"},{id:"neon",name:"Neon",premium:true},{id:"ocean",name:"Ocean",premium:true}];
-const ENERGY_MAX=5,ENERGY_REGEN_MS=25*60*1000,GRID_FREE_LEVELS=5;
-const guideSteps=[
-  {icon:"◎",title:"Kosongkan papan",text:"Tujuannya sederhana: keluarkan semua balok sampai tidak ada satu pun yang tersisa."},
-  {icon:"↔",title:"Geret lurus",text:"Balok horizontal hanya dapat digeret ke kiri atau kanan. Ikuti arah panjang balok."},
-  {icon:"↕",title:"Buka jalannya",text:"Balok vertikal hanya dapat digeret ke atas atau bawah. Keluarkan balok yang tidak terhalang lebih dahulu."},
-  {icon:"★",title:"Siap bermain!",text:"Pilih mode Santai atau Tantangan. Selesaikan lebih cepat dan gunakan sedikit petunjuk untuk mendapat 3 bintang."}
+type Direction = 0 | 90 | 180 | 270;
+type Shape = "I" | "L" | "J" | "T" | "F" | "Z";
+type Theme =
+  | "dark"
+  | "midnight"
+  | "forest"
+  | "plum"
+  | "sand"
+  | "neon"
+  | "ocean";
+type Piece = {
+  id: string;
+  x: number;
+  y: number;
+  dir: Direction;
+  shape: Shape;
+  length: number;
+  color: string;
+};
+type Cell = { x: number; y: number };
+type Result = { score: number; stars: number; time: number };
+const COLS = 28,
+  ROWS = 42;
+const TEST_ALL_LEVELS = true;
+const colors = ["red", "blue", "yellow", "mint", "purple", "orange", "pink"];
+const shapes: Shape[] = ["I", "L", "J", "T", "F", "Z", "L", "T"];
+const themes: { id: Theme; name: string; premium?: boolean }[] = [
+  { id: "dark", name: "Gelap" },
+  { id: "midnight", name: "Midnight" },
+  { id: "forest", name: "Forest" },
+  { id: "plum", name: "Plum" },
+  { id: "sand", name: "Sand" },
+  { id: "neon", name: "Neon", premium: true },
+  { id: "ocean", name: "Ocean", premium: true },
 ];
-const vector=(dir:Direction)=>dir===0?{x:1,y:0}:dir===90?{x:0,y:1}:dir===180?{x:-1,y:0}:{x:0,y:-1};
-const rotate=(x:number,y:number,dir:Direction):Cell=>dir===0?{x,y}:dir===90?{x:-y,y:x}:dir===180?{x:-x,y:-y}:{x:y,y:-x};
-const base=(shape:Shape,length:number):Cell[]=>{const line=Array.from({length},(_,x)=>({x,y:0})),mid=Math.max(1,Math.floor((length-1)/2));return shape==="I"?line
-  :shape==="L"?[...line,{x:length-1,y:1}]
-  :shape==="J"?[{x:0,y:1},...line]
-  :shape==="T"?[...line,{x:mid,y:1}]
-  :shape==="F"?[...line,{x:mid,y:1},{x:Math.min(length-1,mid+1),y:1}]
-  :[...line,{x:mid,y:-1},{x:Math.max(0,mid-1),y:1}]};
-const cells=(p:Piece)=>base(p.shape,p.length).map(c=>{const r=rotate(c.x,c.y,p.dir);return{x:p.x+r.x,y:p.y+r.y}});
-const edges=(own:Cell[],c:Cell)=>{const set=new Set(own.map(v=>`${v.x},${v.y}`));return[[0,-1,"top"],[1,0,"right"],[0,1,"bottom"],[-1,0,"left"]].filter(([dx,dy])=>!set.has(`${c.x+Number(dx)},${c.y+Number(dy)}`)).map(v=>`edge-${v[2]}`).join(" ")};
-const clone=(pieces:Piece[])=>pieces.map(p=>({...p}));
+const ENERGY_MAX = 5,
+  ENERGY_REGEN_MS = 25 * 60 * 1000,
+  GRID_FREE_LEVELS = 5;
+const guideSteps = [
+  {
+    icon: "◎",
+    title: "Kosongkan papan",
+    text: "Tujuannya sederhana: keluarkan semua balok sampai tidak ada satu pun yang tersisa.",
+  },
+  {
+    icon: "↔",
+    title: "Geret lurus",
+    text: "Balok horizontal hanya dapat digeret ke kiri atau kanan. Ikuti arah panjang balok.",
+  },
+  {
+    icon: "↕",
+    title: "Buka jalannya",
+    text: "Balok vertikal hanya dapat digeret ke atas atau bawah. Keluarkan balok yang tidak terhalang lebih dahulu.",
+  },
+  {
+    icon: "★",
+    title: "Siap bermain!",
+    text: "Pilih mode Santai atau Tantangan. Selesaikan lebih cepat dan gunakan sedikit petunjuk untuk mendapat 3 bintang.",
+  },
+];
+const vector = (dir: Direction) =>
+  dir === 0
+    ? { x: 1, y: 0 }
+    : dir === 90
+      ? { x: 0, y: 1 }
+      : dir === 180
+        ? { x: -1, y: 0 }
+        : { x: 0, y: -1 };
+const rotate = (x: number, y: number, dir: Direction): Cell =>
+  dir === 0
+    ? { x, y }
+    : dir === 90
+      ? { x: -y, y: x }
+      : dir === 180
+        ? { x: -x, y: -y }
+        : { x: y, y: -x };
+const base = (shape: Shape, length: number): Cell[] => {
+  const line = Array.from({ length }, (_, x) => ({ x, y: 0 })),
+    mid = Math.max(1, Math.floor((length - 1) / 2));
+  return shape === "I"
+    ? line
+    : shape === "L"
+      ? [...line, { x: length - 1, y: 1 }]
+      : shape === "J"
+        ? [{ x: 0, y: 1 }, ...line]
+        : shape === "T"
+          ? [...line, { x: mid, y: 1 }]
+          : shape === "F"
+            ? [
+                ...line,
+                { x: mid, y: 1 },
+                { x: Math.min(length - 1, mid + 1), y: 1 },
+              ]
+            : [...line, { x: mid, y: -1 }, { x: Math.max(0, mid - 1), y: 1 }];
+};
+const cells = (p: Piece) =>
+  base(p.shape, p.length).map((c) => {
+    const r = rotate(c.x, c.y, p.dir);
+    return { x: p.x + r.x, y: p.y + r.y };
+  });
+const edges = (own: Cell[], c: Cell) => {
+  const set = new Set(own.map((v) => `${v.x},${v.y}`));
+  return [
+    [0, -1, "top"],
+    [1, 0, "right"],
+    [0, 1, "bottom"],
+    [-1, 0, "left"],
+  ]
+    .filter(([dx, dy]) => !set.has(`${c.x + Number(dx)},${c.y + Number(dy)}`))
+    .map((v) => `edge-${v[2]}`)
+    .join(" ");
+};
+const clone = (pieces: Piece[]) => pieces.map((p) => ({ ...p }));
 
-function makeLevel(level:number,count:number){
-  let seed=5849+level*941;const rnd=()=>((seed=seed*1664525+1013904223>>>0)/4294967296);
-  let best:Piece[]=[];
-  for(let restart=0;restart<80&&best.length<count;restart++){
-    const pieces:Piece[]=[],used=new Set<string>();
-    for(let i=0;i<count;i++){
-      const shape=shapes[(i+level)%shapes.length],length=shape==="I"?2+(i+level)%6:3+(i*3+level)%5;let placed=false;
-      for(let attempt=0;attempt<700&&!placed;attempt++){
-        const x=Math.floor(rnd()*COLS),y=Math.floor(rnd()*ROWS),horizontal=rnd()>.5;
-        const dir:Direction=horizontal?(x<COLS/2?180:0):(y<ROWS/2?270:90);
-        const probe:Piece={id:`${level}-${i}`,x,y,dir,shape,length,color:colors[(i+level)%colors.length]};
-        const own=cells(probe);
-        if(own.some(c=>c.x<0||c.x>=COLS||c.y<0||c.y>=ROWS||used.has(`${c.x},${c.y}`)))continue;
-        own.forEach(c=>used.add(`${c.x},${c.y}`));pieces.push(probe);placed=true;
+function makeLevel(level: number, count: number) {
+  let seed = 5849 + level * 941;
+  const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+  let best: Piece[] = [];
+  for (let restart = 0; restart < 80 && best.length < count; restart++) {
+    const pieces: Piece[] = [],
+      used = new Set<string>();
+    for (let i = 0; i < count; i++) {
+      const shape = shapes[(i + level) % shapes.length],
+        length =
+          shape === "I" ? 2 + ((i + level) % 6) : 3 + ((i * 3 + level) % 5);
+      let placed = false;
+      for (let attempt = 0; attempt < 700 && !placed; attempt++) {
+        const x = Math.floor(rnd() * COLS),
+          y = Math.floor(rnd() * ROWS),
+          horizontal = rnd() > 0.5;
+        const dir: Direction = horizontal
+          ? x < COLS / 2
+            ? 180
+            : 0
+          : y < ROWS / 2
+            ? 270
+            : 90;
+        const probe: Piece = {
+          id: `${level}-${i}`,
+          x,
+          y,
+          dir,
+          shape,
+          length,
+          color: colors[(i + level) % colors.length],
+        };
+        const own = cells(probe);
+        if (
+          own.some(
+            (c) =>
+              c.x < 0 ||
+              c.x >= COLS ||
+              c.y < 0 ||
+              c.y >= ROWS ||
+              used.has(`${c.x},${c.y}`),
+          )
+        )
+          continue;
+        own.forEach((c) => used.add(`${c.x},${c.y}`));
+        pieces.push(probe);
+        placed = true;
       }
-      if(!placed)break;
+      if (!placed) break;
     }
-    if(pieces.length>best.length)best=pieces;
+    if (pieces.length > best.length) best = pieces;
   }
-  return{pieces:best};
+  return { pieces: best };
 }
-type World="darat"|"air"|"udara";
-const worldLevels:Record<World,ReturnType<typeof makeLevel>[]>={darat:Array.from({length:17},(_,i)=>makeLevel(i+4,8+Math.round((i+3)*92/19))),air:Array.from({length:17},(_,i)=>makeLevel(i+28,10+Math.round((i+4)*90/19))),udara:Array.from({length:17},(_,i)=>makeLevel(i+52,12+Math.round((i+5)*88/19)))};
-const fmt=(ms:number)=>{const s=Math.floor(ms/1000);return`${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`};
+type World = "darat" | "air" | "udara";
+const worldLevels: Record<World, ReturnType<typeof makeLevel>[]> = {
+  darat: Array.from({ length: 17 }, (_, i) =>
+    makeLevel(i + 4, 8 + Math.round(((i + 3) * 92) / 19)),
+  ),
+  air: Array.from({ length: 17 }, (_, i) =>
+    makeLevel(i + 28, 10 + Math.round(((i + 4) * 90) / 19)),
+  ),
+  udara: Array.from({ length: 17 }, (_, i) =>
+    makeLevel(i + 52, 12 + Math.round(((i + 5) * 88) / 19)),
+  ),
+};
+const fmt = (ms: number) => {
+  const s = Math.floor(ms / 1000);
+  return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+};
 
-export default function Home(){
-  const[world,setWorld]=useState<World>("darat"),levels=worldLevels[world],[level,setLevel]=useState(0),[pieces,setPieces]=useState(()=>clone(worldLevels.darat[0].pieces));
-  const[round,setRound]=useState(0);
-  const[selected,setSelected]=useState<string|null>(null),[moves,setMoves]=useState(0),[history,setHistory]=useState<Piece[][]>([]),[won,setWon]=useState(false),[help,setHelp]=useState(false),[entryOpen,setEntryOpen]=useState(true),[entryNote,setEntryNote]=useState<string|null>(null),[onboarding,setOnboarding]=useState(true),[guidePage,setGuidePage]=useState(0),[time,setTime]=useState(0),[paused,setPaused]=useState(false),[blocked,setBlocked]=useState(false),[showGrid,setShowGrid]=useState(true),[theme,setTheme]=useState<Theme>("dark"),[shopOpen,setShopOpen]=useState(false),[modeOpen,setModeOpen]=useState(false),[challengeMode,setChallengeMode]=useState(false),[timedOut,setTimedOut]=useState(false),[mistakes,setMistakes]=useState(0),[hintsUsed,setHintsUsed]=useState(0),[tokens,setTokens]=useState(3),[unlocked,setUnlocked]=useState(1),[bestStars,setBestStars]=useState<Record<number,number>>({}),[hintId,setHintId]=useState<string|null>(null),[result,setResult]=useState<Result|null>(null),[adLoading,setAdLoading]=useState(false),[noAds,setNoAds]=useState(false),[energy,setEnergy]=useState(ENERGY_MAX),[energyUpdatedAt,setEnergyUpdatedAt]=useState(Date.now()),[unlimitedUntil,setUnlimitedUntil]=useState(0),[themePack,setThemePack]=useState(false),[gridAssist,setGridAssist]=useState(false),[energyOpen,setEnergyOpen]=useState(false),[dragOffset,setDragOffset]=useState<{id:string;dx:number;dy:number}|null>(null),[exiting,setExiting]=useState<{piece:Piece;direction:Direction}[]>([]),[user,setUser]=useState<User|null>(null),[profileReady,setProfileReady]=useState(false);
-  const started=useRef(0),elapsedBeforePause=useRef(0),exitTimer=useRef<ReturnType<typeof setTimeout>|null>(null);const drag=useRef<{id:string;x:number;y:number}|null>(null);const parFor=(i:number)=>(20+levels[i].pieces.length*2.2)*1000;const challengeFor=(i:number)=>(45+levels[i].pieces.length*2.8)*1000;
-  useEffect(()=>{setEntryOpen(localStorage.getItem("block-entry-v1")!=="1");setOnboarding(localStorage.getItem("block-onboarding-v2")!=="1");if(localStorage.getItem("block-grid-visible")==="0")setShowGrid(false);const saved=localStorage.getItem("block-theme") as Theme|null;if(saved&&themes.some(t=>t.id===saved))setTheme(saved);setChallengeMode(localStorage.getItem("block-challenge-mode")==="1");setTokens(Number(localStorage.getItem("block-tokens")??3));let savedUnlocked=Number(localStorage.getItem("block-unlocked")??1),savedStars:Record<number,number>={};try{savedStars=JSON.parse(localStorage.getItem("block-stars")??"{}")}catch{}if(!localStorage.getItem("block-levels-trimmed-v1")){savedUnlocked=Math.max(1,savedUnlocked-3);savedStars=Object.fromEntries(Object.entries(savedStars).filter(([key])=>Number(key)>=3).map(([key,value])=>[Number(key)-3,value]));localStorage.setItem("block-unlocked",String(savedUnlocked));localStorage.setItem("block-stars",JSON.stringify(savedStars));localStorage.setItem("block-levels-trimmed-v1","1")}setUnlocked(Math.min(levels.length,Math.max(1,savedUnlocked)));setBestStars(savedStars);setNoAds(localStorage.getItem("block-no-ads")==="1");setGridAssist(localStorage.getItem("block-grid-assist")==="1")},[]);
-  useEffect(()=>onAuthStateChanged(auth,async current=>{setUser(current);if(!current){setProfileReady(false);return}try{const snapshot=await getDoc(doc(db,"users",current.uid));const data=snapshot.data();if(data){if(typeof data.unlocked==="number")setUnlocked(Math.min(levels.length,Math.max(1,data.unlocked)));if(data.bestStars&&typeof data.bestStars==="object")setBestStars(data.bestStars as Record<number,number>);if(typeof data.tokens==="number")setTokens(data.tokens);if(typeof data.theme==="string"&&themes.some(item=>item.id===data.theme))setTheme(data.theme as Theme);if(typeof data.themePack==="boolean")setThemePack(data.themePack);if(typeof data.gridAssist==="boolean")setGridAssist(data.gridAssist);if(typeof data.noAds==="boolean")setNoAds(data.noAds);if(typeof data.energy==="number")setEnergy(Math.max(0,Math.min(ENERGY_MAX,data.energy)));if(typeof data.energyUpdatedAt==="number")setEnergyUpdatedAt(data.energyUpdatedAt);if(typeof data.unlimitedUntil==="number")setUnlimitedUntil(data.unlimitedUntil)}}catch{setEntryNote("Data akun belum dapat disinkronkan. Periksa koneksi lalu coba lagi.")}finally{setProfileReady(true)}}),[]);
-  useEffect(()=>{if(!user||!profileReady)return;setDoc(doc(db,"users",user.uid),{displayName:user.displayName??"Pemain",email:user.email??null,unlocked,bestStars,tokens,theme,themePack,gridAssist,noAds,energy,energyUpdatedAt,unlimitedUntil,updatedAt:serverTimestamp()},{merge:true}).catch(()=>setEntryNote("Perubahan tersimpan di perangkat, namun sinkronisasi akun sedang tertunda."))},[user,profileReady,unlocked,bestStars,tokens,theme,themePack,gridAssist,noAds,energy,energyUpdatedAt,unlimitedUntil]);
-  useEffect(()=>{const button=document.querySelector<HTMLButtonElement>(".entry-btn.google");if(!button)return;const login=(event:MouseEvent)=>{event.stopPropagation();void signInWithGoogle()};button.addEventListener("click",login);return()=>button.removeEventListener("click",login)},[]);
-  useEffect(()=>{const now=Date.now(),savedEnergy=Math.max(0,Math.min(ENERGY_MAX,Number(localStorage.getItem("block-energy")??ENERGY_MAX))),savedAt=Number(localStorage.getItem("block-energy-at")??now),earned=Math.floor(Math.max(0,now-savedAt)/ENERGY_REGEN_MS),next=Math.min(ENERGY_MAX,savedEnergy+earned),nextAt=earned?savedAt+earned*ENERGY_REGEN_MS:savedAt;setEnergy(next);setEnergyUpdatedAt(nextAt);setUnlimitedUntil(Number(localStorage.getItem("block-unlimited-until")??0));setThemePack(localStorage.getItem("block-theme-pack")==="1");localStorage.setItem("block-energy",String(next));localStorage.setItem("block-energy-at",String(nextAt))},[]);
-  useEffect(()=>{const tick=()=>{const now=Date.now(),earned=Math.floor(Math.max(0,now-energyUpdatedAt)/ENERGY_REGEN_MS);if(earned>0&&energy<ENERGY_MAX){const next=Math.min(ENERGY_MAX,energy+earned),nextAt=energyUpdatedAt+earned*ENERGY_REGEN_MS;setEnergy(next);setEnergyUpdatedAt(nextAt);localStorage.setItem("block-energy",String(next));localStorage.setItem("block-energy-at",String(nextAt))}};const timer=setInterval(tick,30000);return()=>clearInterval(timer)},[energy,energyUpdatedAt]);
-  useEffect(()=>{if(won||timedOut||entryOpen||onboarding||paused)return;const base=elapsedBeforePause.current;started.current=performance.now();const limit=challengeFor(level);const t=setInterval(()=>{const elapsed=base+performance.now()-started.current;if(challengeMode&&elapsed>=limit){setTime(limit);setTimedOut(true);clearInterval(t);return}setTime(elapsed)},100);return()=>clearInterval(t)},[level,round,won,timedOut,challengeMode,entryOpen,onboarding,paused]);
-  useEffect(()=>{if(!won&&pieces.length===0&&exiting.length===0){const par=parFor(level),stars=time<=par&&hintsUsed===0&&mistakes<=2?3:time<=par*1.6?2:1,score=Math.max(100,Math.round(1000+Math.max(0,(par-time)/1000)*10-mistakes*25-hintsUsed*100));setResult({score,stars,time});setWon(true);const nextUnlocked=Math.min(levels.length,Math.max(unlocked,level+2));setUnlocked(nextUnlocked);localStorage.setItem("block-unlocked",String(nextUnlocked));setBestStars(old=>{const next={...old,[level]:Math.max(old[level]??0,stars)};localStorage.setItem("block-stars",JSON.stringify(next));return next})}},[pieces.length,exiting,won,time,hintsUsed,mistakes,level,unlocked]);
-  function chargeEnergy(){if(unlimitedUntil>Date.now())return true;if(energy<1){setEnergyOpen(true);return false}const next=energy-1,now=Date.now();setEnergy(next);setEnergyUpdatedAt(now);localStorage.setItem("block-energy",String(next));localStorage.setItem("block-energy-at",String(now));return true}
-  function load(i:number,spendEnergy=true,playChallenge=challengeMode){const n=Math.max(0,Math.min(i,levels.length-1)),saved=Number(localStorage.getItem("block-unlocked")??1),available=TEST_ALL_LEVELS?levels.length:Math.max(unlocked,Number.isFinite(saved)?saved:1);if(n+1>available)return;if(playChallenge&&spendEnergy&&!chargeEnergy())return;if(exitTimer.current)clearTimeout(exitTimer.current);exitTimer.current=null;setExiting([]);elapsedBeforePause.current=0;setLevel(n);setPieces(clone(levels[n].pieces));setSelected(null);setDragOffset(null);setMoves(0);setMistakes(0);setHintsUsed(0);setTime(0);setPaused(false);setResult(null);setHistory([]);setTimedOut(false);setWon(false);setRound(r=>r+1)}
-  function goPrevious(){if(TEST_ALL_LEVELS)load(level>0?level-1:levels.length-1);else if(level>0)load(level-1)}
-  function goNext(){if(level<levels.length-1&&(TEST_ALL_LEVELS||level+1<unlocked))load(level+1)}
-  function chooseWorld(next:World){setWorld(next);setLevel(0);setPieces(clone(worldLevels[next][0].pieces));setMoves(0);setHistory([]);setTime(0);setWon(false);setResult(null);setPaused(false);setSelected(null);setExiting([]);localStorage.setItem("block-world",next)}
-  function dragStart(e:React.PointerEvent,id:string){if(paused)return;if(hintId===id)setHintId(null);e.currentTarget.setPointerCapture(e.pointerId);drag.current={id,x:e.clientX,y:e.clientY};setDragOffset({id,dx:0,dy:0});setSelected(id)}
-  function dragMove(e:React.PointerEvent){const start=drag.current;if(!start)return;const piece=pieces.find(p=>p.id===start.id);if(!piece)return;const horizontal=piece.dir===0||piece.dir===180;setDragOffset({id:start.id,dx:horizontal?e.clientX-start.x:0,dy:horizontal?0:e.clientY-start.y})}
-  function fail(){setMistakes(m=>m+1);setBlocked(true);setTimeout(()=>setBlocked(false),300)}
-  function canExit(piece:Piece,desired:Direction){const d=vector(desired),occupied=new Set<string>();pieces.filter(p=>p.id!==piece.id).forEach(p=>cells(p).forEach(c=>occupied.add(`${c.x},${c.y}`)));for(const c of cells(piece)){let x=c.x+d.x,y=c.y+d.y;while(x>=0&&x<COLS&&y>=0&&y<ROWS){if(occupied.has(`${x},${y}`))return false;x+=d.x;y+=d.y}}return true}
-  function dragEnd(e:React.PointerEvent){
-    const start=drag.current;if(!start)return;drag.current=null;setDragOffset(null);const dx=e.clientX-start.x,dy=e.clientY-start.y;const piece=pieces.find(p=>p.id===start.id);if(!piece)return;
-    const horizontal=piece.dir===0||piece.dir===180,axisDistance=horizontal?dx:dy;if(Math.abs(axisDistance)<5)return;
-    const desired:Direction=horizontal?(axisDistance>0?0:180):(axisDistance>0?90:270);
-    if(!canExit(piece,desired)){fail();return}setHistory(h=>[...h,clone(pieces)]);setExiting(list=>[...list,{piece:{...piece},direction:desired}]);setPieces(old=>old.filter(p=>p.id!==piece.id));setMoves(m=>m+1);setSelected(null);exitTimer.current=setTimeout(()=>{setExiting(list=>list.filter(item=>item.piece.id!==piece.id));exitTimer.current=null},1850);
+export default function Home() {
+  const [world, setWorld] = useState<World>("darat"),
+    levels = worldLevels[world],
+    [level, setLevel] = useState(0),
+    [pieces, setPieces] = useState(() => clone(worldLevels.darat[0].pieces));
+  const [round, setRound] = useState(0);
+  const [selected, setSelected] = useState<string | null>(null),
+    [moves, setMoves] = useState(0),
+    [history, setHistory] = useState<Piece[][]>([]),
+    [won, setWon] = useState(false),
+    [help, setHelp] = useState(false),
+    [entryOpen, setEntryOpen] = useState(true),
+    [entryNote, setEntryNote] = useState<string | null>(null),
+    [onboarding, setOnboarding] = useState(true),
+    [guidePage, setGuidePage] = useState(0),
+    [time, setTime] = useState(0),
+    [paused, setPaused] = useState(false),
+    [blocked, setBlocked] = useState(false),
+    [showGrid, setShowGrid] = useState(true),
+    [theme, setTheme] = useState<Theme>("dark"),
+    [shopOpen, setShopOpen] = useState(false),
+    [modeOpen, setModeOpen] = useState(false),
+    [challengeMode, setChallengeMode] = useState(false),
+    [timedOut, setTimedOut] = useState(false),
+    [mistakes, setMistakes] = useState(0),
+    [hintsUsed, setHintsUsed] = useState(0),
+    [tokens, setTokens] = useState(3),
+    [unlocked, setUnlocked] = useState(1),
+    [bestStars, setBestStars] = useState<Record<number, number>>({}),
+    [hintId, setHintId] = useState<string | null>(null),
+    [result, setResult] = useState<Result | null>(null),
+    [adLoading, setAdLoading] = useState(false),
+    [noAds, setNoAds] = useState(false),
+    [energy, setEnergy] = useState(ENERGY_MAX),
+    [energyUpdatedAt, setEnergyUpdatedAt] = useState(Date.now()),
+    [unlimitedUntil, setUnlimitedUntil] = useState(0),
+    [themePack, setThemePack] = useState(false),
+    [gridAssist, setGridAssist] = useState(false),
+    [energyOpen, setEnergyOpen] = useState(false),
+    [dragOffset, setDragOffset] = useState<{
+      id: string;
+      dx: number;
+      dy: number;
+    } | null>(null),
+    [exiting, setExiting] = useState<{ piece: Piece; direction: Direction }[]>(
+      [],
+    ),
+    [user, setUser] = useState<User | null>(null),
+    [profileReady, setProfileReady] = useState(false);
+  const started = useRef(0),
+    elapsedBeforePause = useRef(0),
+    exitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const drag = useRef<{ id: string; x: number; y: number } | null>(null);
+  const parFor = (i: number) => (20 + levels[i].pieces.length * 2.2) * 1000;
+  const challengeFor = (i: number) =>
+    (45 + levels[i].pieces.length * 2.8) * 1000;
+  useEffect(() => {
+    setEntryOpen(localStorage.getItem("block-entry-v1") !== "1");
+    setOnboarding(localStorage.getItem("block-onboarding-v2") !== "1");
+    if (localStorage.getItem("block-grid-visible") === "0") setShowGrid(false);
+    const saved = localStorage.getItem("block-theme") as Theme | null;
+    if (saved && themes.some((t) => t.id === saved)) setTheme(saved);
+    setChallengeMode(localStorage.getItem("block-challenge-mode") === "1");
+    setTokens(Number(localStorage.getItem("block-tokens") ?? 3));
+    let savedUnlocked = Number(localStorage.getItem("block-unlocked") ?? 1),
+      savedStars: Record<number, number> = {};
+    try {
+      savedStars = JSON.parse(localStorage.getItem("block-stars") ?? "{}");
+    } catch {}
+    if (!localStorage.getItem("block-levels-trimmed-v1")) {
+      savedUnlocked = Math.max(1, savedUnlocked - 3);
+      savedStars = Object.fromEntries(
+        Object.entries(savedStars)
+          .filter(([key]) => Number(key) >= 3)
+          .map(([key, value]) => [Number(key) - 3, value]),
+      );
+      localStorage.setItem("block-unlocked", String(savedUnlocked));
+      localStorage.setItem("block-stars", JSON.stringify(savedStars));
+      localStorage.setItem("block-levels-trimmed-v1", "1");
+    }
+    setUnlocked(Math.min(levels.length, Math.max(1, savedUnlocked)));
+    setBestStars(savedStars);
+    setNoAds(localStorage.getItem("block-no-ads") === "1");
+    setGridAssist(localStorage.getItem("block-grid-assist") === "1");
+  }, []);
+  useEffect(
+    () =>
+      onAuthStateChanged(auth, async (current) => {
+        setUser(current);
+        if (!current) {
+          setProfileReady(false);
+          return;
+        }
+        try {
+          const snapshot = await getDoc(doc(db, "users", current.uid));
+          const data = snapshot.data();
+          if (data) {
+            if (typeof data.unlocked === "number")
+              setUnlocked(Math.min(levels.length, Math.max(1, data.unlocked)));
+            if (data.bestStars && typeof data.bestStars === "object")
+              setBestStars(data.bestStars as Record<number, number>);
+            if (typeof data.tokens === "number") setTokens(data.tokens);
+            if (
+              typeof data.theme === "string" &&
+              themes.some((item) => item.id === data.theme)
+            )
+              setTheme(data.theme as Theme);
+            if (typeof data.themePack === "boolean")
+              setThemePack(data.themePack);
+            if (typeof data.gridAssist === "boolean")
+              setGridAssist(data.gridAssist);
+            if (typeof data.noAds === "boolean") setNoAds(data.noAds);
+            if (typeof data.energy === "number")
+              setEnergy(Math.max(0, Math.min(ENERGY_MAX, data.energy)));
+            if (typeof data.energyUpdatedAt === "number")
+              setEnergyUpdatedAt(data.energyUpdatedAt);
+            if (typeof data.unlimitedUntil === "number")
+              setUnlimitedUntil(data.unlimitedUntil);
+          }
+        } catch {
+          setEntryNote(
+            "Data akun belum dapat disinkronkan. Periksa koneksi lalu coba lagi.",
+          );
+        } finally {
+          setProfileReady(true);
+        }
+      }),
+    [],
+  );
+  useEffect(() => {
+    if (!user || !profileReady) return;
+    setDoc(
+      doc(db, "users", user.uid),
+      {
+        displayName: user.displayName ?? "Pemain",
+        email: user.email ?? null,
+        unlocked,
+        bestStars,
+        tokens,
+        theme,
+        themePack,
+        gridAssist,
+        noAds,
+        energy,
+        energyUpdatedAt,
+        unlimitedUntil,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    ).catch(() =>
+      setEntryNote(
+        "Perubahan tersimpan di perangkat, namun sinkronisasi akun sedang tertunda.",
+      ),
+    );
+  }, [
+    user,
+    profileReady,
+    unlocked,
+    bestStars,
+    tokens,
+    theme,
+    themePack,
+    gridAssist,
+    noAds,
+    energy,
+    energyUpdatedAt,
+    unlimitedUntil,
+  ]);
+  useEffect(() => {
+    const button =
+      document.querySelector<HTMLButtonElement>(".entry-btn.google");
+    if (!button) return;
+    const login = (event: MouseEvent) => {
+      event.stopPropagation();
+      void signInWithGoogle();
+    };
+    button.addEventListener("click", login);
+    return () => button.removeEventListener("click", login);
+  }, []);
+  useEffect(() => {
+    const now = Date.now(),
+      savedEnergy = Math.max(
+        0,
+        Math.min(
+          ENERGY_MAX,
+          Number(localStorage.getItem("block-energy") ?? ENERGY_MAX),
+        ),
+      ),
+      savedAt = Number(localStorage.getItem("block-energy-at") ?? now),
+      earned = Math.floor(Math.max(0, now - savedAt) / ENERGY_REGEN_MS),
+      next = Math.min(ENERGY_MAX, savedEnergy + earned),
+      nextAt = earned ? savedAt + earned * ENERGY_REGEN_MS : savedAt;
+    setEnergy(next);
+    setEnergyUpdatedAt(nextAt);
+    setUnlimitedUntil(
+      Number(localStorage.getItem("block-unlimited-until") ?? 0),
+    );
+    setThemePack(localStorage.getItem("block-theme-pack") === "1");
+    localStorage.setItem("block-energy", String(next));
+    localStorage.setItem("block-energy-at", String(nextAt));
+  }, []);
+  useEffect(() => {
+    const tick = () => {
+      const now = Date.now(),
+        earned = Math.floor(
+          Math.max(0, now - energyUpdatedAt) / ENERGY_REGEN_MS,
+        );
+      if (earned > 0 && energy < ENERGY_MAX) {
+        const next = Math.min(ENERGY_MAX, energy + earned),
+          nextAt = energyUpdatedAt + earned * ENERGY_REGEN_MS;
+        setEnergy(next);
+        setEnergyUpdatedAt(nextAt);
+        localStorage.setItem("block-energy", String(next));
+        localStorage.setItem("block-energy-at", String(nextAt));
+      }
+    };
+    const timer = setInterval(tick, 30000);
+    return () => clearInterval(timer);
+  }, [energy, energyUpdatedAt]);
+  useEffect(() => {
+    if (won || timedOut || entryOpen || onboarding || paused) return;
+    const base = elapsedBeforePause.current;
+    started.current = performance.now();
+    const limit = challengeFor(level);
+    const t = setInterval(() => {
+      const elapsed = base + performance.now() - started.current;
+      if (challengeMode && elapsed >= limit) {
+        setTime(limit);
+        setTimedOut(true);
+        clearInterval(t);
+        return;
+      }
+      setTime(elapsed);
+    }, 100);
+    return () => clearInterval(t);
+  }, [
+    level,
+    round,
+    won,
+    timedOut,
+    challengeMode,
+    entryOpen,
+    onboarding,
+    paused,
+  ]);
+  useEffect(() => {
+    if (!won && pieces.length === 0 && exiting.length === 0) {
+      const par = parFor(level),
+        stars =
+          time <= par && hintsUsed === 0 && mistakes <= 2
+            ? 3
+            : time <= par * 1.6
+              ? 2
+              : 1,
+        score = Math.max(
+          100,
+          Math.round(
+            1000 +
+              Math.max(0, (par - time) / 1000) * 10 -
+              mistakes * 25 -
+              hintsUsed * 100,
+          ),
+        );
+      setResult({ score, stars, time });
+      setWon(true);
+      const nextUnlocked = Math.min(
+        levels.length,
+        Math.max(unlocked, level + 2),
+      );
+      setUnlocked(nextUnlocked);
+      localStorage.setItem("block-unlocked", String(nextUnlocked));
+      setBestStars((old) => {
+        const next = { ...old, [level]: Math.max(old[level] ?? 0, stars) };
+        localStorage.setItem("block-stars", JSON.stringify(next));
+        return next;
+      });
+    }
+  }, [pieces.length, exiting, won, time, hintsUsed, mistakes, level, unlocked]);
+  function chargeEnergy() {
+    if (unlimitedUntil > Date.now()) return true;
+    if (energy < 1) {
+      setEnergyOpen(true);
+      return false;
+    }
+    const next = energy - 1,
+      now = Date.now();
+    setEnergy(next);
+    setEnergyUpdatedAt(now);
+    localStorage.setItem("block-energy", String(next));
+    localStorage.setItem("block-energy-at", String(now));
+    return true;
   }
-  function undo(){const previous=history.at(-1);if(!previous)return;if(exitTimer.current)clearTimeout(exitTimer.current);exitTimer.current=null;setExiting([]);setPieces(clone(previous));setHistory(h=>h.slice(0,-1));setMoves(m=>Math.max(0,m-1));setWon(false)}
-  function toggleGrid(){if(level>=GRID_FREE_LEVELS&&!gridAssist){setShopOpen(true);return}setShowGrid(v=>{const next=!v;localStorage.setItem("block-grid-visible",next?"1":"0");return next})}
-  function chooseTheme(next:Theme){const item=themes.find(t=>t.id===next);if(item?.premium&&!themePack){setShopOpen(true);return}setTheme(next);localStorage.setItem("block-theme",next)}
-  function chooseMode(challenge:boolean){setChallengeMode(challenge);localStorage.setItem("block-challenge-mode",challenge?"1":"0");setModeOpen(false);load(level,challenge,challenge)}
-  function finishGuide(){localStorage.setItem("block-onboarding-v2","1");setOnboarding(false);setGuidePage(0)}
-  function openGuide(){setHelp(false);setGuidePage(0);setOnboarding(true)}
-  function togglePause(){if(won||timedOut)return;if(paused){setPaused(false);return}elapsedBeforePause.current=time;drag.current=null;setDragOffset(null);setSelected(null);setPaused(true)}
-  function enterAsGuest(){localStorage.setItem("block-entry-v1","1");setEntryOpen(false);setEntryNote(null)}
-  async function signInWithGoogle(){setEntryNote(null);try{const credential=await signInWithPopup(auth,googleProvider);setUser(credential.user);localStorage.setItem("block-entry-v1","1");setEntryOpen(false)}catch(error){const code=(error as {code?:string}).code;if(code==="auth/popup-closed-by-user")return;setEntryNote("Masuk Google belum berhasil. Izinkan pop-up lalu coba lagi.")}}
-  function showSignInNote(provider:string){setEntryNote(`Masuk dengan ${provider} akan tersedia setelah pengaturan resmi providernya selesai.`)}
-  function openEntry(){elapsedBeforePause.current=time;setEntryNote(null);setHelp(false);setEntryOpen(true)}
-  function useHint(){if(tokens<1){setShopOpen(true);return}const piece=pieces.find(p=>{const horizontal=p.dir===0||p.dir===180;return (horizontal?[0,180]:[90,270] as Direction[]).some(d=>canExit(p,d as Direction))});if(!piece)return;const next=tokens-1;setTokens(next);localStorage.setItem("block-tokens",String(next));setHintsUsed(h=>h+1);setHintId(piece.id)}
-  function rewardDemo(){if(adLoading)return;setAdLoading(true);setTimeout(()=>{setAdLoading(false);const next=tokens+3;setTokens(next);localStorage.setItem("block-tokens",String(next))},1500)}
-  function rewardEnergy(full=false){if(adLoading)return;setAdLoading(true);setTimeout(()=>{setAdLoading(false);const today=new Date().toDateString(),canFull=localStorage.getItem("block-energy-full-day")!==today,next=full&&canFull?ENERGY_MAX:Math.min(ENERGY_MAX,energy+2),now=Date.now();setEnergy(next);setEnergyUpdatedAt(now);localStorage.setItem("block-energy",String(next));localStorage.setItem("block-energy-at",String(now));if(full&&canFull)localStorage.setItem("block-energy-full-day",today);setEnergyOpen(false)},1500)}
-  function tokenPackDemo(){const next=tokens+30;setTokens(next);localStorage.setItem("block-tokens",String(next))}
-  function noAdsDemo(){setNoAds(true);localStorage.setItem("block-no-ads","1")}
-  function unlimitedDemo(){const until=Date.now()+30*24*60*60*1000;setUnlimitedUntil(until);localStorage.setItem("block-unlimited-until",String(until))}
-  function themePackDemo(){setThemePack(true);setGridAssist(true);setShowGrid(true);localStorage.setItem("block-theme-pack","1");localStorage.setItem("block-grid-assist","1");localStorage.setItem("block-grid-visible","1")}
-  function gridAssistDemo(){if(adLoading)return;setAdLoading(true);setTimeout(()=>{setAdLoading(false);setGridAssist(true);setShowGrid(true);localStorage.setItem("block-grid-assist","1");localStorage.setItem("block-grid-visible","1")},1500)}
-  const canGoPrevious=TEST_ALL_LEVELS||level>0,canGoNext=level<levels.length-1&&(TEST_ALL_LEVELS||level+1<unlocked),remaining=Math.max(0,challengeFor(level)-time),score=Math.max(0,1000-moves*5-mistakes*25-hintsUsed*100),gridAvailable=level<GRID_FREE_LEVELS||gridAssist,gridVisible=showGrid&&gridAvailable;
-  return <main className={`app-shell theme-${theme}`}><section className="game-card">
-    <header className="game-hud"><button className={`hud-pause ${paused?"paused":""}`} onClick={togglePause} aria-label={paused?"Lanjutkan permainan":"Jeda permainan"}>{paused?"▶":<span className="pause-mark"/>}</button><div className="hud-center"><div className="hud-score"><small>SCORE</small><strong>{score.toLocaleString("id-ID")}</strong></div><div className="hud-level"><small>LEVEL</small><strong>{String(level+1).padStart(2,"0")}</strong></div></div><div className={`hud-time ${challengeMode&&remaining<=10000?"time-danger":""}`}><small>{challengeMode?"TANTANGAN":"WAKTU"}</small><strong>{fmt(challengeMode?remaining:time)}</strong></div></header>
-    <div className={`block-board ${blocked?"board-blocked":""} ${gridVisible?"":"grid-off"}`}>
-      {[...pieces,...exiting.map(item=>item.piece)].flatMap(p=>{const own=cells(p),offset=dragOffset?.id===p.id?dragOffset:null,exit=exiting.find(item=>item.piece.id===p.id),exitClass=exit?` exiting exit-${exit.direction===0?"right":exit.direction===180?"left":exit.direction===90?"down":"up"}`:"";return own.map((c,index)=><button key={`${p.id}-${index}`} className={`block-cell shape-${p.shape.toLowerCase()} ${edges(own,c)} ${p.color} ${selected===p.id?"selected":""} ${hintId===p.id?"hinted":""} ${offset?"dragging":""}${exitClass}`} style={{"--x":c.x,"--y":c.y,"--drag-x":`${offset?.dx??0}px`,"--drag-y":`${offset?.dy??0}px`} as React.CSSProperties} onPointerDown={exit?undefined:e=>dragStart(e,p.id)} onPointerMove={exit?undefined:dragMove} onPointerUp={exit?undefined:dragEnd} onPointerCancel={exit?undefined:()=>{drag.current=null;setDragOffset(null)}} aria-label="Balok variasi, geret lurus"/>)})}
-      {paused&&<div className="pause-cover"><div className="pause-panel"><div className="pause-logo"><span>Balok</span><b>Kosong</b></div><small className="pause-level-label">LEVEL {String(level+1).padStart(2,"0")}</small><div className="pause-level-nav"><button onClick={goPrevious} disabled={!canGoPrevious} aria-label="Level sebelumnya">‹</button><span>{String(level+1).padStart(2,"0")}</span><button onClick={goNext} disabled={!canGoNext} aria-label="Level berikutnya">›</button></div><div className="pause-menu"><button onClick={undo} disabled={!history.length}><b>↶</b>Urungkan</button><button onClick={()=>load(level)}><b>↻</b>Ulangi</button><button onClick={useHint}><b>◆</b>Petunjuk</button><button onClick={()=>setModeOpen(true)} className={challengeMode?"active-mode":""}><b>⏱</b>Mode</button><button onClick={()=>setHelp(true)}><b>?</b>Aturan</button></div><button className="pause-resume" onClick={togglePause}><b>▶</b>LANJUTKAN</button></div></div>}
-    </div>
-  </section>
-  {entryOpen&&<div className="entry-screen"><div className="entry-content"><div className="entry-title"><span>BALOK</span><b>KOSONG</b></div><p className="entry-tagline">HABISKAN SEMUA BALOK</p><div className="entry-actions"><button className="entry-btn apple" onClick={()=>showSignInNote("Apple")}><i className="auth-logo apple-logo"><img src="https://cdn.simpleicons.org/apple/FFFFFF" alt=""/></i><span>MASUK DENGAN APPLE</span></button><button className="entry-btn google" onClick={()=>showSignInNote("Google")}><b>G</b><span>MASUK DENGAN GOOGLE</span></button><button className="entry-btn facebook" onClick={()=>showSignInNote("Facebook")}><i className="auth-logo facebook-logo"><img src="https://cdn.simpleicons.org/facebook/FFFFFF" alt=""/></i><span>MASUK DENGAN FACEBOOK</span></button><button className="entry-btn guest" onClick={enterAsGuest}><span>MAIN SEBAGAI TAMU</span></button><small className="guest-sync-note">Masuk untuk menyinkronkan skor, progres level, dan bonus Anda di semua perangkat.</small>{entryNote&&<small className="entry-note">{entryNote}</small>}</div><p className="entry-terms">Dengan mengetuk Apple, Facebook, Google, atau Tamu,<br/>Anda menyetujui <u>Ketentuan Penggunaan</u> dan <u>Kebijakan Privasi</u>.</p></div></div>}
-  {onboarding&&<div className="overlay guide-overlay"><div className="modal guide-modal"><span className="modal-kicker">CARA BERMAIN · {guidePage+1}/{guideSteps.length}</span><div className={`guide-visual guide-visual-${guidePage}`}><b>{guideSteps[guidePage].icon}</b><i/><i/><i/></div><h2>{guideSteps[guidePage].title}</h2><p>{guideSteps[guidePage].text}</p><div className="guide-dots">{guideSteps.map((_,i)=><i key={i} className={i===guidePage?"active":""}/>)}</div><div className="guide-actions">{guidePage>0&&<button className="guide-back" onClick={()=>setGuidePage(p=>p-1)}>Kembali</button>}<button className="play-btn" onClick={()=>guidePage<guideSteps.length-1?setGuidePage(p=>p+1):finishGuide()}>{guidePage<guideSteps.length-1?"Berikutnya →":"Mulai bermain →"}</button></div></div></div>}
-  {modeOpen&&<div className="overlay"><div className="modal"><span className="modal-kicker">PILIH MODE</span><h2>Cara bermain</h2><div className="energy-summary"><b>⚡ {unlimitedUntil>Date.now()?"ENERGY TANPA BATAS":`${energy}/${ENERGY_MAX} ENERGY`}</b><small>{unlimitedUntil>Date.now()?"Aktif hingga 30 hari dari pembelian":"Pulih 1 energy setiap 25 menit"}</small></div><div className="mode-list"><button className={!challengeMode?"active":""} onClick={()=>chooseMode(false)}><b>∞</b><span><strong>Santai</strong><small>Timer menghitung waktu, tidak ada batas energy.</small></span></button><button className={challengeMode?"active":""} onClick={()=>chooseMode(true)}><b>⏱</b><span><strong>Tantangan · 1 ⚡</strong><small>Countdown habis = ulang level. Energy dipakai per percobaan.</small></span></button></div><button className="text-btn" onClick={()=>setModeOpen(false)}>Batal</button></div></div>}
-  {shopOpen&&<div className="overlay"><div className="modal shop-modal"><span className="modal-kicker">TOKO & HADIAH</span><h2>◆ {tokens} token · ⚡ {energy}/{ENERGY_MAX}</h2><p>Mode Santai selalu gratis. Iklan hanya muncul jika Anda memilih hadiah.</p><div className="shop-list"><button onClick={rewardDemo}><b>▶</b><span><strong>+3 Token Petunjuk</strong><small>{adLoading?"Memutar iklan demo…":"Tonton iklan berhadiah"}</small></span></button><button onClick={()=>rewardEnergy(false)}><b>⚡</b><span><strong>+2 Energy Tantangan</strong><small>Dengan iklan berhadiah</small></span></button><button onClick={tokenPackDemo}><b>◆</b><span><strong>+30 Token</strong><small>Pembelian sekali · demo</small></span></button><button onClick={unlimitedDemo} disabled={unlimitedUntil>Date.now()}><b>∞</b><span><strong>{unlimitedUntil>Date.now()?"Energy tanpa batas aktif":"Energy tanpa batas · 30 hari"}</strong><small>Pembelian demo</small></span></button><button onClick={themePackDemo} disabled={themePack}><b>✦</b><span><strong>{themePack?"Tema eksklusif aktif":"Paket Tema Neon & Ocean"}</strong><small>Pembelian sekali · demo</small></span></button><button onClick={noAdsDemo} disabled={noAds}><b>⊘</b><span><strong>{noAds?"Bebas iklan aktif":"Bebas Iklan"}</strong><small>Hilangkan iklan sela · demo</small></span></button></div><p className="store-note">Iklan dan pembayaran saat ini simulasi web. Saat aplikasi Android/iPhone dibuat, tombol yang sama akan dihubungkan ke AdMob dan pembelian resmi.</p><button className="text-btn" onClick={()=>setShopOpen(false)}>Tutup</button></div></div>}
-  {help&&<div className="overlay settings-overlay"><div className="modal settings-modal"><span className="modal-kicker">ATURAN & PENGATURAN</span><div className="pause-logo settings-logo"><span>BALOK</span><b>KOSONG</b></div><p>Keluarkan semua balok. Balok horizontal hanya bergerak kiri–kanan dan balok vertikal hanya bergerak atas–bawah.</p><button className="replay-guide" onClick={openGuide}><b>▶</b><span><strong>Lihat cara bermain</strong><small>Panduan singkat 4 halaman</small></span></button><button className="replay-guide" onClick={openEntry}><b>⌂</b><span><strong>Kembali ke halaman utama</strong><small>Pilih akun atau Main sebagai Tamu</small></span></button><button className="replay-guide" onClick={()=>{setHelp(false);setShopOpen(true)}}><b>✦</b><span><strong>Toko & hadiah</strong><small>Token petunjuk, energy, tema, dan bebas iklan</small></span></button><div className="setting-row"><span><strong>Tampilkan grid</strong><small>Garis bantu pada papan permainan</small></span><button className={showGrid?"toggle-on":""} onClick={toggleGrid} aria-label="Tampilkan atau sembunyikan grid"><i/></button></div><span className="settings-label">TEMA LATAR</span><div className="theme-grid compact-themes">{themes.map(t=><button key={t.id} className={`theme-choice swatch-${t.id} ${theme===t.id?"active":""} ${t.premium&&!themePack?"locked":""}`} onClick={()=>chooseTheme(t.id)}><i/><span>{t.name}{t.premium&&!themePack?" · ✦":""}</span>{theme===t.id&&<b>✓</b>}</button>)}</div><button className="play-btn" onClick={()=>setHelp(false)}>Tutup</button></div></div>}
-  {energyOpen&&<div className="overlay"><div className="modal energy-modal"><div className="energy-orb">⚡</div><span className="modal-kicker">MODE TANTANGAN</span><h2>Energy habis</h2><p>Mode Santai tetap dapat dimainkan bebas. Untuk melanjutkan Tantangan, isi kembali energy Anda.</p><div className="energy-meter"><i style={{width:`${energy/ENERGY_MAX*100}%`}}/><span>⚡ {energy}/{ENERGY_MAX}</span></div><button className="play-btn energy-reward" onClick={()=>rewardEnergy(false)} disabled={adLoading}>{adLoading?"Menyiapkan iklan…":"Tonton iklan · +2 Energy"}</button>{localStorage.getItem("block-energy-full-day")!==new Date().toDateString()&&<button className="replay-guide daily-refill" onClick={()=>rewardEnergy(true)} disabled={adLoading}><b>⚡</b><span><strong>Refill penuh hari ini</strong><small>Tonton iklan · kembali ke 5 energy</small></span></button>}<button className="text-btn" onClick={()=>{setEnergyOpen(false);chooseMode(false)}}>Main Mode Santai</button></div></div>}
-  {timedOut&&<div className="overlay"><div className="modal timeout-modal"><div className="timeout-icon">⏱</div><span className="modal-kicker">MODE TANTANGAN</span><h2>Waktu habis!</h2><p>Tenang, progres Anda tetap aman. Ulangi Level {level+1} dan coba jalur yang lebih cepat.</p><button className="play-btn" onClick={()=>load(level)}>Ulangi level ↻</button><button className="text-btn" onClick={()=>chooseMode(false)}>Pindah ke mode Santai</button></div></div>}
-  {won&&result&&<div className="overlay"><div className="modal"><div className="result-stars">{"★".repeat(result.stars)}{"☆".repeat(3-result.stars)}</div><h2>{level===levels.length-1?"Selamat!":"Papan kosong!"}</h2><p>{level===levels.length-1?`Dunia ${world.toUpperCase()} selesai. Pilih dunia berikutnya untuk bentuk balok dan tantangan baru.`:`Waktu ${fmt(result.time)} · ${mistakes} salah · ${hintsUsed} petunjuk`}</p><div className="score-box"><small>NILAI</small><strong>{result.score.toLocaleString("id-ID")}</strong></div>{level===levels.length-1?<div className="world-choice"><button className="play-btn" onClick={()=>chooseWorld("darat")}>🌿 DARAT</button><button className="play-btn" onClick={()=>chooseWorld("air")}>🌊 AIR</button><button className="play-btn" onClick={()=>chooseWorld("udara")}>☁️ UDARA</button></div>:<button className="play-btn" onClick={()=>load(level+1)}>Level berikutnya →</button>}</div></div>}
-  </main>
+  function load(i: number, spendEnergy = true, playChallenge = challengeMode) {
+    const n = Math.max(0, Math.min(i, levels.length - 1)),
+      saved = Number(localStorage.getItem("block-unlocked") ?? 1),
+      available = TEST_ALL_LEVELS
+        ? levels.length
+        : Math.max(unlocked, Number.isFinite(saved) ? saved : 1);
+    if (n + 1 > available) return;
+    if (playChallenge && spendEnergy && !chargeEnergy()) return;
+    if (exitTimer.current) clearTimeout(exitTimer.current);
+    exitTimer.current = null;
+    setExiting([]);
+    elapsedBeforePause.current = 0;
+    setLevel(n);
+    setPieces(clone(levels[n].pieces));
+    setSelected(null);
+    setDragOffset(null);
+    setMoves(0);
+    setMistakes(0);
+    setHintsUsed(0);
+    setTime(0);
+    setPaused(false);
+    setResult(null);
+    setHistory([]);
+    setTimedOut(false);
+    setWon(false);
+    setRound((r) => r + 1);
+  }
+  function goPrevious() {
+    if (TEST_ALL_LEVELS) load(level > 0 ? level - 1 : levels.length - 1);
+    else if (level > 0) load(level - 1);
+  }
+  function goNext() {
+    if (level < levels.length - 1 && (TEST_ALL_LEVELS || level + 1 < unlocked))
+      load(level + 1);
+  }
+  function chooseWorld(next: World) {
+    setWorld(next);
+    setLevel(0);
+    setPieces(clone(worldLevels[next][0].pieces));
+    setMoves(0);
+    setHistory([]);
+    setTime(0);
+    setWon(false);
+    setResult(null);
+    setPaused(false);
+    setSelected(null);
+    setExiting([]);
+    localStorage.setItem("block-world", next);
+  }
+  function dragStart(e: React.PointerEvent, id: string) {
+    if (paused) return;
+    if (hintId === id) setHintId(null);
+    e.currentTarget.setPointerCapture(e.pointerId);
+    drag.current = { id, x: e.clientX, y: e.clientY };
+    setDragOffset({ id, dx: 0, dy: 0 });
+    setSelected(id);
+  }
+  function dragMove(e: React.PointerEvent) {
+    const start = drag.current;
+    if (!start) return;
+    const piece = pieces.find((p) => p.id === start.id);
+    if (!piece) return;
+    const horizontal = piece.dir === 0 || piece.dir === 180;
+    setDragOffset({
+      id: start.id,
+      dx: horizontal ? e.clientX - start.x : 0,
+      dy: horizontal ? 0 : e.clientY - start.y,
+    });
+  }
+  function fail() {
+    setMistakes((m) => m + 1);
+    setBlocked(true);
+    setTimeout(() => setBlocked(false), 300);
+  }
+  function canExit(piece: Piece, desired: Direction) {
+    const d = vector(desired),
+      occupied = new Set<string>();
+    pieces
+      .filter((p) => p.id !== piece.id)
+      .forEach((p) => cells(p).forEach((c) => occupied.add(`${c.x},${c.y}`)));
+    for (const c of cells(piece)) {
+      let x = c.x + d.x,
+        y = c.y + d.y;
+      while (x >= 0 && x < COLS && y >= 0 && y < ROWS) {
+        if (occupied.has(`${x},${y}`)) return false;
+        x += d.x;
+        y += d.y;
+      }
+    }
+    return true;
+  }
+  function dragEnd(e: React.PointerEvent) {
+    const start = drag.current;
+    if (!start) return;
+    drag.current = null;
+    setDragOffset(null);
+    const dx = e.clientX - start.x,
+      dy = e.clientY - start.y;
+    const piece = pieces.find((p) => p.id === start.id);
+    if (!piece) return;
+    const horizontal = piece.dir === 0 || piece.dir === 180,
+      axisDistance = horizontal ? dx : dy;
+    if (Math.abs(axisDistance) < 5) return;
+    const desired: Direction = horizontal
+      ? axisDistance > 0
+        ? 0
+        : 180
+      : axisDistance > 0
+        ? 90
+        : 270;
+    if (!canExit(piece, desired)) {
+      fail();
+      return;
+    }
+    setHistory((h) => [...h, clone(pieces)]);
+    setExiting((list) => [
+      ...list,
+      { piece: { ...piece }, direction: desired },
+    ]);
+    setPieces((old) => old.filter((p) => p.id !== piece.id));
+    setMoves((m) => m + 1);
+    setSelected(null);
+    exitTimer.current = setTimeout(() => {
+      setExiting((list) => list.filter((item) => item.piece.id !== piece.id));
+      exitTimer.current = null;
+    }, 1850);
+  }
+  function undo() {
+    const previous = history.at(-1);
+    if (!previous) return;
+    if (exitTimer.current) clearTimeout(exitTimer.current);
+    exitTimer.current = null;
+    setExiting([]);
+    setPieces(clone(previous));
+    setHistory((h) => h.slice(0, -1));
+    setMoves((m) => Math.max(0, m - 1));
+    setWon(false);
+  }
+  function toggleGrid() {
+    if (level >= GRID_FREE_LEVELS && !gridAssist) {
+      setShopOpen(true);
+      return;
+    }
+    setShowGrid((v) => {
+      const next = !v;
+      localStorage.setItem("block-grid-visible", next ? "1" : "0");
+      return next;
+    });
+  }
+  function chooseTheme(next: Theme) {
+    const item = themes.find((t) => t.id === next);
+    if (item?.premium && !themePack) {
+      setShopOpen(true);
+      return;
+    }
+    setTheme(next);
+    localStorage.setItem("block-theme", next);
+  }
+  function chooseMode(challenge: boolean) {
+    setChallengeMode(challenge);
+    localStorage.setItem("block-challenge-mode", challenge ? "1" : "0");
+    setModeOpen(false);
+    load(level, challenge, challenge);
+  }
+  function finishGuide() {
+    localStorage.setItem("block-onboarding-v2", "1");
+    setOnboarding(false);
+    setGuidePage(0);
+  }
+  function openGuide() {
+    setHelp(false);
+    setGuidePage(0);
+    setOnboarding(true);
+  }
+  function togglePause() {
+    if (won || timedOut) return;
+    if (paused) {
+      setPaused(false);
+      return;
+    }
+    elapsedBeforePause.current = time;
+    drag.current = null;
+    setDragOffset(null);
+    setSelected(null);
+    setPaused(true);
+  }
+  function enterAsGuest() {
+    localStorage.setItem("block-entry-v1", "1");
+    setEntryOpen(false);
+    setEntryNote(null);
+  }
+  async function signInWithGoogle() {
+    setEntryNote(null);
+    try {
+      const credential = await signInWithPopup(auth, googleProvider);
+      setUser(credential.user);
+      localStorage.setItem("block-entry-v1", "1");
+      setEntryOpen(false);
+    } catch (error) {
+      const code = (error as { code?: string }).code;
+      if (code === "auth/popup-closed-by-user") return;
+      setEntryNote(
+        "Masuk Google belum berhasil. Izinkan pop-up lalu coba lagi.",
+      );
+    }
+  }
+  function showSignInNote(provider: string) {
+    setEntryNote(
+      `Masuk dengan ${provider} akan tersedia setelah pengaturan resmi providernya selesai.`,
+    );
+  }
+  function openEntry() {
+    elapsedBeforePause.current = time;
+    setEntryNote(null);
+    setHelp(false);
+    setEntryOpen(true);
+  }
+  function useHint() {
+    if (tokens < 1) {
+      setShopOpen(true);
+      return;
+    }
+    const piece = pieces.find((p) => {
+      const horizontal = p.dir === 0 || p.dir === 180;
+      return (horizontal ? [0, 180] : ([90, 270] as Direction[])).some((d) =>
+        canExit(p, d as Direction),
+      );
+    });
+    if (!piece) return;
+    const next = tokens - 1;
+    setTokens(next);
+    localStorage.setItem("block-tokens", String(next));
+    setHintsUsed((h) => h + 1);
+    setHintId(piece.id);
+  }
+  function rewardDemo() {
+    if (adLoading) return;
+    setAdLoading(true);
+    setTimeout(() => {
+      setAdLoading(false);
+      const next = tokens + 3;
+      setTokens(next);
+      localStorage.setItem("block-tokens", String(next));
+    }, 1500);
+  }
+  function rewardEnergy(full = false) {
+    if (adLoading) return;
+    setAdLoading(true);
+    setTimeout(() => {
+      setAdLoading(false);
+      const today = new Date().toDateString(),
+        canFull = localStorage.getItem("block-energy-full-day") !== today,
+        next = full && canFull ? ENERGY_MAX : Math.min(ENERGY_MAX, energy + 2),
+        now = Date.now();
+      setEnergy(next);
+      setEnergyUpdatedAt(now);
+      localStorage.setItem("block-energy", String(next));
+      localStorage.setItem("block-energy-at", String(now));
+      if (full && canFull) localStorage.setItem("block-energy-full-day", today);
+      setEnergyOpen(false);
+    }, 1500);
+  }
+  function tokenPackDemo() {
+    const next = tokens + 30;
+    setTokens(next);
+    localStorage.setItem("block-tokens", String(next));
+  }
+  function noAdsDemo() {
+    setNoAds(true);
+    localStorage.setItem("block-no-ads", "1");
+  }
+  function unlimitedDemo() {
+    const until = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    setUnlimitedUntil(until);
+    localStorage.setItem("block-unlimited-until", String(until));
+  }
+  function themePackDemo() {
+    setThemePack(true);
+    setGridAssist(true);
+    setShowGrid(true);
+    localStorage.setItem("block-theme-pack", "1");
+    localStorage.setItem("block-grid-assist", "1");
+    localStorage.setItem("block-grid-visible", "1");
+  }
+  function gridAssistDemo() {
+    if (adLoading) return;
+    setAdLoading(true);
+    setTimeout(() => {
+      setAdLoading(false);
+      setGridAssist(true);
+      setShowGrid(true);
+      localStorage.setItem("block-grid-assist", "1");
+      localStorage.setItem("block-grid-visible", "1");
+    }, 1500);
+  }
+  const canGoPrevious = TEST_ALL_LEVELS || level > 0,
+    canGoNext =
+      level < levels.length - 1 && (TEST_ALL_LEVELS || level + 1 < unlocked),
+    remaining = Math.max(0, challengeFor(level) - time),
+    score = Math.max(0, 1000 - moves * 5 - mistakes * 25 - hintsUsed * 100),
+    gridAvailable = level < GRID_FREE_LEVELS || gridAssist,
+    gridVisible = showGrid && gridAvailable;
+  return (
+    <main className={`app-shell theme-${theme}`}>
+      <section className="game-card">
+        <header className="game-hud">
+          <button
+            className={`hud-pause ${paused ? "paused" : ""}`}
+            onClick={togglePause}
+            aria-label={paused ? "Lanjutkan permainan" : "Jeda permainan"}
+          >
+            {paused ? "▶" : <span className="pause-mark" />}
+          </button>
+          <div className="hud-center">
+            <div className="hud-score">
+              <small>SCORE</small>
+              <strong>{score.toLocaleString("id-ID")}</strong>
+            </div>
+            <div className="hud-level">
+              <small>LEVEL</small>
+              <strong>{String(level + 1).padStart(2, "0")}</strong>
+            </div>
+          </div>
+          <div
+            className={`hud-time ${challengeMode && remaining <= 10000 ? "time-danger" : ""}`}
+          >
+            <small>{challengeMode ? "TANTANGAN" : "WAKTU"}</small>
+            <strong>{fmt(challengeMode ? remaining : time)}</strong>
+          </div>
+        </header>
+        <div
+          className={`block-board ${blocked ? "board-blocked" : ""} ${gridVisible ? "" : "grid-off"}`}
+        >
+          {[...pieces, ...exiting.map((item) => item.piece)].flatMap((p) => {
+            const own = cells(p),
+              offset = dragOffset?.id === p.id ? dragOffset : null,
+              exit = exiting.find((item) => item.piece.id === p.id),
+              exitClass = exit
+                ? ` exiting exit-${exit.direction === 0 ? "right" : exit.direction === 180 ? "left" : exit.direction === 90 ? "down" : "up"}`
+                : "";
+            return own.map((c, index) => (
+              <button
+                key={`${p.id}-${index}`}
+                className={`block-cell shape-${p.shape.toLowerCase()} ${edges(own, c)} ${p.color} ${selected === p.id ? "selected" : ""} ${hintId === p.id ? "hinted" : ""} ${offset ? "dragging" : ""}${exitClass}`}
+                style={
+                  {
+                    "--x": c.x,
+                    "--y": c.y,
+                    "--drag-x": `${offset?.dx ?? 0}px`,
+                    "--drag-y": `${offset?.dy ?? 0}px`,
+                  } as React.CSSProperties
+                }
+                onPointerDown={exit ? undefined : (e) => dragStart(e, p.id)}
+                onPointerMove={exit ? undefined : dragMove}
+                onPointerUp={exit ? undefined : dragEnd}
+                onPointerCancel={
+                  exit
+                    ? undefined
+                    : () => {
+                        drag.current = null;
+                        setDragOffset(null);
+                      }
+                }
+                aria-label="Balok variasi, geret lurus"
+              />
+            ));
+          })}
+          {paused && (
+            <div className="pause-cover">
+              <div className="pause-panel">
+                <div className="pause-logo">
+                  <span>Balok</span>
+                  <b>Kosong</b>
+                </div>
+                <small className="pause-level-label">
+                  LEVEL {String(level + 1).padStart(2, "0")}
+                </small>
+                <div className="pause-level-nav">
+                  <button
+                    onClick={goPrevious}
+                    disabled={!canGoPrevious}
+                    aria-label="Level sebelumnya"
+                  >
+                    ‹
+                  </button>
+                  <span>{String(level + 1).padStart(2, "0")}</span>
+                  <button
+                    onClick={goNext}
+                    disabled={!canGoNext}
+                    aria-label="Level berikutnya"
+                  >
+                    ›
+                  </button>
+                </div>
+                <div className="pause-menu">
+                  <button onClick={undo} disabled={!history.length}>
+                    <b>↶</b>Urungkan
+                  </button>
+                  <button onClick={() => load(level)}>
+                    <b>↻</b>Ulangi
+                  </button>
+                  <button onClick={useHint}>
+                    <b>◆</b>Petunjuk
+                  </button>
+                  <button
+                    onClick={() => setModeOpen(true)}
+                    className={challengeMode ? "active-mode" : ""}
+                  >
+                    <b>⏱</b>Mode
+                  </button>
+                  <button onClick={() => setHelp(true)}>
+                    <b>?</b>Aturan
+                  </button>
+                </div>
+                <button className="pause-resume" onClick={togglePause} aria-label="Lanjutkan permainan">
+                  <b aria-hidden="true">▶</b>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+      {entryOpen && (
+        <div className="entry-screen">
+          <div className="entry-content">
+            <div className="entry-title">
+              <span>BALOK</span>
+              <b>KOSONG</b>
+            </div>
+            <p className="entry-tagline">HABISKAN SEMUA BALOK</p>
+            <div className="entry-actions">
+              <button
+                className="entry-btn apple"
+                onClick={() => showSignInNote("Apple")}
+              >
+                <i className="auth-logo apple-logo">
+                  <img src="https://cdn.simpleicons.org/apple/FFFFFF" alt="" />
+                </i>
+                <span>MASUK DENGAN APPLE</span>
+              </button>
+              <button
+                className="entry-btn google"
+                onClick={() => showSignInNote("Google")}
+              >
+                <b>G</b>
+                <span>MASUK DENGAN GOOGLE</span>
+              </button>
+              <button
+                className="entry-btn facebook"
+                onClick={() => showSignInNote("Facebook")}
+              >
+                <i className="auth-logo facebook-logo">
+                  <img
+                    src="https://cdn.simpleicons.org/facebook/FFFFFF"
+                    alt=""
+                  />
+                </i>
+                <span>MASUK DENGAN FACEBOOK</span>
+              </button>
+              <button className="entry-btn guest" onClick={enterAsGuest}>
+                <span>MAIN SEBAGAI TAMU</span>
+              </button>
+              <small className="guest-sync-note">
+                Masuk untuk menyinkronkan skor, progres level, dan bonus Anda di
+                semua perangkat.
+              </small>
+              {entryNote && <small className="entry-note">{entryNote}</small>}
+            </div>
+            <p className="entry-terms">
+              Dengan mengetuk Apple, Facebook, Google, atau Tamu,
+              <br />
+              Anda menyetujui <u>Ketentuan Penggunaan</u> dan{" "}
+              <u>Kebijakan Privasi</u>.
+            </p>
+          </div>
+        </div>
+      )}
+      {onboarding && (
+        <div className="overlay guide-overlay">
+          <div className="modal guide-modal">
+            <span className="modal-kicker">
+              CARA BERMAIN · {guidePage + 1}/{guideSteps.length}
+            </span>
+            <div className={`guide-visual guide-visual-${guidePage}`}>
+              <b>{guideSteps[guidePage].icon}</b>
+              <i />
+              <i />
+              <i />
+            </div>
+            <h2>{guideSteps[guidePage].title}</h2>
+            <p>{guideSteps[guidePage].text}</p>
+            <div className="guide-dots">
+              {guideSteps.map((_, i) => (
+                <i key={i} className={i === guidePage ? "active" : ""} />
+              ))}
+            </div>
+            <div className="guide-actions">
+              {guidePage > 0 && (
+                <button
+                  className="guide-back"
+                  onClick={() => setGuidePage((p) => p - 1)}
+                >
+                  Kembali
+                </button>
+              )}
+              <button
+                className="play-btn"
+                onClick={() =>
+                  guidePage < guideSteps.length - 1
+                    ? setGuidePage((p) => p + 1)
+                    : finishGuide()
+                }
+              >
+                {guidePage < guideSteps.length - 1
+                  ? "Berikutnya →"
+                  : "Mulai bermain →"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {modeOpen && (
+        <div className="overlay">
+          <div className="modal">
+            <span className="modal-kicker">PILIH MODE</span>
+            <h2>Cara bermain</h2>
+            <div className="energy-summary">
+              <b>
+                ⚡{" "}
+                {unlimitedUntil > Date.now()
+                  ? "ENERGY TANPA BATAS"
+                  : `${energy}/${ENERGY_MAX} ENERGY`}
+              </b>
+              <small>
+                {unlimitedUntil > Date.now()
+                  ? "Aktif hingga 30 hari dari pembelian"
+                  : "Pulih 1 energy setiap 25 menit"}
+              </small>
+            </div>
+            <div className="mode-list">
+              <button
+                className={!challengeMode ? "active" : ""}
+                onClick={() => chooseMode(false)}
+              >
+                <b>∞</b>
+                <span>
+                  <strong>Santai</strong>
+                  <small>Timer menghitung waktu, tidak ada batas energy.</small>
+                </span>
+              </button>
+              <button
+                className={challengeMode ? "active" : ""}
+                onClick={() => chooseMode(true)}
+              >
+                <b>⏱</b>
+                <span>
+                  <strong>Tantangan · 1 ⚡</strong>
+                  <small>
+                    Countdown habis = ulang level. Energy dipakai per percobaan.
+                  </small>
+                </span>
+              </button>
+            </div>
+            <button className="text-btn" onClick={() => setModeOpen(false)}>
+              Batal
+            </button>
+          </div>
+        </div>
+      )}
+      {shopOpen && (
+        <div className="overlay">
+          <div className="modal shop-modal">
+            <span className="modal-kicker">TOKO & HADIAH</span>
+            <h2>
+              ◆ {tokens} token · ⚡ {energy}/{ENERGY_MAX}
+            </h2>
+            <p>
+              Mode Santai selalu gratis. Iklan hanya muncul jika Anda memilih
+              hadiah.
+            </p>
+            <div className="shop-list">
+              <button onClick={rewardDemo}>
+                <b>▶</b>
+                <span>
+                  <strong>+3 Token Petunjuk</strong>
+                  <small>
+                    {adLoading
+                      ? "Memutar iklan demo…"
+                      : "Tonton iklan berhadiah"}
+                  </small>
+                </span>
+              </button>
+              <button onClick={() => rewardEnergy(false)}>
+                <b>⚡</b>
+                <span>
+                  <strong>+2 Energy Tantangan</strong>
+                  <small>Dengan iklan berhadiah</small>
+                </span>
+              </button>
+              <button onClick={tokenPackDemo}>
+                <b>◆</b>
+                <span>
+                  <strong>+30 Token</strong>
+                  <small>Pembelian sekali · demo</small>
+                </span>
+              </button>
+              <button
+                onClick={unlimitedDemo}
+                disabled={unlimitedUntil > Date.now()}
+              >
+                <b>∞</b>
+                <span>
+                  <strong>
+                    {unlimitedUntil > Date.now()
+                      ? "Energy tanpa batas aktif"
+                      : "Energy tanpa batas · 30 hari"}
+                  </strong>
+                  <small>Pembelian demo</small>
+                </span>
+              </button>
+              <button onClick={themePackDemo} disabled={themePack}>
+                <b>✦</b>
+                <span>
+                  <strong>
+                    {themePack
+                      ? "Tema eksklusif aktif"
+                      : "Paket Tema Neon & Ocean"}
+                  </strong>
+                  <small>Pembelian sekali · demo</small>
+                </span>
+              </button>
+              <button onClick={noAdsDemo} disabled={noAds}>
+                <b>⊘</b>
+                <span>
+                  <strong>{noAds ? "Bebas iklan aktif" : "Bebas Iklan"}</strong>
+                  <small>Hilangkan iklan sela · demo</small>
+                </span>
+              </button>
+            </div>
+            <p className="store-note">
+              Iklan dan pembayaran saat ini simulasi web. Saat aplikasi
+              Android/iPhone dibuat, tombol yang sama akan dihubungkan ke AdMob
+              dan pembelian resmi.
+            </p>
+            <button className="text-btn" onClick={() => setShopOpen(false)}>
+              Tutup
+            </button>
+          </div>
+        </div>
+      )}
+      {help && (
+        <div className="overlay settings-overlay">
+          <div className="modal settings-modal">
+            <span className="modal-kicker">ATURAN & PENGATURAN</span>
+            <div className="pause-logo settings-logo">
+              <span>BALOK</span>
+              <b>KOSONG</b>
+            </div>
+            <p>
+              Keluarkan semua balok. Balok horizontal hanya bergerak kiri–kanan
+              dan balok vertikal hanya bergerak atas–bawah.
+            </p>
+            <button className="replay-guide" onClick={openGuide}>
+              <b>▶</b>
+              <span>
+                <strong>Lihat cara bermain</strong>
+                <small>Panduan singkat 4 halaman</small>
+              </span>
+            </button>
+            <button className="replay-guide" onClick={openEntry}>
+              <b>⌂</b>
+              <span>
+                <strong>Kembali ke halaman utama</strong>
+                <small>Pilih akun atau Main sebagai Tamu</small>
+              </span>
+            </button>
+            <button
+              className="replay-guide"
+              onClick={() => {
+                setHelp(false);
+                setShopOpen(true);
+              }}
+            >
+              <b>✦</b>
+              <span>
+                <strong>Toko & hadiah</strong>
+                <small>Token petunjuk, energy, tema, dan bebas iklan</small>
+              </span>
+            </button>
+            <div className="setting-row">
+              <span>
+                <strong>Tampilkan grid</strong>
+                <small>Garis bantu pada papan permainan</small>
+              </span>
+              <button
+                className={showGrid ? "toggle-on" : ""}
+                onClick={toggleGrid}
+                aria-label="Tampilkan atau sembunyikan grid"
+              >
+                <i />
+              </button>
+            </div>
+            <span className="settings-label">TEMA LATAR</span>
+            <div className="theme-grid compact-themes">
+              {themes.map((t) => (
+                <button
+                  key={t.id}
+                  className={`theme-choice swatch-${t.id} ${theme === t.id ? "active" : ""} ${t.premium && !themePack ? "locked" : ""}`}
+                  onClick={() => chooseTheme(t.id)}
+                >
+                  <i />
+                  <span>
+                    {t.name}
+                    {t.premium && !themePack ? " · ✦" : ""}
+                  </span>
+                  {theme === t.id && <b>✓</b>}
+                </button>
+              ))}
+            </div>
+            <button className="play-btn" onClick={() => setHelp(false)}>
+              Tutup
+            </button>
+          </div>
+        </div>
+      )}
+      {energyOpen && (
+        <div className="overlay">
+          <div className="modal energy-modal">
+            <div className="energy-orb">⚡</div>
+            <span className="modal-kicker">MODE TANTANGAN</span>
+            <h2>Energy habis</h2>
+            <p>
+              Mode Santai tetap dapat dimainkan bebas. Untuk melanjutkan
+              Tantangan, isi kembali energy Anda.
+            </p>
+            <div className="energy-meter">
+              <i style={{ width: `${(energy / ENERGY_MAX) * 100}%` }} />
+              <span>
+                ⚡ {energy}/{ENERGY_MAX}
+              </span>
+            </div>
+            <button
+              className="play-btn energy-reward"
+              onClick={() => rewardEnergy(false)}
+              disabled={adLoading}
+            >
+              {adLoading ? "Menyiapkan iklan…" : "Tonton iklan · +2 Energy"}
+            </button>
+            {localStorage.getItem("block-energy-full-day") !==
+              new Date().toDateString() && (
+              <button
+                className="replay-guide daily-refill"
+                onClick={() => rewardEnergy(true)}
+                disabled={adLoading}
+              >
+                <b>⚡</b>
+                <span>
+                  <strong>Refill penuh hari ini</strong>
+                  <small>Tonton iklan · kembali ke 5 energy</small>
+                </span>
+              </button>
+            )}
+            <button
+              className="text-btn"
+              onClick={() => {
+                setEnergyOpen(false);
+                chooseMode(false);
+              }}
+            >
+              Main Mode Santai
+            </button>
+          </div>
+        </div>
+      )}
+      {timedOut && (
+        <div className="overlay">
+          <div className="modal timeout-modal">
+            <div className="timeout-icon">⏱</div>
+            <span className="modal-kicker">MODE TANTANGAN</span>
+            <h2>Waktu habis!</h2>
+            <p>
+              Tenang, progres Anda tetap aman. Ulangi Level {level + 1} dan coba
+              jalur yang lebih cepat.
+            </p>
+            <button className="play-btn" onClick={() => load(level)}>
+              Ulangi level ↻
+            </button>
+            <button className="text-btn" onClick={() => chooseMode(false)}>
+              Pindah ke mode Santai
+            </button>
+          </div>
+        </div>
+      )}
+      {won && result && (
+        <div className="overlay">
+          <div className="modal">
+            <div className="result-stars">
+              {"★".repeat(result.stars)}
+              {"☆".repeat(3 - result.stars)}
+            </div>
+            <h2>
+              {level === levels.length - 1 ? "Selamat!" : "Papan kosong!"}
+            </h2>
+            <p>
+              {level === levels.length - 1
+                ? `Dunia ${world.toUpperCase()} selesai. Pilih dunia berikutnya untuk bentuk balok dan tantangan baru.`
+                : `Waktu ${fmt(result.time)} · ${mistakes} salah · ${hintsUsed} petunjuk`}
+            </p>
+            <div className="score-box">
+              <small>NILAI</small>
+              <strong>{result.score.toLocaleString("id-ID")}</strong>
+            </div>
+            {level === levels.length - 1 ? (
+              <div className="world-choice">
+                <button
+                  className="play-btn"
+                  onClick={() => chooseWorld("darat")}
+                >
+                  🌿 DARAT
+                </button>
+                <button className="play-btn" onClick={() => chooseWorld("air")}>
+                  🌊 AIR
+                </button>
+                <button
+                  className="play-btn"
+                  onClick={() => chooseWorld("udara")}
+                >
+                  ☁️ UDARA
+                </button>
+              </div>
+            ) : (
+              <button className="play-btn" onClick={() => load(level + 1)}>
+                Level berikutnya →
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </main>
+  );
 }
