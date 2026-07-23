@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'audio_service.dart';
 import 'firebase_service.dart';
 import 'how_to_play.dart';
 import 'legal_screen.dart';
@@ -32,8 +33,39 @@ class BalokKosongApp extends StatelessWidget {
         brightness: Brightness.dark,
       ),
     ),
+    builder: (context, child) {
+      final media = MediaQuery.of(context);
+      return MediaQuery(
+        data: media.copyWith(
+          textScaler: _AdditiveTextScaler(media.textScaler, 1),
+        ),
+        child: child!,
+      );
+    },
     home: const HomeScreen(),
   );
+}
+
+class _AdditiveTextScaler extends TextScaler {
+  const _AdditiveTextScaler(this.base, this.points);
+
+  final TextScaler base;
+  final double points;
+
+  @override
+  double scale(double fontSize) => base.scale(fontSize) + points;
+
+  @override
+  double get textScaleFactor => scale(16) / 16;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _AdditiveTextScaler &&
+      other.base == base &&
+      other.points == points;
+
+  @override
+  int get hashCode => Object.hash(base, points);
 }
 
 class HomeScreen extends StatelessWidget {
@@ -42,125 +74,131 @@ class HomeScreen extends StatelessWidget {
   final bool showBackButton;
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xff170627),
-    body: SafeArea(
-      child: Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(30, 24, 30, 26),
-            child: Column(
-              children: [
-                const Spacer(),
-                const _Logo(),
-                const SizedBox(height: 13),
-                const Text(
-                  'HABISKAN SEMUA BALOK',
-                  style: TextStyle(
-                    color: Color(0xffd9b8ff),
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.35,
-                    fontSize: 11,
+  Widget build(BuildContext context) {
+    unawaited(GameAudio.instance.playOpening());
+    return Scaffold(
+      backgroundColor: const Color(0xff170627),
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(30, 24, 30, 26),
+              child: Column(
+                children: [
+                  const Spacer(),
+                  const _Logo(),
+                  const SizedBox(height: 13),
+                  const Text(
+                    'HABISKAN SEMUA BALOK',
+                    style: TextStyle(
+                      color: Color(0xffd9b8ff),
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.35,
+                      fontSize: 11,
+                    ),
                   ),
-                ),
-                const Spacer(flex: 2),
-                _AuthButton(
-                  label: 'MASUK DENGAN APPLE',
-                  symbol: Icons.apple_rounded,
-                  tone: const Color(0xff4d2b70),
-                  onTap: () => _signIn(context, 'Apple'),
-                ),
-                const SizedBox(height: 11),
-                _AuthButton(
-                  label: 'MASUK DENGAN FACEBOOK',
-                  symbol: Icons.facebook_rounded,
-                  tone: const Color(0xff7340be),
-                  onTap: () => _signIn(context, 'Facebook'),
-                ),
-                const SizedBox(height: 11),
-                _AuthButton(
-                  label: 'MASUK DENGAN GOOGLE',
-                  symbol: Icons.g_mobiledata_rounded,
-                  tone: const Color(0xfff8f3ff),
-                  darkLabel: true,
-                  onTap: () => _signIn(context, 'Google'),
-                ),
-                const SizedBox(height: 11),
-                _AuthButton(
-                  label: 'MAIN SEBAGAI TAMU',
-                  symbol: Icons.person_outline_rounded,
-                  tone: const Color(0xffa855f7),
-                  onTap: () => _signIn(context, 'Tamu'),
-                ),
-                const SizedBox(height: 13),
-                const Text(
-                  'Masuk untuk menyinkronkan skor, progres level, dan bonus Anda di semua perangkat.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 13,
-                    height: 1.4,
-                    fontWeight: FontWeight.w500,
+                  const Spacer(flex: 2),
+                  _AuthButton(
+                    label: 'MASUK DENGAN APPLE',
+                    symbol: Icons.apple_rounded,
+                    tone: const Color(0xff4d2b70),
+                    onTap: () => _signIn(context, 'Apple'),
                   ),
-                ),
-                const Spacer(),
-                const Text(
-                  'Dengan mengetuk Apple, Facebook, Google, atau Tamu,',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                    height: 1.4,
-                    fontWeight: FontWeight.w500,
+                  const SizedBox(height: 11),
+                  _AuthButton(
+                    label: 'MASUK DENGAN FACEBOOK',
+                    symbol: Icons.facebook_rounded,
+                    tone: const Color(0xff7340be),
+                    onTap: () => _signIn(context, 'Facebook'),
                   ),
-                ),
-                const SizedBox(height: 3),
-                Wrap(
-                  alignment: WrapAlignment.center,
-                  children: [
-                    const Text(
-                      'Anda menyetujui ',
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                  const SizedBox(height: 11),
+                  _AuthButton(
+                    label: 'MASUK DENGAN GOOGLE',
+                    symbol: Icons.g_mobiledata_rounded,
+                    tone: const Color(0xfff8f3ff),
+                    darkLabel: true,
+                    onTap: () => _signIn(context, 'Google'),
+                  ),
+                  const SizedBox(height: 11),
+                  _AuthButton(
+                    label: 'MAIN SEBAGAI TAMU',
+                    symbol: Icons.person_outline_rounded,
+                    tone: const Color(0xffa855f7),
+                    onTap: () => _signIn(context, 'Tamu'),
+                  ),
+                  const SizedBox(height: 13),
+                  const Text(
+                    'Masuk untuk menyinkronkan skor, progres level, dan bonus Anda di semua perangkat.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 13,
+                      height: 1.4,
+                      fontWeight: FontWeight.w500,
                     ),
-                    _PolicyLink(
-                      label: 'Ketentuan Penggunaan',
-                      onTap: () => _policy(context, 'Ketentuan Penggunaan'),
+                  ),
+                  const Spacer(),
+                  const Text(
+                    'Dengan mengetuk Apple, Facebook, Google, atau Tamu,',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                      height: 1.4,
+                      fontWeight: FontWeight.w500,
                     ),
-                    const Text(
-                      ' dan ',
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                    _PolicyLink(
-                      label: 'Kebijakan Privasi',
-                      onTap: () => _policy(context, 'Kebijakan Privasi'),
-                    ),
-                    const Text(
-                      '.',
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          if (showBackButton)
-            Positioned(
-              left: 12,
-              top: 8,
-              child: IconButton(
-                tooltip: 'Kembali ke permainan',
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(
-                  Icons.arrow_back_ios_new_rounded,
-                  color: Colors.white,
-                  size: 25,
-                ),
+                  ),
+                  const SizedBox(height: 3),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    children: [
+                      const Text(
+                        'Anda menyetujui ',
+                        style: TextStyle(color: Colors.white70, fontSize: 12),
+                      ),
+                      _PolicyLink(
+                        label: 'Ketentuan Penggunaan',
+                        onTap: () => _policy(context, 'Ketentuan Penggunaan'),
+                      ),
+                      const Text(
+                        ' dan ',
+                        style: TextStyle(color: Colors.white70, fontSize: 12),
+                      ),
+                      _PolicyLink(
+                        label: 'Kebijakan Privasi',
+                        onTap: () => _policy(context, 'Kebijakan Privasi'),
+                      ),
+                      const Text(
+                        '.',
+                        style: TextStyle(color: Colors.white70, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-        ],
+            if (showBackButton)
+              Positioned(
+                left: 12,
+                top: 8,
+                child: IconButton(
+                  tooltip: 'Kembali ke permainan',
+                  onPressed: () {
+                    unawaited(GameAudio.instance.playGameplay());
+                    Navigator.pop(context);
+                  },
+                  icon: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: Colors.white,
+                    size: 25,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   static Future<void> _enterGame(BuildContext context) async {
     final preferences = await SharedPreferences.getInstance();

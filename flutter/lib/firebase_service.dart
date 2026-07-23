@@ -102,6 +102,22 @@ class FirebaseService {
     return result;
   }
 
+  Future<void> signOut() async {
+    await initialize();
+    _requireReady();
+    try {
+      await GoogleSignIn.instance.signOut();
+    } catch (_) {
+      // The user may have signed in with another provider.
+    }
+    try {
+      await FacebookAuth.instance.logOut();
+    } catch (_) {
+      // The Facebook SDK may not be initialized for this session.
+    }
+    await FirebaseAuth.instance.signOut();
+  }
+
   Future<void> _saveUser(User user) async {
     if (!_ready) return;
     final provider = user.isAnonymous
@@ -129,6 +145,9 @@ class FirebaseService {
     required int score,
     int? bestTimeSeconds,
     int? moves,
+    int? mistakes,
+    int? hintsUsed,
+    int? stars,
     bool? challengeMode,
   }) async {
     final currentUser = user;
@@ -147,6 +166,9 @@ class FirebaseService {
             'score': score,
             'bestTimeSeconds': ?bestTimeSeconds,
             'moves': ?moves,
+            'mistakes': ?mistakes,
+            'hintsUsed': ?hintsUsed,
+            'stars': ?stars,
             'challengeMode': ?challengeMode,
             'updatedAt': FieldValue.serverTimestamp(),
           },
@@ -179,6 +201,7 @@ class FirebaseService {
     required bool unlimited,
     required bool themePack,
     required bool noAds,
+    List<int>? gridUnlockedLevels,
   }) async {
     final currentUser = user;
     if (!_ready || currentUser == null) return;
@@ -192,6 +215,7 @@ class FirebaseService {
             'unlimited': unlimited,
             'themePack': themePack,
             'noAds': noAds,
+            'gridUnlockedLevels': ?gridUnlockedLevels,
             'updatedAt': FieldValue.serverTimestamp(),
           },
         }, SetOptions(merge: true));
@@ -220,8 +244,10 @@ class FirebaseService {
   Future<void> submitAccountDeletionRequest() async {
     await initialize();
     _requireReady();
-    var currentUser = user;
-    currentUser ??= await signInAsGuest();
+    final currentUser = user;
+    if (currentUser == null) {
+      throw StateError('Tidak ada akun yang sedang aktif.');
+    }
     final package = await PackageInfo.fromPlatform();
     await FirebaseFirestore.instance.collection('feedback').add({
       'uid': currentUser.uid,
@@ -235,6 +261,10 @@ class FirebaseService {
       'buildNumber': package.buildNumber,
       'status': 'pending_review',
       'reviewWithinHours': 24,
+      'deleteAuthAccount': true,
+      'deleteGameRecords': true,
+      'deleteInventory': true,
+      'deleteSettings': true,
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
@@ -292,6 +322,15 @@ class FirebaseService {
     }
     if (inventory['noAds'] is bool) {
       await prefs.setBool('balok_no_ads', inventory['noAds'] as bool);
+    }
+    if (inventory['gridUnlockedLevels'] is List) {
+      await prefs.setStringList(
+        'balok_grid_unlocked_levels',
+        (inventory['gridUnlockedLevels'] as List)
+            .whereType<num>()
+            .map((level) => '${level.toInt()}')
+            .toList(),
+      );
     }
   }
 

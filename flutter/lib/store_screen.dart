@@ -12,12 +12,19 @@ class StoreScreen extends StatefulWidget {
 }
 
 class _StoreScreenState extends State<StoreScreen> {
+  final couponController = TextEditingController();
   int tokens = 0;
   int energy = 5;
   bool unlimited = false;
   bool themePack = false;
   bool noAds = false;
   bool loading = true;
+
+  @override
+  void dispose() {
+    couponController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -53,6 +60,11 @@ class _StoreScreenState extends State<StoreScreen> {
       unlimited: unlimited,
       themePack: themePack,
       noAds: noAds,
+      gridUnlockedLevels:
+          (prefs.getStringList('balok_grid_unlocked_levels') ?? const [])
+              .map(int.tryParse)
+              .whereType<int>()
+              .toList(),
     );
     if (!mounted || message == null) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -163,6 +175,15 @@ class _StoreScreenState extends State<StoreScreen> {
                           },
                         ),
                         _StoreAction(
+                          icon: Icons.confirmation_number_rounded,
+                          title: themePack
+                              ? 'Kupon tema sudah aktif'
+                              : 'Masukkan Kupon',
+                          subtitle: 'Buka Neon & Ocean dengan kode kupon',
+                          enabled: !themePack,
+                          onTap: _showCouponDialog,
+                        ),
+                        _StoreAction(
                           icon: Icons.block_rounded,
                           title: noAds ? 'Bebas iklan aktif' : 'Bebas Iklan',
                           subtitle: 'Hilangkan iklan sela · demo',
@@ -209,6 +230,60 @@ class _StoreScreenState extends State<StoreScreen> {
       ),
     ),
   );
+
+  Future<void> _showCouponDialog() async {
+    couponController.clear();
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xff24103c),
+        icon: const Icon(
+          Icons.confirmation_number_rounded,
+          color: Color(0xffffcf5a),
+          size: 44,
+        ),
+        title: const Text(
+          'Masukkan Kupon',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
+        content: TextField(
+          controller: couponController,
+          autofocus: true,
+          textCapitalization: TextCapitalization.characters,
+          textAlign: TextAlign.center,
+          decoration: InputDecoration(
+            hintText: 'KODE KUPON',
+            filled: true,
+            fillColor: Colors.white.withValues(alpha: .06),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+          ),
+          onSubmitted: (_) => Navigator.pop(dialogContext, true),
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('GUNAKAN'),
+          ),
+        ],
+      ),
+    );
+    if (submitted != true || !mounted) return;
+    final code = couponController.text.trim().toUpperCase();
+    if (code != 'BALOKPREMIUM' && code != 'KOSONG2026') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Kupon tidak valid atau sudah berakhir')),
+      );
+      return;
+    }
+    setState(() => themePack = true);
+    await _save(message: 'Kupon berhasil. Tema Neon & Ocean terbuka!');
+  }
 }
 
 class _StoreAction extends StatelessWidget {

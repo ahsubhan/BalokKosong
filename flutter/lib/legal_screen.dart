@@ -175,6 +175,25 @@ class _DeletionRequestCard extends StatefulWidget {
 
 class _DeletionRequestCardState extends State<_DeletionRequestCard> {
   bool _submitting = false;
+  bool _loggingOut = false;
+  bool _checkingSession = true;
+  bool _hasSession = false;
+  bool _requestSent = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkSession();
+  }
+
+  Future<void> _checkSession() async {
+    await FirebaseService.instance.initialize();
+    if (!mounted) return;
+    setState(() {
+      _hasSession = FirebaseService.instance.user != null;
+      _checkingSession = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) => Container(
@@ -187,20 +206,51 @@ class _DeletionRequestCardState extends State<_DeletionRequestCard> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const Text('Akun', style: TextStyle(fontWeight: FontWeight.w900)),
+        const SizedBox(height: 6),
+        Text(
+          _checkingSession
+              ? 'Memeriksa status akun…'
+              : _hasSession
+              ? 'Logout tidak menghapus skor, progres, token, atau riwayat permainan.'
+              : 'Masuk dengan akun atau Main sebagai Tamu untuk mengaktifkan pengaturan akun.',
+          style: const TextStyle(color: Colors.white70, height: 1.45),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: !_hasSession || _loggingOut ? null : _logout,
+            icon: _loggingOut
+                ? const SizedBox.square(
+                    dimension: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.logout_rounded),
+            label: Text(_loggingOut ? 'Keluar…' : 'Logout'),
+          ),
+        ),
+        const SizedBox(height: 16),
+        const Divider(color: Colors.white12),
+        const SizedBox(height: 12),
         const Text(
           'Penghapusan akun',
           style: TextStyle(fontWeight: FontWeight.w900),
         ),
         const SizedBox(height: 6),
         const Text(
-          'Permintaan akan dikirim otomatis untuk ditinjau dalam waktu paling lama 24 jam.',
+          'Permintaan ditinjau paling lama 24 jam. Setelah disetujui, akun, '
+          'skor, progres, token, inventaris, dan seluruh riwayat permainan '
+          'akan dihapus permanen.',
           style: TextStyle(color: Colors.white70, height: 1.45),
         ),
         const SizedBox(height: 12),
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
-            onPressed: _submitting ? null : _submit,
+            onPressed: !_hasSession || _submitting || _requestSent
+                ? null
+                : _submit,
             icon: _submitting
                 ? const SizedBox.square(
                     dimension: 16,
@@ -208,13 +258,64 @@ class _DeletionRequestCardState extends State<_DeletionRequestCard> {
                   )
                 : const Icon(Icons.delete_outline_rounded),
             label: Text(
-              _submitting ? 'Mengirim permintaan…' : 'Ajukan penghapusan akun',
+              _submitting
+                  ? 'Mengirim permintaan…'
+                  : _requestSent
+                  ? 'Permintaan sudah dikirim'
+                  : 'Ajukan penghapusan akun',
             ),
           ),
         ),
       ],
     ),
   );
+
+  Future<void> _logout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Logout dari akun?'),
+        content: const Text(
+          'Anda akan kembali ke halaman utama. Skor, level, token, tema, '
+          'dan riwayat permainan tetap tersimpan.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('LOGOUT'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _loggingOut = true);
+    try {
+      await FirebaseService.instance.signOut();
+      if (!mounted) return;
+      setState(() {
+        _hasSession = false;
+        _loggingOut = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Logout berhasil. Data permainan tetap tersimpan.'),
+        ),
+      );
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loggingOut = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Logout belum berhasil. Silakan coba kembali.'),
+        ),
+      );
+    }
+  }
 
   Future<void> _submit() async {
     final confirmed = await showDialog<bool>(
@@ -248,6 +349,7 @@ class _DeletionRequestCardState extends State<_DeletionRequestCard> {
           ),
         ),
       );
+      setState(() => _requestSent = true);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

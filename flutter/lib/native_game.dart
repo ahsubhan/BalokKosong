@@ -3,9 +3,11 @@ import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'audio_service.dart';
 import 'firebase_service.dart';
 import 'game_engine.dart';
 import 'help_feedback.dart';
@@ -23,12 +25,16 @@ const _pieceColors = [
   Color(0xffdf6892),
 ];
 
+const _testingLevelNavigation = true;
+
 const _themes = {
   'Gelap': (Color(0xff170b2d), Color(0xff35215e)),
   'Midnight': (Color(0xff18082d), Color(0xff42206f)),
   'Forest': (Color(0xff132a24), Color(0xff294b40)),
   'Plum': (Color(0xff281c30), Color(0xff4b3653)),
   'Sand': (Color(0xff3b3025), Color(0xff695845)),
+  'Neon': (Color(0xff070113), Color(0xff1b0750)),
+  'Ocean': (Color(0xff021623), Color(0xff073d5d)),
 };
 
 class NativeGameScreen extends StatefulWidget {
@@ -49,6 +55,8 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
   int levelIndex = 0;
   int score = 0;
   int moves = 0;
+  int mistakes = 0;
+  int hintsUsed = 0;
   int elapsedSeconds = 0;
   int remainingSeconds = 0;
   bool paused = false;
@@ -56,6 +64,9 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
   bool timeoutDialogOpen = false;
   bool gridVisible = true;
   bool musicEnabled = true;
+  int tokens = 0;
+  bool themePack = false;
+  Set<int> gridUnlockedLevels = {};
   String? hintedPieceId;
   String themeName = 'Midnight';
   late PuzzleEngine engine;
@@ -65,6 +76,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
   void initState() {
     super.initState();
     challengeMode = widget.challengeMode;
+    unawaited(GameAudio.instance.playGameplay());
     _loadLevel(0);
     _loadSettings();
     timer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -95,11 +107,24 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
       score = preferences.getInt('balok_score') ?? 0;
       gridVisible = preferences.getBool('balok_grid_visible') ?? true;
       musicEnabled = preferences.getBool('balok_music_enabled') ?? true;
+      tokens = preferences.getInt('balok_tokens') ?? 0;
+      themePack = preferences.getBool('balok_theme_pack') ?? false;
+      gridUnlockedLevels =
+          (preferences.getStringList('balok_grid_unlocked_levels') ?? const [])
+              .map(int.tryParse)
+              .whereType<int>()
+              .toSet();
       themeName = preferences.getString('balok_theme_name') ?? 'Midnight';
       if (!_themes.containsKey(themeName)) themeName = 'Midnight';
+      if (!themePack && (themeName == 'Neon' || themeName == 'Ocean')) {
+        themeName = 'Midnight';
+      }
       _loadLevel(levelIndex);
     });
   }
+
+  bool get _gridAvailable =>
+      levelIndex < 3 || gridUnlockedLevels.contains(levelIndex + 1);
 
   @override
   void dispose() {
@@ -115,6 +140,8 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
     remainingSeconds = 45 + engine.pieces.length * 3;
     elapsedSeconds = 0;
     moves = 0;
+    mistakes = 0;
+    hintsUsed = 0;
     paused = false;
     timeoutDialogOpen = false;
     hintedPieceId = null;
@@ -162,6 +189,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
     }
     setState(() {
       hintedPieceId = best?.id;
+      if (best != null) hintsUsed++;
       paused = false;
     });
   }
@@ -242,18 +270,21 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
       body: SafeArea(
         child: Stack(
           children: [
+            Positioned.fill(child: _ThemeBackdrop(themeName: themeName)),
             Column(
               children: [
                 Expanded(
                   child: PuzzleCanvas(
                     engine: engine,
                     boardColor: palette.$2,
-                    showGrid: gridVisible,
+                    themeName: themeName,
+                    showGrid: _gridAvailable && gridVisible,
                     disabled: paused,
                     hintedPieceId: hintedPieceId,
                     onHintConsumed: () => setState(() => hintedPieceId = null),
                     onExit: _onPieceExit,
                     onMove: () => setState(() => moves++),
+                    onWrong: () => setState(() => mistakes++),
                   ),
                 ),
                 _GameHud(
@@ -268,14 +299,27 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
             if (paused)
               _PauseOverlay(
                 level: levelIndex + 1,
-                canPrevious: levelIndex > 0,
-                canNext: levelIndex < totalLevels - 1,
+                canPrevious: _testingLevelNavigation || levelIndex > 0,
+                canNext:
+                    _testingLevelNavigation || levelIndex < totalLevels - 1,
                 onContinue: () => setState(() => paused = false),
                 onRestart: _restart,
                 onHint: _showHint,
                 onMode: _showMode,
-                onPrevious: () => setState(() => _loadLevel(levelIndex - 1)),
-                onNext: () => setState(() => _loadLevel(levelIndex + 1)),
+                onPrevious: () => setState(
+                  () => _loadLevel(
+                    _testingLevelNavigation
+                        ? (levelIndex - 1 + totalLevels) % totalLevels
+                        : levelIndex - 1,
+                  ),
+                ),
+                onNext: () => setState(
+                  () => _loadLevel(
+                    _testingLevelNavigation
+                        ? (levelIndex + 1) % totalLevels
+                        : levelIndex + 1,
+                  ),
+                ),
                 onSettings: _showSettings,
                 onHome: () => Navigator.pop(context),
               ),
@@ -423,34 +467,59 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                     },
                   ),
                   const SizedBox(height: 12),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: .045),
-                      borderRadius: BorderRadius.circular(15),
-                      border: Border.all(color: Colors.white12),
-                    ),
-                    child: SwitchListTile(
-                      title: const Text(
-                        'Tampilkan grid',
-                        style: TextStyle(fontWeight: FontWeight.w800),
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _gridAvailable
+                        ? null
+                        : () => _unlockGridForCurrentLevel(updateSheet),
+                    child: Opacity(
+                      opacity: _gridAvailable ? 1 : .48,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: .045),
+                          borderRadius: BorderRadius.circular(15),
+                          border: Border.all(color: Colors.white12),
+                        ),
+                        child: SwitchListTile(
+                          title: const Text(
+                            'Tampilkan grid',
+                            style: TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                          subtitle: Text(
+                            _gridAvailable
+                                ? 'Gratis di Level 1–3'
+                                : 'Level ${levelIndex + 1} membutuhkan 1 token',
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 11,
+                            ),
+                          ),
+                          secondary: Icon(
+                            _gridAvailable
+                                ? Icons.grid_on_rounded
+                                : Icons.lock_rounded,
+                            color: const Color(0xffd8a5ff),
+                          ),
+                          value: _gridAvailable && gridVisible,
+                          activeThumbColor: Colors.white,
+                          activeTrackColor: const Color(0xff8d4fe0),
+                          onChanged: !_gridAvailable
+                              ? null
+                              : (value) async {
+                                  setState(() => gridVisible = value);
+                                  updateSheet(() {});
+                                  final preferences =
+                                      await SharedPreferences.getInstance();
+                                  await preferences.setBool(
+                                    'balok_grid_visible',
+                                    value,
+                                  );
+                                  await FirebaseService.instance.saveSettings(
+                                    gridVisible: value,
+                                  );
+                                },
+                        ),
                       ),
-                      subtitle: const Text(
-                        'Garis bantu pada papan permainan',
-                        style: TextStyle(color: Colors.white54, fontSize: 11),
-                      ),
-                      value: gridVisible,
-                      activeThumbColor: Colors.white,
-                      activeTrackColor: const Color(0xff8d4fe0),
-                      onChanged: (value) async {
-                        setState(() => gridVisible = value);
-                        updateSheet(() {});
-                        final preferences =
-                            await SharedPreferences.getInstance();
-                        await preferences.setBool('balok_grid_visible', value);
-                        await FirebaseService.instance.saveSettings(
-                          gridVisible: value,
-                        );
-                      },
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -486,6 +555,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                       onChanged: (value) async {
                         setState(() => musicEnabled = value);
                         updateSheet(() {});
+                        await GameAudio.instance.setEnabled(value);
                         final preferences =
                             await SharedPreferences.getInstance();
                         await preferences.setBool('balok_music_enabled', value);
@@ -517,7 +587,9 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                     crossAxisSpacing: 9,
                     childAspectRatio: 3.15,
                     children: [
-                      for (final entry in _themes.entries)
+                      for (final entry in _themes.entries.where(
+                        (entry) => entry.key != 'Neon' && entry.key != 'Ocean',
+                      ))
                         _ThemeOption(
                           name: entry.key,
                           color: entry.value.$2,
@@ -536,15 +608,23 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                             );
                           },
                         ),
-                      const _ThemeOption(
+                      _ThemeOption(
                         name: 'Neon · ✦',
                         color: Color(0xff130624),
-                        locked: true,
+                        selected: themeName == 'Neon',
+                        locked: !themePack,
+                        onTap: themePack
+                            ? () => _selectTheme('Neon', updateSheet)
+                            : _showPremiumThemeInfo,
                       ),
-                      const _ThemeOption(
+                      _ThemeOption(
                         name: 'Ocean · ✦',
                         color: Color(0xff102b48),
-                        locked: true,
+                        selected: themeName == 'Ocean',
+                        locked: !themePack,
+                        onTap: themePack
+                            ? () => _selectTheme('Ocean', updateSheet)
+                            : _showPremiumThemeInfo,
                       ),
                     ],
                   ),
@@ -607,58 +687,401 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
     ),
   );
 
-  void _showStore() => Navigator.of(
-    context,
-  ).push(MaterialPageRoute(builder: (_) => const StoreScreen()));
+  Future<void> _showStore() async {
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const StoreScreen()));
+    final preferences = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      tokens = preferences.getInt('balok_tokens') ?? 0;
+      themePack = preferences.getBool('balok_theme_pack') ?? false;
+    });
+  }
 
-  void _showComplete() => showDialog<void>(
-    context: context,
-    barrierDismissible: false,
-    builder: (_) {
-      unawaited(
-        FirebaseService.instance.saveProgress(
-          level: levelIndex == totalLevels - 1 ? totalLevels : levelIndex + 2,
-          score: score,
-          bestTimeSeconds: elapsedSeconds,
-          moves: moves,
-          challengeMode: challengeMode,
-        ),
-      );
-      return AlertDialog(
+  Future<void> _selectTheme(String name, StateSetter updateSheet) async {
+    setState(() => themeName = name);
+    updateSheet(() {});
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setString('balok_theme_name', name);
+    await FirebaseService.instance.saveSettings(themeName: name);
+  }
+
+  Future<void> _showPremiumThemeInfo() async {
+    final openStore = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
         backgroundColor: const Color(0xff24103c),
         icon: const Icon(
-          Icons.check_circle_rounded,
-          color: Color(0xff54c889),
-          size: 62,
+          Icons.workspace_premium_rounded,
+          color: Color(0xffffcf5a),
+          size: 46,
         ),
         title: const Text(
-          'Papan kosong!',
+          'Tema Premium',
           textAlign: TextAlign.center,
           style: TextStyle(fontWeight: FontWeight.w900),
         ),
-        content: Text(
-          'Level ${levelIndex + 1} selesai dalam $_clock.\n$moves langkah · $score poin',
+        content: const Text(
+          'Neon dan Ocean dapat dibuka melalui pembelian Paket Tema '
+          'atau dengan memasukkan kupon di Toko & Hadiah.',
           textAlign: TextAlign.center,
         ),
         actionsAlignment: MainAxisAlignment.center,
         actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Nanti'),
+          ),
           FilledButton(
-            onPressed: () {
-              Navigator.pop(context);
-              setState(
-                () => _loadLevel(
-                  levelIndex == totalLevels - 1 ? 0 : levelIndex + 1,
-                ),
-              );
-            },
-            child: Text(
-              levelIndex == totalLevels - 1 ? 'MAIN LAGI' : 'LEVEL BERIKUTNYA',
-            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('BUKA TOKO'),
           ),
         ],
+      ),
+    );
+    if (openStore != true || !mounted) return;
+    Navigator.pop(context);
+    await Future<void>.delayed(const Duration(milliseconds: 180));
+    if (mounted) await _showStore();
+  }
+
+  Future<void> _unlockGridForCurrentLevel(StateSetter updateSheet) async {
+    if (tokens <= 0) {
+      final openStore = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: const Color(0xff24103c),
+          icon: const Icon(
+            Icons.grid_off_rounded,
+            color: Color(0xffd8a5ff),
+            size: 44,
+          ),
+          title: const Text(
+            'Grid terkunci',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontWeight: FontWeight.w900),
+          ),
+          content: Text(
+            'Mulai Level 4, grid membutuhkan 1 token per level. '
+            'Token Anda saat ini: $tokens.',
+            textAlign: TextAlign.center,
+          ),
+          actionsAlignment: MainAxisAlignment.center,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Nanti'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('BELI TOKEN'),
+            ),
+          ],
+        ),
       );
-    },
-  );
+      if (openStore == true && mounted) {
+        Navigator.pop(context);
+        await Future<void>.delayed(const Duration(milliseconds: 180));
+        if (mounted) await _showStore();
+      }
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xff24103c),
+        title: Text(
+          'Buka grid Level ${levelIndex + 1}?',
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.w900),
+        ),
+        content: Text(
+          'Gunakan 1 token. Setelah dibuka, grid untuk level ini '
+          'dapat dinyalakan atau dimatikan kapan saja.\n\n'
+          'Token tersedia: $tokens',
+          textAlign: TextAlign.center,
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('GUNAKAN 1 TOKEN'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final preferences = await SharedPreferences.getInstance();
+    final unlockedLevel = levelIndex + 1;
+    setState(() {
+      tokens--;
+      gridUnlockedLevels.add(unlockedLevel);
+      gridVisible = true;
+    });
+    updateSheet(() {});
+    await Future.wait([
+      preferences.setInt('balok_tokens', tokens),
+      preferences.setBool('balok_grid_visible', true),
+      preferences.setStringList(
+        'balok_grid_unlocked_levels',
+        gridUnlockedLevels.map((level) => '$level').toList()..sort(),
+      ),
+    ]);
+    await FirebaseService.instance.saveSettings(gridVisible: true);
+    await FirebaseService.instance.saveInventory(
+      tokens: tokens,
+      energy: preferences.getInt('balok_energy') ?? 5,
+      unlimited: preferences.getBool('balok_unlimited') ?? false,
+      themePack: preferences.getBool('balok_theme_pack') ?? false,
+      noAds: preferences.getBool('balok_no_ads') ?? false,
+      gridUnlockedLevels: gridUnlockedLevels.toList()..sort(),
+    );
+  }
+
+  void _showComplete() {
+    unawaited(GameAudio.instance.playVictory());
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        final stars = mistakes == 0 && hintsUsed == 0
+            ? 3
+            : mistakes <= 3 && hintsUsed <= 1
+            ? 2
+            : 1;
+        unawaited(
+          FirebaseService.instance.saveProgress(
+            level: levelIndex == totalLevels - 1 ? totalLevels : levelIndex + 2,
+            score: score,
+            bestTimeSeconds: elapsedSeconds,
+            moves: moves,
+            mistakes: mistakes,
+            hintsUsed: hintsUsed,
+            stars: stars,
+            challengeMode: challengeMode,
+          ),
+        );
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 430),
+            padding: const EdgeInsets.fromLTRB(24, 26, 24, 22),
+            decoration: BoxDecoration(
+              color: const Color(0xff24103c),
+              borderRadius: BorderRadius.circular(26),
+              border: Border.all(color: const Color(0xff7f4bb0)),
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black38,
+                  blurRadius: 24,
+                  offset: Offset(0, 12),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(
+                    3,
+                    (index) => Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 3),
+                      child: Icon(
+                        index < stars
+                            ? Icons.star_rounded
+                            : Icons.star_border_rounded,
+                        color: const Color(0xffffc247),
+                        size: 38,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'Papan kosong!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 27, fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Waktu $_clock · $mistakes salah · $hintsUsed petunjuk',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 15,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: .06),
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(color: Colors.white12),
+                  ),
+                  child: Row(
+                    children: [
+                      const Text(
+                        'NILAI',
+                        style: TextStyle(
+                          color: Colors.white60,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        '$score',
+                        style: const TextStyle(
+                          fontSize: 27,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 22),
+                SizedBox(
+                  width: double.infinity,
+                  height: 54,
+                  child: FilledButton(
+                    onPressed: () {
+                      Navigator.pop(dialogContext);
+                      unawaited(GameAudio.instance.playGameplay());
+                      setState(
+                        () => _loadLevel(
+                          levelIndex == totalLevels - 1 ? 0 : levelIndex + 1,
+                        ),
+                      );
+                    },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xff9754e8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                    ),
+                    child: Text(
+                      levelIndex == totalLevels - 1
+                          ? 'MAIN LAGI'
+                          : 'LEVEL BERIKUTNYA  →',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ThemeBackdrop extends StatelessWidget {
+  const _ThemeBackdrop({required this.themeName});
+
+  final String themeName;
+
+  @override
+  Widget build(BuildContext context) {
+    if (themeName != 'Neon' && themeName != 'Ocean') {
+      return const SizedBox.expand();
+    }
+    return IgnorePointer(
+      child: CustomPaint(
+        painter: _ThemeBackdropPainter(themeName),
+        size: Size.infinite,
+      ),
+    );
+  }
+}
+
+class _ThemeBackdropPainter extends CustomPainter {
+  const _ThemeBackdropPainter(this.themeName);
+
+  final String themeName;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final bounds = Offset.zero & size;
+    if (themeName == 'Neon') {
+      canvas.drawRect(
+        bounds,
+        Paint()
+          ..shader = const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xff05000f), Color(0xff21033f), Color(0xff001a2c)],
+          ).createShader(bounds),
+      );
+      final pink = Paint()
+        ..color = const Color(0xffff47df).withValues(alpha: .16)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 24);
+      final cyan = Paint()
+        ..color = const Color(0xff36e8ff).withValues(alpha: .13)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 28);
+      canvas.drawCircle(Offset(size.width * .12, size.height * .20), 74, pink);
+      canvas.drawCircle(Offset(size.width * .88, size.height * .72), 92, cyan);
+      final starPaint = Paint()..color = Colors.white.withValues(alpha: .48);
+      for (var i = 0; i < 24; i++) {
+        final x = ((i * 61) % 101) / 101 * size.width;
+        final y = ((i * 43) % 97) / 97 * size.height;
+        canvas.drawCircle(Offset(x, y), i % 5 == 0 ? 1.4 : .7, starPaint);
+      }
+    } else {
+      canvas.drawRect(
+        bounds,
+        Paint()
+          ..shader = const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xff063b58), Color(0xff031c32), Color(0xff010b19)],
+          ).createShader(bounds),
+      );
+      final wavePaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..color = const Color(0xff54d7ff).withValues(alpha: .15);
+      for (var row = 0; row < 4; row++) {
+        final y = size.height * (.18 + row * .23);
+        final wave = Path()..moveTo(-20, y);
+        for (var x = -20.0; x <= size.width + 40; x += 40) {
+          wave.quadraticBezierTo(x + 20, y - 12, x + 40, y);
+        }
+        canvas.drawPath(wave, wavePaint);
+      }
+      final bubblePaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1
+        ..color = Colors.white.withValues(alpha: .20);
+      for (var i = 0; i < 22; i++) {
+        final x = ((i * 71) % 103) / 103 * size.width;
+        final y = ((i * 37) % 97) / 97 * size.height;
+        canvas.drawCircle(Offset(x, y), 2.0 + i % 5, bubblePaint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ThemeBackdropPainter oldDelegate) =>
+      oldDelegate.themeName != themeName;
 }
 
 class PuzzleCanvas extends StatefulWidget {
@@ -666,32 +1089,55 @@ class PuzzleCanvas extends StatefulWidget {
     super.key,
     required this.engine,
     required this.boardColor,
+    required this.themeName,
     required this.showGrid,
     required this.disabled,
     required this.hintedPieceId,
     required this.onHintConsumed,
     required this.onExit,
     required this.onMove,
+    required this.onWrong,
   });
 
   final PuzzleEngine engine;
   final Color boardColor;
+  final String themeName;
   final bool showGrid;
   final bool disabled;
   final String? hintedPieceId;
   final VoidCallback onHintConsumed;
   final ValueChanged<PuzzlePiece> onExit;
   final VoidCallback onMove;
+  final VoidCallback onWrong;
 
   @override
   State<PuzzleCanvas> createState() => _PuzzleCanvasState();
 }
 
-class _PuzzleCanvasState extends State<PuzzleCanvas> {
+class _PuzzleCanvasState extends State<PuzzleCanvas>
+    with SingleTickerProviderStateMixin {
   PuzzlePiece? active;
   double dragCells = 0;
   double maxNegative = 0;
   double maxPositive = 0;
+  bool dragAttempted = false;
+  double collisionDirection = 0;
+  late final AnimationController bumpController;
+
+  @override
+  void initState() {
+    super.initState();
+    bumpController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 240),
+    );
+  }
+
+  @override
+  void dispose() {
+    bumpController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -718,11 +1164,14 @@ class _PuzzleCanvasState extends State<PuzzleCanvas> {
             painter: _PuzzlePainter(
               pieces: widget.engine.pieces,
               boardColor: widget.boardColor,
+              themeName: widget.themeName,
               active: active,
               activeOffset: dragCells,
               showGrid: widget.showGrid,
               hintedPieceId: widget.hintedPieceId,
               cell: cell,
+              bumpAnimation: bumpController,
+              collisionDirection: collisionDirection,
             ),
           ),
         ),
@@ -747,6 +1196,7 @@ class _PuzzleCanvasState extends State<PuzzleCanvas> {
           dragCells = 0;
           maxNegative = widget.engine.maxTravel(piece, -1).toDouble();
           maxPositive = widget.engine.maxTravel(piece, 1).toDouble();
+          dragAttempted = false;
         });
         return;
       }
@@ -757,25 +1207,36 @@ class _PuzzleCanvasState extends State<PuzzleCanvas> {
     final piece = active;
     if (piece == null) return;
     final rawDelta = piece.horizontal ? delta.dx : delta.dy;
+    if (rawDelta.abs() > .5) dragAttempted = true;
     if (piece.id == widget.hintedPieceId && rawDelta.abs() > .5) {
       widget.onHintConsumed();
     }
+    final proposed = dragCells + (rawDelta / cellSize) * 1.28;
+    if (proposed < -maxNegative - .03 || proposed > maxPositive + .03) {
+      _triggerBump(rawDelta.sign);
+    }
     setState(() {
-      dragCells = (dragCells + (rawDelta / cellSize) * 1.28).clamp(
-        -maxNegative,
-        maxPositive,
-      );
+      dragCells = proposed.clamp(-maxNegative, maxPositive);
     });
+  }
+
+  void _triggerBump(double direction) {
+    if (bumpController.isAnimating) return;
+    collisionDirection = direction;
+    unawaited(HapticFeedback.lightImpact());
+    bumpController.forward(from: 0);
   }
 
   void _end() {
     final piece = active;
     if (piece == null) return;
+    var moved = false;
     var snapped = dragCells.round();
     if (snapped == 0 && dragCells.abs() >= .18) {
       snapped = dragCells.isNegative ? -1 : 1;
     }
     if (widget.engine.isOutside(piece, snapped)) {
+      moved = true;
       widget.onExit(piece);
     } else if (snapped != 0 &&
         widget.engine.canPlace(
@@ -784,11 +1245,14 @@ class _PuzzleCanvasState extends State<PuzzleCanvas> {
           piece.horizontal ? 0 : snapped,
         )) {
       widget.engine.commit(piece, snapped);
+      moved = true;
       widget.onMove();
     }
+    if (dragAttempted && !moved) widget.onWrong();
     setState(() {
       active = null;
       dragCells = 0;
+      dragAttempted = false;
     });
   }
 }
@@ -797,29 +1261,61 @@ class _PuzzlePainter extends CustomPainter {
   _PuzzlePainter({
     required this.pieces,
     required this.boardColor,
+    required this.themeName,
     required this.active,
     required this.activeOffset,
     required this.showGrid,
     required this.hintedPieceId,
     required this.cell,
-  });
+    required this.bumpAnimation,
+    required this.collisionDirection,
+  }) : super(repaint: bumpAnimation);
 
   final List<PuzzlePiece> pieces;
   final Color boardColor;
+  final String themeName;
   final PuzzlePiece? active;
   final double activeOffset;
   final bool showGrid;
   final String? hintedPieceId;
   final double cell;
+  final Animation<double> bumpAnimation;
+  final double collisionDirection;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final board = RRect.fromRectAndRadius(
-      Offset.zero & size,
-      const Radius.circular(22),
+    final denseBoard = pieces.length > 60;
+    final board = Offset.zero & size;
+    final boardPaint = Paint();
+    if (themeName == 'Neon') {
+      boardPaint.shader = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xff120333), Color(0xff32106d), Color(0xff07152e)],
+      ).createShader(board);
+    } else if (themeName == 'Ocean') {
+      boardPaint.shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xff0a5574), Color(0xff07334f), Color(0xff021b31)],
+      ).createShader(board);
+    } else {
+      boardPaint.color = boardColor;
+    }
+    canvas.drawRect(board, boardPaint);
+    if (themeName == 'Neon') {
+      _paintNeonBoardDetails(canvas, size);
+    } else if (themeName == 'Ocean') {
+      _paintOceanBoardDetails(canvas, size);
+    }
+    canvas.drawRect(
+      board.deflate(.75),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5
+        ..color = Colors.white.withValues(alpha: .11),
     );
-    canvas.drawRRect(board, Paint()..color = boardColor);
-    canvas.clipRRect(board);
+    canvas.clipRect(board);
     if (showGrid) {
       final gridPaint = Paint()
         ..color = Colors.white.withValues(alpha: .055)
@@ -840,7 +1336,11 @@ class _PuzzlePainter extends CustomPainter {
       }
     }
     for (final piece in pieces) {
-      final offset = identical(piece, active) ? activeOffset : 0.0;
+      final isActive = identical(piece, active);
+      final bump = isActive
+          ? -collisionDirection * math.sin(bumpAnimation.value * math.pi) * .13
+          : 0.0;
+      final offset = isActive ? activeOffset + bump : 0.0;
       final color = _pieceColors[piece.colorIndex % _pieceColors.length];
       final hinted = piece.id == hintedPieceId;
       final cells = pieceCells(piece);
@@ -880,11 +1380,16 @@ class _PuzzlePainter extends CustomPainter {
         final bounds = silhouette.getBounds();
         final topColor = hinted
             ? Color.lerp(color, Colors.white, .60)!
-            : Color.lerp(color, Colors.white, .13)!;
+            : Color.lerp(color, Colors.white, .36)!;
         final bottomColor = hinted
             ? Color.lerp(color, Colors.white, .36)!
-            : Color.lerp(color, Colors.black, .08)!;
-        canvas.drawShadow(silhouette, Colors.black87, cell * .28, false);
+            : Color.lerp(color, Colors.black, .24)!;
+        canvas.drawShadow(
+          silhouette,
+          Colors.black87,
+          cell * (denseBoard ? .24 : .40),
+          false,
+        );
         canvas.drawPath(
           silhouette,
           Paint()
@@ -892,9 +1397,23 @@ class _PuzzlePainter extends CustomPainter {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [topColor, color, bottomColor],
-              stops: const [0, .48, 1],
+              stops: const [0, .42, 1],
             ).createShader(bounds),
         );
+        if (!denseBoard) {
+          canvas.drawPath(
+            silhouette,
+            Paint()
+              ..shader = RadialGradient(
+                center: const Alignment(-.65, -.72),
+                radius: .9,
+                colors: [
+                  Colors.white.withValues(alpha: hinted ? .34 : .18),
+                  Colors.transparent,
+                ],
+              ).createShader(bounds),
+          );
+        }
         canvas.save();
         canvas.clipPath(silhouette);
         final stripePaint = Paint()
@@ -913,7 +1432,43 @@ class _PuzzlePainter extends CustomPainter {
             stripePaint,
           );
         }
+        final sparklePaint = Paint()
+          ..color = Colors.white.withValues(alpha: hinted ? .95 : .76)
+          ..style = PaintingStyle.fill;
+        if (!denseBoard) {
+          _drawSparkle(
+            canvas,
+            Offset(
+              bounds.left + bounds.width * .25,
+              bounds.top + bounds.height * .24,
+            ),
+            math.max(1.2, cell * .16),
+            sparklePaint,
+          );
+          if (bounds.longestSide > cell * 2.6) {
+            _drawSparkle(
+              canvas,
+              Offset(
+                bounds.left + bounds.width * .72,
+                bounds.top + bounds.height * .36,
+              ),
+              math.max(1.0, cell * .11),
+              sparklePaint..color = Colors.white.withValues(alpha: .58),
+            );
+          }
+        }
         canvas.restore();
+        if (isActive && bumpAnimation.value > 0) {
+          canvas.drawPath(
+            silhouette,
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 2.4
+              ..color = Colors.white.withValues(
+                alpha: math.sin(bumpAnimation.value * math.pi) * .72,
+              ),
+          );
+        }
         canvas.drawPath(
           silhouette,
           Paint()
@@ -938,6 +1493,78 @@ class _PuzzlePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _PuzzlePainter old) => true;
+
+  static void _drawSparkle(
+    Canvas canvas,
+    Offset center,
+    double radius,
+    Paint paint,
+  ) {
+    final narrow = radius * .24;
+    final path = Path()
+      ..moveTo(center.dx, center.dy - radius)
+      ..lineTo(center.dx + narrow, center.dy - narrow)
+      ..lineTo(center.dx + radius, center.dy)
+      ..lineTo(center.dx + narrow, center.dy + narrow)
+      ..lineTo(center.dx, center.dy + radius)
+      ..lineTo(center.dx - narrow, center.dy + narrow)
+      ..lineTo(center.dx - radius, center.dy)
+      ..lineTo(center.dx - narrow, center.dy - narrow)
+      ..close();
+    canvas.drawPath(path, paint);
+  }
+
+  static void _paintNeonBoardDetails(Canvas canvas, Size size) {
+    final glow = Paint()
+      ..shader =
+          RadialGradient(
+            colors: [
+              const Color(0xffe653ff).withValues(alpha: .20),
+              Colors.transparent,
+            ],
+          ).createShader(
+            Rect.fromCircle(
+              center: Offset(size.width * .78, size.height * .18),
+              radius: size.width * .42,
+            ),
+          );
+    canvas.drawRect(Offset.zero & size, glow);
+    final line = Paint()
+      ..color = const Color(0xff6bf7ff).withValues(alpha: .09)
+      ..strokeWidth = .8;
+    for (var i = 1; i < 8; i++) {
+      final x = size.width * i / 8;
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), line);
+    }
+    for (var i = 1; i < 12; i++) {
+      final y = size.height * i / 12;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), line);
+    }
+  }
+
+  static void _paintOceanBoardDetails(Canvas canvas, Size size) {
+    final bubblePaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.1
+      ..color = Colors.white.withValues(alpha: .10);
+    for (var i = 0; i < 16; i++) {
+      final x = ((i * 47) % 97) / 97 * size.width;
+      final y = ((i * 83) % 101) / 101 * size.height;
+      final radius = 1.8 + (i % 4) * 1.25;
+      canvas.drawCircle(Offset(x, y), radius, bubblePaint);
+    }
+    final rayPaint = Paint()
+      ..shader = LinearGradient(
+        colors: [Colors.white.withValues(alpha: .08), Colors.transparent],
+      ).createShader(Offset.zero & size);
+    final ray = Path()
+      ..moveTo(size.width * .08, 0)
+      ..lineTo(size.width * .28, 0)
+      ..lineTo(size.width * .58, size.height)
+      ..lineTo(size.width * .42, size.height)
+      ..close();
+    canvas.drawPath(ray, rayPaint);
+  }
 }
 
 class _GameHud extends StatelessWidget {
@@ -1272,7 +1899,7 @@ class _ThemeOption extends StatelessWidget {
       ),
     ),
     child: InkWell(
-      onTap: locked ? null : onTap,
+      onTap: onTap,
       borderRadius: BorderRadius.circular(13),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -1299,7 +1926,9 @@ class _ThemeOption extends StatelessWidget {
                 ),
               ),
             ),
-            if (selected)
+            if (locked)
+              const Icon(Icons.lock_rounded, size: 16, color: Color(0xffffcf5a))
+            else if (selected)
               const Icon(
                 Icons.check_rounded,
                 size: 17,

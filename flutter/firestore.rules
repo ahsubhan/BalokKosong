@@ -48,6 +48,9 @@ service cloud.firestore {
         && inventory.unlimited is bool
         && inventory.themePack is bool
         && inventory.noAds is bool
+        && (!('gridUnlockedLevels' in inventory)
+          || (inventory.gridUnlockedLevels is list
+            && inventory.gridUnlockedLevels.size() <= 17))
         && inventory.updatedAt is timestamp;
     }
 
