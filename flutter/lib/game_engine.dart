@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 const int boardCols = 28;
 const int boardRows = 42;
+const int totalLevels = 20;
 
 enum PieceShape { i, l, j, t, f, z }
 
@@ -156,7 +157,8 @@ List<PuzzlePiece> generateLevel(int seedLevel, int requestedCount) {
 }
 
 int levelPieceCount(int levelIndex) {
-  return 8 + (((levelIndex + 3) * 92) / 19).round();
+  final safeIndex = levelIndex.clamp(0, totalLevels - 1);
+  return 23 + ((safeIndex * 77) / (totalLevels - 1)).round();
 }
 
 class PuzzleEngine {

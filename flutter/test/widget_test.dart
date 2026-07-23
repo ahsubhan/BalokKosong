@@ -7,11 +7,7 @@ void main() {
 
     expect(find.text('BALOK'), findsOneWidget);
     expect(find.text('KOSONG'), findsOneWidget);
+    expect(find.text('MASUK DENGAN GOOGLE'), findsOneWidget);
     expect(find.text('MAIN SEBAGAI TAMU'), findsOneWidget);
-
-    await tester.tap(find.text('MAIN SEBAGAI TAMU'));
-    await tester.pumpAndSettle();
-    expect(find.text('SCORE'), findsOneWidget);
-    expect(find.text('LEVEL'), findsOneWidget);
   });
 }

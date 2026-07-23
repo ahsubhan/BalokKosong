@@ -1,0 +1,94 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function optionalInt(data, key, minimum, maximum) {
+      return !(key in data)
+        || (data[key] is int
+          && data[key] >= minimum
+          && data[key] <= maximum);
+    }
+
+    function optionalBool(data, key) {
+      return !(key in data) || data[key] is bool;
+    }
+
+    function validGame(game) {
+      return game is map
+        && game.level is int
+        && game.level >= 1
+        && game.level <= 20
+        && game.score is int
+        && game.score >= 0
+        && game.score <= 1000000
+        && optionalInt(game, 'bestTimeSeconds', 0, 86400)
+        && optionalInt(game, 'moves', 0, 10000)
+        && optionalBool(game, 'challengeMode')
+        && game.updatedAt is timestamp;
+    }
+
+    function validSettings(settings) {
+      return settings is map
+        && optionalBool(settings, 'gridVisible')
+        && optionalBool(settings, 'musicEnabled')
+        && (!('themeName' in settings)
+          || (settings.themeName is string
+            && settings.themeName.size() <= 30))
+        && settings.updatedAt is timestamp;
+    }
+
+    function validInventory(inventory) {
+      return inventory is map
+        && inventory.tokens is int
+        && inventory.tokens >= 0
+        && inventory.tokens <= 1000000
+        && inventory.energy is int
+        && inventory.energy >= 0
+        && inventory.energy <= 5
+        && inventory.unlimited is bool
+        && inventory.themePack is bool
+        && inventory.noAds is bool
+        && inventory.updatedAt is timestamp;
+    }
+
+    function validUser(userId) {
+      return request.resource.data.uid == userId
+        && (!('game' in request.resource.data)
+          || validGame(request.resource.data.game))
+        && (!('settings' in request.resource.data)
+          || validSettings(request.resource.data.settings))
+        && (!('inventory' in request.resource.data)
+          || validInventory(request.resource.data.inventory));
+    }
+
+    match /users/{userId} {
+      allow read, delete:
+        if request.auth != null
+        && request.auth.uid == userId;
+      allow create, update:
+        if request.auth != null
+        && request.auth.uid == userId
+        && validUser(userId);
+    }
+
+    match /feedback/{feedbackId} {
+      allow create:
+        if request.auth != null
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.message is string
+        && request.resource.data.message.size() > 0
+        && request.resource.data.message.size() <= 5000
+        && request.resource.data.provider is string
+        && request.resource.data.platform is string
+        && request.resource.data.appVersion is string
+        && request.resource.data.buildNumber is string
+        && request.resource.data.status in ['new', 'pending_review']
+        && request.resource.data.createdAt is timestamp
+        && (!('category' in request.resource.data)
+          || request.resource.data.category == 'account_deletion')
+        && (!('reviewWithinHours' in request.resource.data)
+          || request.resource.data.reviewWithinHours == 24);
+      allow read, update, delete: if false;
+    }
+  }
+}

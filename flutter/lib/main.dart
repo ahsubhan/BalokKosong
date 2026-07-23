@@ -1,11 +1,21 @@
 import 'dart:math' as math;
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import 'firebase_service.dart';
+import 'how_to_play.dart';
+import 'legal_screen.dart';
+import 'mode_selection.dart';
 import 'native_game.dart';
 
-void main() => runApp(const BalokKosongApp());
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const BalokKosongApp());
+  unawaited(FirebaseService.instance.initialize());
+}
 
 class BalokKosongApp extends StatelessWidget {
   const BalokKosongApp({super.key});
@@ -54,14 +64,14 @@ class HomeScreen extends StatelessWidget {
               label: 'MASUK DENGAN APPLE',
               symbol: Icons.apple_rounded,
               tone: const Color(0xff4d2b70),
-              onTap: () => _unavailable(context, 'Apple'),
+              onTap: () => _signIn(context, 'Apple'),
             ),
             const SizedBox(height: 11),
             _AuthButton(
               label: 'MASUK DENGAN FACEBOOK',
               symbol: Icons.facebook_rounded,
               tone: const Color(0xff7340be),
-              onTap: () => _unavailable(context, 'Facebook'),
+              onTap: () => _signIn(context, 'Facebook'),
             ),
             const SizedBox(height: 11),
             _AuthButton(
@@ -69,20 +79,18 @@ class HomeScreen extends StatelessWidget {
               symbol: Icons.g_mobiledata_rounded,
               tone: const Color(0xfff8f3ff),
               darkLabel: true,
-              onTap: () => _unavailable(context, 'Google'),
+              onTap: () => _signIn(context, 'Google'),
             ),
             const SizedBox(height: 11),
             _AuthButton(
               label: 'MAIN SEBAGAI TAMU',
               symbol: Icons.person_outline_rounded,
               tone: const Color(0xffa855f7),
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const NativeGameScreen()),
-              ),
+              onTap: () => _signIn(context, 'Tamu'),
             ),
-            const Spacer(),
+            const SizedBox(height: 13),
             const Text(
-              'Masuk agar skor, level, hadiah, dan bonus Anda tersinkron.',
+              'Masuk untuk menyinkronkan skor, progres level, dan bonus Anda di semua perangkat.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.white70,
@@ -90,18 +98,39 @@ class HomeScreen extends StatelessWidget {
                 height: 1.35,
               ),
             ),
-            const SizedBox(height: 14),
+            const Spacer(),
+            const Text(
+              'Dengan mengetuk Apple, Facebook, Google, atau Tamu,',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 10,
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 3),
             Wrap(
               alignment: WrapAlignment.center,
               children: [
+                const Text(
+                  'Anda menyetujui ',
+                  style: TextStyle(color: Colors.white70, fontSize: 10),
+                ),
                 _PolicyLink(
                   label: 'Ketentuan Penggunaan',
                   onTap: () => _policy(context, 'Ketentuan Penggunaan'),
                 ),
-                const Text('  •  ', style: TextStyle(color: Colors.white38)),
+                const Text(
+                  ' dan ',
+                  style: TextStyle(color: Colors.white70, fontSize: 10),
+                ),
                 _PolicyLink(
                   label: 'Kebijakan Privasi',
                   onTap: () => _policy(context, 'Kebijakan Privasi'),
+                ),
+                const Text(
+                  '.',
+                  style: TextStyle(color: Colors.white70, fontSize: 10),
                 ),
               ],
             ),
@@ -111,42 +140,94 @@ class HomeScreen extends StatelessWidget {
     ),
   );
 
-  static void _unavailable(
-    BuildContext context,
-    String provider,
-  ) => ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(
-        'Masuk dengan $provider sedang disiapkan. Silakan gunakan Tamu untuk bermain.',
+  static Future<void> _enterGame(BuildContext context) async {
+    final preferences = await SharedPreferences.getInstance();
+    if (!context.mounted) return;
+    final tutorialSeen =
+        preferences.getBool('balok_kosong_tutorial_seen') ?? false;
+    if (tutorialSeen) {
+      await Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: _modeSelection));
+      return;
+    }
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (guideContext) => HowToPlayScreen(
+          onFinished: () async {
+            await preferences.setBool('balok_kosong_tutorial_seen', true);
+            if (!guideContext.mounted) return;
+            await Navigator.of(
+              guideContext,
+            ).pushReplacement(MaterialPageRoute(builder: _modeSelection));
+          },
+        ),
+      ),
+    );
+  }
+
+  static Widget _modeSelection(BuildContext modeContext) => ModeSelectionScreen(
+    onRelaxed: () => Navigator.of(modeContext).pushReplacement(
+      MaterialPageRoute(builder: (_) => const NativeGameScreen()),
+    ),
+    onChallenge: () => Navigator.of(modeContext).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => const NativeGameScreen(challengeMode: true),
       ),
     ),
+    onCancel: () => Navigator.pop(modeContext),
   );
 
-  static void _policy(
-    BuildContext context,
-    String title,
-  ) => showModalBottomSheet<void>(
-    context: context,
-    backgroundColor: const Color(0xff2d1246),
-    builder: (_) => Padding(
-      padding: const EdgeInsets.fromLTRB(28, 30, 28, 42),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
+  static Future<void> _signIn(BuildContext context, String provider) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      if (provider == 'Google') {
+        await FirebaseService.instance.signInWithGoogle();
+      } else if (provider == 'Apple') {
+        await FirebaseService.instance.signInWithApple();
+      } else if (provider == 'Facebook') {
+        await FirebaseService.instance.signInWithFacebook();
+      } else {
+        await FirebaseService.instance.signInAsGuest();
+      }
+      if (!context.mounted) return;
+      await _enterGame(context);
+    } catch (error) {
+      if (!context.mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Masuk dengan $provider belum berhasil. ${_friendlyError(error)}',
           ),
-          const SizedBox(height: 14),
-          const Text(
-            'BalokKosong menyimpan progres permainan dan pilihan Anda. Akun digunakan untuk menyinkronkan progres antar perangkat.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white70, height: 1.45),
+        ),
+      );
+    }
+  }
+
+  static String _friendlyError(Object error) {
+    final message = error.toString();
+    if (message.contains('canceled') || message.contains('cancelled')) {
+      return 'Proses dibatalkan.';
+    }
+    if (message.contains('network')) {
+      return 'Periksa koneksi internet lalu coba lagi.';
+    }
+    if (message.contains('Firebase belum tersambung')) {
+      return 'Firebase belum tersambung pada perangkat ini.';
+    }
+    return 'Silakan coba kembali.';
+  }
+
+  static void _policy(BuildContext context, String title) =>
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => LegalScreen(
+            document: title == 'Ketentuan Penggunaan'
+                ? LegalDocument.terms
+                : LegalDocument.privacy,
           ),
-        ],
-      ),
-    ),
-  );
+        ),
+      );
 }
 
 class _AuthButton extends StatelessWidget {
@@ -521,11 +602,12 @@ List<Block> demoBlocks(int level) {
     Block(3.4, 5.3, 3, Axis.horizontal, colors[4]),
     Block(5.8, 3.5, 3, Axis.vertical, colors[5]),
   ];
-  if (level > 1)
+  if (level > 1) {
     base.addAll([
       Block(.4, 5.5, 3, Axis.horizontal, colors[1]),
       Block(1.1, .1, 3, Axis.vertical, colors[2]),
     ]);
+  }
   return base;
 }
 
@@ -699,31 +781,6 @@ class _PausePanel extends StatelessWidget {
           label: 'ULANGI LEVEL',
           icon: Icons.refresh_rounded,
           onPressed: onRestart,
-        ),
-      ],
-    ),
-  );
-}
-
-class _HowToPlay extends StatelessWidget {
-  const _HowToPlay();
-  @override
-  Widget build(BuildContext context) => const Padding(
-    padding: EdgeInsets.fromLTRB(28, 34, 28, 50),
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.swipe_rounded, size: 48, color: Color(0xffd8a5ff)),
-        SizedBox(height: 18),
-        Text(
-          'CARA BERMAIN',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
-        ),
-        SizedBox(height: 12),
-        Text(
-          'Geser balok horizontal hanya ke kiri atau kanan. Geser balok vertikal hanya ke atas atau bawah. Keluarkan seluruh balok dari papan.',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.white70, fontSize: 16, height: 1.45),
         ),
       ],
     ),

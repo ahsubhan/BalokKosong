@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "456475995990",
+    "project_id": "balokkosong-54afe",
+    "storage_bucket": "balokkosong-54afe.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:456475995990:android:386689912a02bb2917b0f7",
+        "android_client_info": {
+          "package_name": "com.ahsubhan.balok_kosong"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "456475995990-0db1od629d70nm512i33lcs8rfs1mk4k.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ahsubhan.balok_kosong",
+            "certificate_hash": "a9611d8dbb5c02cbaaba2c58bbd26863a6821c1b"
+          }
+        },
+        {
+          "client_id": "456475995990-ci3pvtvq6v4hh5gpf0pq50n5sun8pv84.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAg2daViDPcmC56KwC8cyrDwZQ3VdCtjnE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "456475995990-ci3pvtvq6v4hh5gpf0pq50n5sun8pv84.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "456475995990-dsv8k3pkie6hkg1v1e2bcu5dpthrnv3n.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.ahsubhan.balokKosong"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
