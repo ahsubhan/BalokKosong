@@ -32,9 +32,14 @@ const _themes = {
 };
 
 class NativeGameScreen extends StatefulWidget {
-  const NativeGameScreen({super.key, this.challengeMode = false});
+  const NativeGameScreen({
+    super.key,
+    required this.homeBuilder,
+    this.challengeMode = false,
+  });
 
   final bool challengeMode;
+  final WidgetBuilder homeBuilder;
 
   @override
   State<NativeGameScreen> createState() => _NativeGameScreenState();
@@ -396,7 +401,10 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                       Future<void>.delayed(
                         const Duration(milliseconds: 180),
                         () {
-                          if (mounted) Navigator.pop(context);
+                          if (!mounted) return;
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: widget.homeBuilder),
+                          );
                         },
                       );
                     },

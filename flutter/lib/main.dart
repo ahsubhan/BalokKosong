@@ -37,105 +37,127 @@ class BalokKosongApp extends StatelessWidget {
 }
 
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, this.showBackButton = false});
+
+  final bool showBackButton;
 
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: const Color(0xff170627),
     body: SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(30, 24, 30, 26),
-        child: Column(
-          children: [
-            const Spacer(),
-            const _Logo(),
-            const SizedBox(height: 13),
-            const Text(
-              'HABISKAN SEMUA BALOK',
-              style: TextStyle(
-                color: Color(0xffd9b8ff),
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1.35,
-                fontSize: 11,
-              ),
-            ),
-            const Spacer(flex: 2),
-            _AuthButton(
-              label: 'MASUK DENGAN APPLE',
-              symbol: Icons.apple_rounded,
-              tone: const Color(0xff4d2b70),
-              onTap: () => _signIn(context, 'Apple'),
-            ),
-            const SizedBox(height: 11),
-            _AuthButton(
-              label: 'MASUK DENGAN FACEBOOK',
-              symbol: Icons.facebook_rounded,
-              tone: const Color(0xff7340be),
-              onTap: () => _signIn(context, 'Facebook'),
-            ),
-            const SizedBox(height: 11),
-            _AuthButton(
-              label: 'MASUK DENGAN GOOGLE',
-              symbol: Icons.g_mobiledata_rounded,
-              tone: const Color(0xfff8f3ff),
-              darkLabel: true,
-              onTap: () => _signIn(context, 'Google'),
-            ),
-            const SizedBox(height: 11),
-            _AuthButton(
-              label: 'MAIN SEBAGAI TAMU',
-              symbol: Icons.person_outline_rounded,
-              tone: const Color(0xffa855f7),
-              onTap: () => _signIn(context, 'Tamu'),
-            ),
-            const SizedBox(height: 13),
-            const Text(
-              'Masuk untuk menyinkronkan skor, progres level, dan bonus Anda di semua perangkat.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 11,
-                height: 1.35,
-              ),
-            ),
-            const Spacer(),
-            const Text(
-              'Dengan mengetuk Apple, Facebook, Google, atau Tamu,',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 10,
-                height: 1.35,
-              ),
-            ),
-            const SizedBox(height: 3),
-            Wrap(
-              alignment: WrapAlignment.center,
+      child: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(30, 24, 30, 26),
+            child: Column(
               children: [
+                const Spacer(),
+                const _Logo(),
+                const SizedBox(height: 13),
                 const Text(
-                  'Anda menyetujui ',
-                  style: TextStyle(color: Colors.white70, fontSize: 10),
+                  'HABISKAN SEMUA BALOK',
+                  style: TextStyle(
+                    color: Color(0xffd9b8ff),
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.35,
+                    fontSize: 11,
+                  ),
                 ),
-                _PolicyLink(
-                  label: 'Ketentuan Penggunaan',
-                  onTap: () => _policy(context, 'Ketentuan Penggunaan'),
+                const Spacer(flex: 2),
+                _AuthButton(
+                  label: 'MASUK DENGAN APPLE',
+                  symbol: Icons.apple_rounded,
+                  tone: const Color(0xff4d2b70),
+                  onTap: () => _signIn(context, 'Apple'),
                 ),
+                const SizedBox(height: 11),
+                _AuthButton(
+                  label: 'MASUK DENGAN FACEBOOK',
+                  symbol: Icons.facebook_rounded,
+                  tone: const Color(0xff7340be),
+                  onTap: () => _signIn(context, 'Facebook'),
+                ),
+                const SizedBox(height: 11),
+                _AuthButton(
+                  label: 'MASUK DENGAN GOOGLE',
+                  symbol: Icons.g_mobiledata_rounded,
+                  tone: const Color(0xfff8f3ff),
+                  darkLabel: true,
+                  onTap: () => _signIn(context, 'Google'),
+                ),
+                const SizedBox(height: 11),
+                _AuthButton(
+                  label: 'MAIN SEBAGAI TAMU',
+                  symbol: Icons.person_outline_rounded,
+                  tone: const Color(0xffa855f7),
+                  onTap: () => _signIn(context, 'Tamu'),
+                ),
+                const SizedBox(height: 13),
                 const Text(
-                  ' dan ',
-                  style: TextStyle(color: Colors.white70, fontSize: 10),
+                  'Masuk untuk menyinkronkan skor, progres level, dan bonus Anda di semua perangkat.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 13,
+                    height: 1.4,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-                _PolicyLink(
-                  label: 'Kebijakan Privasi',
-                  onTap: () => _policy(context, 'Kebijakan Privasi'),
-                ),
+                const Spacer(),
                 const Text(
-                  '.',
-                  style: TextStyle(color: Colors.white70, fontSize: 10),
+                  'Dengan mengetuk Apple, Facebook, Google, atau Tamu,',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    height: 1.4,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  children: [
+                    const Text(
+                      'Anda menyetujui ',
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                    _PolicyLink(
+                      label: 'Ketentuan Penggunaan',
+                      onTap: () => _policy(context, 'Ketentuan Penggunaan'),
+                    ),
+                    const Text(
+                      ' dan ',
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                    _PolicyLink(
+                      label: 'Kebijakan Privasi',
+                      onTap: () => _policy(context, 'Kebijakan Privasi'),
+                    ),
+                    const Text(
+                      '.',
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+          if (showBackButton)
+            Positioned(
+              left: 12,
+              top: 8,
+              child: IconButton(
+                tooltip: 'Kembali ke permainan',
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: Colors.white,
+                  size: 25,
+                ),
+              ),
+            ),
+        ],
       ),
     ),
   );
@@ -168,15 +190,21 @@ class HomeScreen extends StatelessWidget {
 
   static Widget _modeSelection(BuildContext modeContext) => ModeSelectionScreen(
     onRelaxed: () => Navigator.of(modeContext).pushReplacement(
-      MaterialPageRoute(builder: (_) => const NativeGameScreen()),
+      MaterialPageRoute(
+        builder: (_) => NativeGameScreen(homeBuilder: _settingsHome),
+      ),
     ),
     onChallenge: () => Navigator.of(modeContext).pushReplacement(
       MaterialPageRoute(
-        builder: (_) => const NativeGameScreen(challengeMode: true),
+        builder: (_) =>
+            NativeGameScreen(challengeMode: true, homeBuilder: _settingsHome),
       ),
     ),
     onCancel: () => Navigator.pop(modeContext),
   );
+
+  static Widget _settingsHome(BuildContext _) =>
+      const HomeScreen(showBackButton: true);
 
   static Future<void> _signIn(BuildContext context, String provider) async {
     final messenger = ScaffoldMessenger.of(context);
@@ -283,7 +311,7 @@ class _PolicyLink extends StatelessWidget {
       label,
       style: const TextStyle(
         color: Color(0xffe0c4ff),
-        fontSize: 10,
+        fontSize: 12,
         fontWeight: FontWeight.w800,
         decoration: TextDecoration.underline,
       ),
