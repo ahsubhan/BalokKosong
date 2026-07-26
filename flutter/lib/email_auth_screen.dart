@@ -156,7 +156,8 @@ class _EmailRegistrationScreenState extends State<EmailRegistrationScreen> {
       ),
       const SizedBox(height: 14),
       const Text(
-        'Kami akan mengirim tautan verifikasi. Klik tautan tersebut sebelum login.',
+        'Kami akan mengirim tautan verifikasi. Klik tautan tersebut sebelum login. '
+        'Jika belum terlihat, silakan cek juga folder Junk/Spam.',
         textAlign: TextAlign.center,
         style: TextStyle(color: Colors.white60, fontSize: 12, height: 1.4),
       ),
@@ -207,7 +208,8 @@ class _EmailRegistrationScreenState extends State<EmailRegistrationScreen> {
           ),
           content: Text(
             'Tautan verifikasi telah dikirim ke $email. Klik tautan tersebut, '
-            'lalu kembali ke aplikasi dan login.',
+            'lalu kembali ke aplikasi dan login. Jika email belum terlihat, '
+            'silakan cek juga folder Junk/Spam.',
             textAlign: TextAlign.center,
           ),
           actionsAlignment: MainAxisAlignment.center,

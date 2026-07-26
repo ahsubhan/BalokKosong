@@ -27,6 +27,7 @@ void main() {
     expect(find.text('Alamat email'), findsOneWidget);
     expect(find.text('Password (minimal 6 karakter)'), findsOneWidget);
     expect(find.text('KIRIM VERIFIKASI'), findsOneWidget);
+    expect(find.textContaining('folder Junk/Spam'), findsOneWidget);
   });
 
   testWidgets('shows back button when home is opened from settings', (
@@ -36,7 +37,29 @@ void main() {
       const MaterialApp(home: HomeScreen(showBackButton: true)),
     );
 
-    expect(find.byTooltip('Kembali ke permainan'), findsOneWidget);
+    expect(find.byTooltip('Kembali'), findsOneWidget);
+  });
+
+  testWidgets('shows back button when home is pushed from another page', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => FilledButton(
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const HomeScreen())),
+            child: const Text('Buka halaman utama'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Buka halaman utama'));
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('Kembali'), findsOneWidget);
   });
 
   testWidgets('disables sign-in actions when an account is already active', (

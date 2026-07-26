@@ -97,6 +97,8 @@ class HomeScreen extends StatelessWidget {
     unawaited(GameAudio.instance.playOpening());
     final signedIn =
         accountSignedIn ?? FirebaseService.instance.user?.isAnonymous == false;
+    final canReturnToPrevious =
+        showBackButton || Navigator.of(context).canPop();
     return Scaffold(
       backgroundColor: const Color(0xff170627),
       body: SafeArea(
@@ -220,12 +222,12 @@ class HomeScreen extends StatelessWidget {
                 ],
               ),
             ),
-            if (showBackButton)
+            if (canReturnToPrevious)
               Positioned(
                 left: 20,
-                top: 38,
+                top: 20,
                 child: IconButton.filled(
-                  tooltip: 'Kembali ke permainan',
+                  tooltip: 'Kembali',
                   onPressed: () {
                     unawaited(GameAudio.instance.playGameplay());
                     Navigator.pop(context);
@@ -250,10 +252,17 @@ class HomeScreen extends StatelessWidget {
     final userId = FirebaseService.instance.user?.uid ?? 'perangkat';
     final tutorialKey = 'balok_kosong_tutorial_seen_$userId';
     final tutorialSeen = preferences.getBool(tutorialKey) ?? false;
+    final hasProgress =
+        (preferences.getBool('balok_has_started') ?? false) ||
+        (preferences.getInt('balok_level') ?? 1) > 1 ||
+        (preferences.getInt('balok_score') ?? 0) > 0;
     if (tutorialSeen) {
-      await Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: _modeSelection));
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (modeContext) =>
+              _modeSelection(modeContext, hasProgress: hasProgress),
+        ),
+      );
       return;
     }
     await Navigator.of(context).push(
@@ -262,16 +271,23 @@ class HomeScreen extends StatelessWidget {
           onFinished: () async {
             await preferences.setBool(tutorialKey, true);
             if (!guideContext.mounted) return;
-            await Navigator.of(
-              guideContext,
-            ).pushReplacement(MaterialPageRoute(builder: _modeSelection));
+            await Navigator.of(guideContext).pushReplacement(
+              MaterialPageRoute(
+                builder: (modeContext) =>
+                    _modeSelection(modeContext, hasProgress: hasProgress),
+              ),
+            );
           },
         ),
       ),
     );
   }
 
-  static Widget _modeSelection(BuildContext modeContext) => ModeSelectionScreen(
+  static Widget _modeSelection(
+    BuildContext modeContext, {
+    required bool hasProgress,
+  }) => ModeSelectionScreen(
+    hasProgress: hasProgress,
     onRelaxed: () => Navigator.of(modeContext).pushReplacement(
       MaterialPageRoute(
         builder: (_) => NativeGameScreen(homeBuilder: _settingsHome),
@@ -303,6 +319,7 @@ class HomeScreen extends StatelessWidget {
           ),
         ),
     onCancel: () => Navigator.pop(modeContext),
+    onSettings: () => openNativeGameSettings(modeContext, _settingsHome),
   );
 
   static Widget _settingsHome(BuildContext _) =>

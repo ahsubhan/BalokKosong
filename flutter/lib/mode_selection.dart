@@ -7,16 +7,20 @@ class ModeSelectionScreen extends StatefulWidget {
     required this.onRelaxed,
     required this.onChallenge,
     required this.onCancel,
+    this.onSettings,
     this.onRelaxedSelected,
     this.onChallengeSelected,
+    this.hasProgress = false,
     this.energy = 5,
   });
 
   final VoidCallback onRelaxed;
   final VoidCallback onChallenge;
   final VoidCallback onCancel;
+  final VoidCallback? onSettings;
   final ValueChanged<bool>? onRelaxedSelected;
   final ValueChanged<bool>? onChallengeSelected;
+  final bool hasProgress;
   final int energy;
 
   @override
@@ -25,6 +29,19 @@ class ModeSelectionScreen extends StatefulWidget {
 
 class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
   bool challengeSelected = false;
+
+  void _selectMode({required bool challenge}) {
+    if (challenge && widget.energy <= 0) return;
+    if (!widget.hasProgress) {
+      if (challenge) {
+        widget.onChallenge();
+      } else {
+        widget.onRelaxed();
+      }
+      return;
+    }
+    setState(() => challengeSelected = challenge);
+  }
 
   void _start({required bool fromLevelOne}) {
     if (challengeSelected) {
@@ -134,7 +151,9 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                                 label: 'Lanjutkan',
                                 icon: Icons.play_arrow_rounded,
                                 emphasized: true,
-                                onTap: () => _start(fromLevelOne: false),
+                                onTap: widget.hasProgress
+                                    ? () => _start(fromLevelOne: false)
+                                    : null,
                               ),
                             ),
                             const SizedBox(width: 9),
@@ -142,7 +161,9 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                               child: _ProgressChoice(
                                 label: 'Dari Level 1',
                                 icon: Icons.replay_rounded,
-                                onTap: () => _start(fromLevelOne: true),
+                                onTap: widget.hasProgress
+                                    ? () => _start(fromLevelOne: true)
+                                    : null,
                               ),
                             ),
                           ],
@@ -157,7 +178,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                     description:
                         'Timer menghitung waktu, tidak ada batas energy.',
                     selected: !challengeSelected,
-                    onTap: () => setState(() => challengeSelected = false),
+                    onTap: () => _selectMode(challenge: false),
                   ),
                   const SizedBox(height: 12),
                   _ModeCard(
@@ -167,13 +188,34 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                         'Countdown habis = ulang level. Energy dipakai per percobaan.',
                     selected: challengeSelected,
                     onTap: widget.energy > 0
-                        ? () => setState(() => challengeSelected = true)
+                        ? () => _selectMode(challenge: true)
                         : null,
                   ),
-                  const SizedBox(height: 20),
-                  TextButton(
-                    onPressed: widget.onCancel,
-                    child: const Text('Batal'),
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    height: 48,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        TextButton(
+                          onPressed: widget.onCancel,
+                          child: const Text('Batal'),
+                        ),
+                        if (widget.onSettings != null)
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: IconButton(
+                              tooltip: 'Pengaturan',
+                              onPressed: widget.onSettings,
+                              style: IconButton.styleFrom(
+                                backgroundColor: const Color(0xff4f2879),
+                                foregroundColor: Colors.white,
+                              ),
+                              icon: const Icon(Icons.settings_rounded),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -189,54 +231,62 @@ class _ProgressChoice extends StatelessWidget {
   const _ProgressChoice({
     required this.label,
     required this.icon,
-    required this.onTap,
+    this.onTap,
     this.emphasized = false,
   });
 
   final String label;
   final IconData icon;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final bool emphasized;
 
   @override
-  Widget build(BuildContext context) => Material(
-    color: emphasized
-        ? const Color(0xff6f35a8)
-        : Colors.white.withValues(alpha: .035),
-    borderRadius: BorderRadius.circular(11),
-    child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(11),
-      child: Container(
-        height: 42,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(
+  Widget build(BuildContext context) {
+    final enabled = onTap != null;
+    return Opacity(
+      opacity: enabled ? 1 : .38,
+      child: Material(
+        color: emphasized && enabled
+            ? const Color(0xff6f35a8)
+            : Colors.white.withValues(alpha: .035),
+        borderRadius: BorderRadius.circular(11),
+        child: InkWell(
+          onTap: onTap,
           borderRadius: BorderRadius.circular(11),
-          border: Border.all(
-            color: emphasized ? const Color(0xffc084fc) : Colors.white24,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 18),
-            const SizedBox(width: 5),
-            Flexible(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                ),
+          child: Container(
+            height: 42,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(11),
+              border: Border.all(
+                color: emphasized && enabled
+                    ? const Color(0xffc084fc)
+                    : Colors.white24,
               ),
             ),
-          ],
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 18),
+                const SizedBox(width: 5),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _ModeCard extends StatelessWidget {

@@ -62,6 +62,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: ModeSelectionScreen(
+          hasProgress: true,
           onRelaxed: () {},
           onChallenge: () {},
           onCancel: () {},
@@ -78,5 +79,39 @@ void main() {
     await tester.pump();
     await tester.tap(find.text('Dari Level 1'));
     expect(challengeFromLevelOne, isTrue);
+  });
+
+  testWidgets('fresh player starts by tapping a mode', (tester) async {
+    var relaxedStarted = false;
+    var challengeStarted = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ModeSelectionScreen(
+          onRelaxed: () => relaxedStarted = true,
+          onChallenge: () => challengeStarted = true,
+          onCancel: () {},
+          onSettings: () {},
+        ),
+      ),
+    );
+
+    final continueChoice = tester.widget<InkWell>(
+      find.ancestor(of: find.text('Lanjutkan'), matching: find.byType(InkWell)),
+    );
+    final levelOneChoice = tester.widget<InkWell>(
+      find.ancestor(
+        of: find.text('Dari Level 1'),
+        matching: find.byType(InkWell),
+      ),
+    );
+    expect(continueChoice.onTap, isNull);
+    expect(levelOneChoice.onTap, isNull);
+    expect(find.byTooltip('Pengaturan'), findsOneWidget);
+
+    await tester.tap(find.text('Santai'));
+    expect(relaxedStarted, isTrue);
+
+    await tester.tap(find.text('Tantangan · 1 ⚡'));
+    expect(challengeStarted, isTrue);
   });
 }

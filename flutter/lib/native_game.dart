@@ -34,6 +34,16 @@ const _pieceColors = [
 const _maximumAllowedMistakes = 10;
 const _developerGoogleEmail = 'ah.subhan@gmail.com';
 
+Future<void> openNativeGameSettings(
+  BuildContext context,
+  WidgetBuilder homeBuilder,
+) => Navigator.of(context).push(
+  MaterialPageRoute(
+    builder: (_) =>
+        NativeGameScreen(homeBuilder: homeBuilder, settingsOnly: true),
+  ),
+);
+
 bool developerLevelNavigationEnabled({
   required String? email,
   required Iterable<String> providerIds,
@@ -68,10 +78,12 @@ class NativeGameScreen extends StatefulWidget {
     required this.homeBuilder,
     this.challengeMode = false,
     this.startFromLevelOne = false,
+    this.settingsOnly = false,
   });
 
   final bool challengeMode;
   final bool startFromLevelOne;
+  final bool settingsOnly;
   final WidgetBuilder homeBuilder;
 
   @override
@@ -108,8 +120,13 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
   void initState() {
     super.initState();
     challengeMode = widget.challengeMode;
-    unawaited(GameAudio.instance.playGameplay());
     _loadLevel(0);
+    if (widget.settingsOnly) {
+      paused = true;
+      unawaited(_openSettingsOnly());
+      return;
+    }
+    unawaited(GameAudio.instance.playGameplay());
     _loadSettings();
     timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted && !paused && engine.pieces.isNotEmpty) {
@@ -130,8 +147,20 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
     });
   }
 
+  Future<void> _openSettingsOnly() async {
+    await _loadSettings();
+    if (!mounted) return;
+    await Future<void>.delayed(Duration.zero);
+    if (!mounted) return;
+    await _showSettings();
+    if (mounted) Navigator.pop(context);
+  }
+
   Future<void> _loadSettings() async {
     final preferences = await SharedPreferences.getInstance();
+    if (!widget.settingsOnly) {
+      await preferences.setBool('balok_has_started', true);
+    }
     if (!mounted) return;
     setState(() {
       levelIndex = widget.startFromLevelOne
@@ -497,6 +526,14 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
           });
         },
         onCancel: () => Navigator.pop(modeContext),
+        hasProgress: true,
+        onSettings: () {
+          Navigator.pop(modeContext);
+          Future<void>.delayed(
+            const Duration(milliseconds: 180),
+            _showSettings,
+          );
+        },
       ),
     ),
   );
@@ -695,7 +732,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
     });
   }
 
-  void _showSettings() => showModalBottomSheet<void>(
+  Future<void> _showSettings() => showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
