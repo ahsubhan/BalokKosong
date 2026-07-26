@@ -53,7 +53,8 @@ class GameAudio with WidgetsBindingObserver {
     return _enabled = preferences.getBool('balok_music_enabled') ?? true;
   }
 
-  Future<void> playOpening() {
+  Future<void> playOpening({bool restart = false}) {
+    if (_openingStoppedByChoice && !restart) return Future<void>.value();
     _openingStoppedByChoice = false;
     return _selectTrack(_MusicTrack.opening);
   }

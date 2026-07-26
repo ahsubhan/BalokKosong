@@ -77,7 +77,7 @@ class _OpeningSplashScreenState extends State<OpeningSplashScreen>
   @override
   void initState() {
     super.initState();
-    unawaited(GameAudio.instance.playOpening());
+    unawaited(GameAudio.instance.playOpening(restart: true));
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
@@ -523,7 +523,7 @@ class HomeScreen extends StatelessWidget {
       await _enterGame(context);
     } catch (error) {
       if (!context.mounted) return;
-      unawaited(GameAudio.instance.playOpening());
+      unawaited(GameAudio.instance.playOpening(restart: true));
       messenger.showSnackBar(
         SnackBar(
           content: Text(
@@ -541,7 +541,7 @@ class HomeScreen extends StatelessWidget {
     if (signedIn == true && context.mounted) {
       await _enterGame(context);
     } else {
-      unawaited(GameAudio.instance.playOpening());
+      unawaited(GameAudio.instance.playOpening(restart: true));
     }
   }
 
