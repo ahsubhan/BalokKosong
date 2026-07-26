@@ -7,6 +7,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'player_progress.dart';
+
 class FirebaseService {
   FirebaseService._();
 
@@ -177,9 +179,13 @@ class FirebaseService {
     final currentUser = user;
     if (!_ready || currentUser == null) return;
     final prefs = await SharedPreferences.getInstance();
-    final savedLevel = prefs.getInt('balok_level') ?? 1;
+    final levelKey = playerProgressKey('balok_level', currentUser.uid);
+    final scoreKey = playerProgressKey('balok_score', currentUser.uid);
+    final savedLevel = prefs.getInt(levelKey) ?? 1;
     final unlockedLevel = level > savedLevel ? level : savedLevel;
     await Future.wait([
+      prefs.setInt(levelKey, unlockedLevel),
+      prefs.setInt(scoreKey, score),
       prefs.setInt('balok_level', unlockedLevel),
       prefs.setInt('balok_score', score),
     ]);
@@ -327,10 +333,22 @@ class FirebaseService {
       data['inventory'] as Map? ?? {},
     );
     if (game['level'] is num) {
-      await prefs.setInt('balok_level', (game['level'] as num).toInt());
+      final level = (game['level'] as num).toInt();
+      await Future.wait([
+        prefs.setInt(playerProgressKey('balok_level', currentUser.uid), level),
+        prefs.setInt('balok_level', level),
+        prefs.setBool(
+          playerProgressKey('balok_has_started', currentUser.uid),
+          true,
+        ),
+      ]);
     }
     if (game['score'] is num) {
-      await prefs.setInt('balok_score', (game['score'] as num).toInt());
+      final score = (game['score'] as num).toInt();
+      await Future.wait([
+        prefs.setInt(playerProgressKey('balok_score', currentUser.uid), score),
+        prefs.setInt('balok_score', score),
+      ]);
     }
     if (settings['gridVisible'] is bool) {
       await prefs.setBool(
