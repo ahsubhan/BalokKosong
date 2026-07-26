@@ -11,6 +11,21 @@ bool hasMeaningfulProgress({
   return (playerLevel ?? 1) > 1 || (playerScore ?? 0) > 0;
 }
 
+bool shouldOfferSavedProgress({
+  required bool authenticatedAccount,
+  required bool developer,
+  required bool hasStarted,
+  required int? playerLevel,
+  required int? playerScore,
+}) =>
+    authenticatedAccount &&
+    !developer &&
+    hasMeaningfulProgress(
+      hasStarted: hasStarted,
+      playerLevel: playerLevel,
+      playerScore: playerScore,
+    );
+
 int resolveInitialLevel({
   required bool startFromLevelOne,
   required bool hasStarted,

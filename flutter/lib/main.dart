@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'audio_service.dart';
+import 'developer_access.dart';
 import 'email_auth_screen.dart';
 import 'firebase_service.dart';
 import 'how_to_play.dart';
@@ -411,7 +412,16 @@ class HomeScreen extends StatelessWidget {
     final tutorialSeen = preferences.getBool(tutorialKey) ?? false;
     final progressKey = 'balok_has_started_$userId';
     final hasStarted = preferences.getBool(progressKey) ?? false;
-    final hasProgress = hasMeaningfulProgress(
+    final user = FirebaseService.instance.user;
+    final developer = isDeveloperGoogleAccount(
+      email: user?.email,
+      providerIds:
+          user?.providerData.map((provider) => provider.providerId) ??
+          const <String>[],
+    );
+    final hasProgress = shouldOfferSavedProgress(
+      authenticatedAccount: user != null && !user.isAnonymous,
+      developer: developer,
       hasStarted: hasStarted,
       playerLevel:
           preferences.getInt(playerProgressKey('balok_level', userId)) ??

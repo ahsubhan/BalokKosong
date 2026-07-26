@@ -4,9 +4,14 @@ import 'package:google_fonts/google_fonts.dart';
 import 'firebase_service.dart';
 
 class HelpFeedbackScreen extends StatefulWidget {
-  const HelpFeedbackScreen({super.key, required this.onOpenGuide});
+  const HelpFeedbackScreen({
+    super.key,
+    required this.onOpenGuide,
+    this.onLoginRequired,
+  });
 
   final VoidCallback onOpenGuide;
+  final Future<void> Function()? onLoginRequired;
 
   @override
   State<HelpFeedbackScreen> createState() => _HelpFeedbackScreenState();
@@ -95,24 +100,48 @@ class _HelpFeedbackScreenState extends State<HelpFeedbackScreen> {
           ),
           const SizedBox(height: 8),
           if (!_canSendFeedback) ...[
-            Container(
-              padding: const EdgeInsets.all(13),
-              decoration: BoxDecoration(
-                color: const Color(0xff32154d),
+            Material(
+              key: const Key('feedbackLoginPrompt'),
+              color: const Color(0xff32154d),
+              shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xff70419b)),
+                side: const BorderSide(color: Color(0xff70419b)),
               ),
-              child: const Row(
-                children: [
-                  Icon(Icons.lock_outline_rounded, color: Color(0xffd8a5ff)),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Masuk dengan Email atau Google untuk mengirim feedback.',
-                      style: TextStyle(color: Colors.white70, height: 1.35),
-                    ),
+              child: InkWell(
+                onTap: widget.onLoginRequired == null ? null : _openLogin,
+                borderRadius: BorderRadius.circular(14),
+                child: const Padding(
+                  padding: EdgeInsets.all(13),
+                  child: Row(
+                    children: [
+                      Icon(Icons.lock_open_rounded, color: Color(0xffd8a5ff)),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Masuk dengan Email atau Google',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            SizedBox(height: 3),
+                            Text(
+                              'Ketuk untuk masuk atau mendaftar, lalu kirim feedback.',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                height: 1.35,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.chevron_right_rounded, color: Colors.white70),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
             const SizedBox(height: 10),
@@ -152,19 +181,29 @@ class _HelpFeedbackScreenState extends State<HelpFeedbackScreen> {
           SizedBox(
             height: 52,
             child: FilledButton.icon(
-              onPressed: sending || !_canSendFeedback ? null : _submit,
+              onPressed: sending
+                  ? null
+                  : _canSendFeedback
+                  ? _submit
+                  : widget.onLoginRequired == null
+                  ? null
+                  : _openLogin,
               icon: sending
                   ? const SizedBox.square(
                       dimension: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Icon(Icons.send_rounded),
+                  : Icon(
+                      _canSendFeedback
+                          ? Icons.send_rounded
+                          : Icons.login_rounded,
+                    ),
               label: Text(
                 sending
                     ? 'Mengirim…'
                     : _canSendFeedback
                     ? 'Kirim feedback'
-                    : 'Login diperlukan',
+                    : 'Masuk untuk mengirim',
               ),
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xff9147df),
@@ -175,6 +214,11 @@ class _HelpFeedbackScreenState extends State<HelpFeedbackScreen> {
       ),
     ),
   );
+
+  Future<void> _openLogin() async {
+    await widget.onLoginRequired?.call();
+    if (mounted) setState(() {});
+  }
 
   Future<void> _submit() async {
     if (!_canSendFeedback) {
