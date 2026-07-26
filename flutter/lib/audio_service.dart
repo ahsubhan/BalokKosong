@@ -19,6 +19,8 @@ class GameAudio with WidgetsBindingObserver {
   late final Future<void> _ready = _configureAudio();
 
   bool? _enabled;
+  bool _gamePaused = false;
+  bool _jinglePlaying = false;
   _MusicTrack _desiredTrack = _MusicTrack.opening;
   _MusicTrack? _activeTrack;
 
@@ -34,6 +36,9 @@ class GameAudio with WidgetsBindingObserver {
       _music.setAudioContext(context),
       _jingle.setAudioContext(context),
       _slide.setAudioContext(context),
+      _music.setPlayerMode(PlayerMode.mediaPlayer),
+      _jingle.setPlayerMode(PlayerMode.mediaPlayer),
+      _slide.setPlayerMode(PlayerMode.lowLatency),
     ]);
   }
 
@@ -50,13 +55,15 @@ class GameAudio with WidgetsBindingObserver {
   Future<void> _selectTrack(_MusicTrack track) async {
     _desiredTrack = track;
     if (!await _isEnabled()) return;
+    if (track == _MusicTrack.gameplay && _gamePaused) return;
     try {
       await _ready;
+      _jinglePlaying = false;
       await _jingle.stop();
       if (_activeTrack == track && _music.state == PlayerState.playing) return;
       await _music.stop();
       await _music.setReleaseMode(ReleaseMode.loop);
-      await _music.setVolume(track == _MusicTrack.opening ? .55 : .14);
+      await _music.setVolume(track == _MusicTrack.opening ? .40 : .065);
       await _music.play(
         AssetSource(
           track == _MusicTrack.opening
@@ -75,8 +82,8 @@ class GameAudio with WidgetsBindingObserver {
     try {
       await _ready;
       if (_slide.state == PlayerState.playing) return;
-      await _slide.setReleaseMode(ReleaseMode.loop);
-      await _slide.setVolume(.52);
+      await _slide.setReleaseMode(ReleaseMode.stop);
+      await _slide.setVolume(1);
       await _slide.play(AssetSource('audio/block_slide.wav'));
     } catch (error) {
       debugPrint('BalokKosong gagal memutar efek balok: $error');
@@ -97,11 +104,39 @@ class GameAudio with WidgetsBindingObserver {
       await _ready;
       await Future.wait([_music.pause(), _slide.stop()]);
       await _jingle.stop();
-      await _jingle.setReleaseMode(ReleaseMode.stop);
-      await _jingle.setVolume(.72);
+      await _jingle.setReleaseMode(ReleaseMode.loop);
+      await _jingle.setVolume(.78);
       await _jingle.play(AssetSource('audio/victory_jingle.wav'));
+      _jinglePlaying = true;
     } catch (error) {
       debugPrint('BalokKosong gagal memutar musik kemenangan: $error');
+    }
+  }
+
+  Future<void> pauseGameplay() async {
+    _gamePaused = true;
+    try {
+      await _ready;
+      await Future.wait([_music.pause(), _jingle.pause(), _slide.stop()]);
+    } catch (_) {
+      // A stopped player does not need to be paused.
+    }
+  }
+
+  Future<void> resumeGameplay() async {
+    _gamePaused = false;
+    if (!await _isEnabled()) return;
+    try {
+      await _ready;
+      if (_desiredTrack == _MusicTrack.gameplay &&
+          _activeTrack == _MusicTrack.gameplay &&
+          _music.state == PlayerState.paused) {
+        await _music.resume();
+        return;
+      }
+      await _selectTrack(_MusicTrack.gameplay);
+    } catch (error) {
+      debugPrint('BalokKosong gagal melanjutkan musik: $error');
     }
   }
 
@@ -111,6 +146,7 @@ class GameAudio with WidgetsBindingObserver {
       if (!value) {
         await Future.wait([_music.stop(), _jingle.stop(), _slide.stop()]);
         _activeTrack = null;
+        _jinglePlaying = false;
         return;
       }
       await _selectTrack(_desiredTrack);
@@ -122,7 +158,11 @@ class GameAudio with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      unawaited(_selectTrack(_desiredTrack));
+      if (_jinglePlaying && _jingle.state == PlayerState.paused) {
+        unawaited(_jingle.resume());
+      } else if (!_gamePaused || _desiredTrack != _MusicTrack.gameplay) {
+        unawaited(_selectTrack(_desiredTrack));
+      }
     } else if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached ||

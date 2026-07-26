@@ -148,7 +148,10 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
             }
           }
         });
-        if (timedOut) _showTimeout();
+        if (timedOut) {
+          unawaited(GameAudio.instance.pauseGameplay());
+          _showTimeout();
+        }
       }
     });
   }
@@ -291,6 +294,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
     );
     if (restartLevel == null || !mounted) return;
     setState(() => _loadLevel(restartLevel));
+    unawaited(GameAudio.instance.resumeGameplay());
   }
 
   void _onPieceExit(PuzzlePiece piece) {
@@ -320,6 +324,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
       }
     });
     if (levelFailed) {
+      unawaited(GameAudio.instance.pauseGameplay());
       unawaited(_showMistakeFailure());
     }
   }
@@ -357,6 +362,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
     );
     if (!mounted) return;
     setState(() => _loadLevel(levelIndex));
+    unawaited(GameAudio.instance.resumeGameplay());
   }
 
   String get _clock {
@@ -368,6 +374,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
 
   Future<void> _showHint() async {
     setState(() => paused = true);
+    unawaited(GameAudio.instance.pauseGameplay());
     final freeRemaining = math.max(0, 10 - freeHintsUsed);
     final needsToken = freeRemaining == 0;
     final action = await showDialog<_HintDialogAction>(
@@ -427,6 +434,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
     if (!mounted) return;
     if (action == null || action == _HintDialogAction.back) {
       setState(() => paused = false);
+      unawaited(GameAudio.instance.resumeGameplay());
       return;
     }
     if (action == _HintDialogAction.watchAd) {
@@ -442,6 +450,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
     }
     if (hintedPieceId != null) {
       setState(() => paused = false);
+      unawaited(GameAudio.instance.resumeGameplay());
       return;
     }
 
@@ -465,6 +474,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
     }
     if (best == null) {
       setState(() => paused = false);
+      unawaited(GameAudio.instance.resumeGameplay());
       return;
     }
     setState(() {
@@ -477,6 +487,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
       hintsUsed++;
       paused = false;
     });
+    unawaited(GameAudio.instance.resumeGameplay());
     await _persistHintUsage();
   }
 
@@ -510,6 +521,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
             challengeMode = false;
             _loadLevel(levelIndex);
           });
+          unawaited(GameAudio.instance.resumeGameplay());
         },
         onChallenge: () {
           Navigator.pop(modeContext);
@@ -517,6 +529,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
             challengeMode = true;
             _loadLevel(levelIndex);
           });
+          unawaited(GameAudio.instance.resumeGameplay());
         },
         onRelaxedSelected: (startFromLevelOne) {
           Navigator.pop(modeContext);
@@ -524,6 +537,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
             challengeMode = false;
             _loadLevel(startFromLevelOne ? 0 : levelIndex);
           });
+          unawaited(GameAudio.instance.resumeGameplay());
         },
         onChallengeSelected: (startFromLevelOne) {
           Navigator.pop(modeContext);
@@ -531,6 +545,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
             challengeMode = true;
             _loadLevel(startFromLevelOne ? 0 : levelIndex);
           });
+          unawaited(GameAudio.instance.resumeGameplay());
         },
         onCancel: () => Navigator.pop(modeContext),
         hasProgress: true,
@@ -573,6 +588,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
               timeoutDialogOpen = false;
               _loadLevel(levelIndex);
             });
+            unawaited(GameAudio.instance.resumeGameplay());
           },
           child: const Text('Ulangi level'),
         ),
@@ -584,6 +600,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
               challengeMode = false;
               _loadLevel(levelIndex);
             });
+            unawaited(GameAudio.instance.resumeGameplay());
           },
           child: const Text('Mode Santai'),
         ),
@@ -631,7 +648,10 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                     score: score,
                     time: _clock,
                     timeLabel: challengeMode ? 'TANTANGAN' : 'WAKTU',
-                    onPause: () => setState(() => paused = true),
+                    onPause: () {
+                      setState(() => paused = true);
+                      unawaited(GameAudio.instance.pauseGameplay());
+                    },
                     onHint: _showHint,
                   ),
                 ],
@@ -647,7 +667,10 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                     levelIndex: levelIndex,
                     highestUnlockedLevel: highestUnlockedLevel,
                   ),
-                  onContinue: () => setState(() => paused = false),
+                  onContinue: () {
+                    setState(() => paused = false);
+                    unawaited(GameAudio.instance.resumeGameplay());
+                  },
                   onRestart: _restart,
                   onMode: _showMode,
                   onPrevious: () => setState(
