@@ -12,6 +12,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'audio_service.dart';
+import 'developer_access.dart';
+import 'feedback_inbox.dart';
 import 'firebase_service.dart';
 import 'game_engine.dart';
 import 'help_feedback.dart';
@@ -33,8 +35,6 @@ const _pieceColors = [
 ];
 
 const _maximumAllowedMistakes = 10;
-const _developerGoogleEmail = 'ah.subhan@gmail.com';
-
 Future<void> openNativeGameSettings(
   BuildContext context,
   WidgetBuilder homeBuilder,
@@ -48,9 +48,7 @@ Future<void> openNativeGameSettings(
 bool developerLevelNavigationEnabled({
   required String? email,
   required Iterable<String> providerIds,
-}) =>
-    email?.trim().toLowerCase() == _developerGoogleEmail &&
-    providerIds.contains('google.com');
+}) => isDeveloperGoogleAccount(email: email, providerIds: providerIds);
 
 bool canNavigateToNextLevel({
   required bool developer,
@@ -1093,6 +1091,28 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                     },
                   ),
                   const SizedBox(height: 10),
+                  if (_developerLevelNavigation) ...[
+                    _SettingsActionCard(
+                      icon: Icons.inbox_rounded,
+                      title: 'Kotak masuk feedback',
+                      subtitle: 'Baca dan kelola feedback pemain',
+                      onTap: () {
+                        Navigator.pop(sheetContext);
+                        Future<void>.delayed(
+                          const Duration(milliseconds: 180),
+                          () {
+                            if (!mounted) return;
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const FeedbackInboxScreen(),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                  ],
                   _SettingsActionCard(
                     icon: Icons.history_rounded,
                     title: 'Changelog',
