@@ -33,7 +33,6 @@ const _pieceColors = [
 ];
 
 const _maximumAllowedMistakes = 10;
-const _developerGoogleEmail = 'ah.subhan@gmail.com';
 
 Future<void> openNativeGameSettings(
   BuildContext context,
@@ -45,25 +44,10 @@ Future<void> openNativeGameSettings(
   ),
 );
 
-bool developerLevelNavigationEnabled({
-  required String? email,
-  required Iterable<String> providerIds,
-}) =>
-    email?.trim().toLowerCase() == _developerGoogleEmail &&
-    providerIds.contains('google.com');
-
 bool canNavigateToNextLevel({
-  required bool developer,
-  required bool loggedIn,
   required bool currentLevelCompleted,
   required int levelIndex,
-  required int highestUnlockedLevel,
-}) =>
-    developer ||
-    (levelIndex < totalLevels - 1 &&
-        (loggedIn
-            ? levelIndex + 1 < highestUnlockedLevel
-            : currentLevelCompleted));
+}) => levelIndex < totalLevels - 1 && currentLevelCompleted;
 
 enum _HintDialogAction { back, continueHint, watchAd }
 
@@ -98,7 +82,6 @@ class NativeGameScreen extends StatefulWidget {
 
 class _NativeGameScreenState extends State<NativeGameScreen> {
   int levelIndex = 0;
-  int highestUnlockedLevel = 1;
   int score = 0;
   int moves = 0;
   int mistakes = 0;
@@ -200,7 +183,6 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
     if (!mounted) return;
     setState(() {
       levelIndex = initialLevel - 1;
-      highestUnlockedLevel = playerLevel;
       score = savedScore;
       gridVisible = preferences.getBool('balok_grid_visible') ?? true;
       musicEnabled = preferences.getBool('balok_music_enabled') ?? true;
@@ -233,16 +215,6 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
 
   bool get _gridAvailable =>
       levelIndex < 3 || gridUnlockedLevels.contains(levelIndex + 1);
-
-  bool get _developerLevelNavigation {
-    final user = FirebaseService.instance.user;
-    return developerLevelNavigationEnabled(
-      email: user?.email,
-      providerIds:
-          user?.providerData.map((provider) => provider.providerId) ??
-          const <String>[],
-    );
-  }
 
   @override
   void dispose() {
@@ -324,9 +296,6 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
       if (hintedPieceId == piece.id) hintedPieceId = null;
       moves++;
       score += math.max(25, 120 - elapsedSeconds ~/ 5);
-      if (engine.pieces.isEmpty && levelIndex < totalLevels - 1) {
-        highestUnlockedLevel = math.max(highestUnlockedLevel, levelIndex + 2);
-      }
     });
     if (engine.pieces.isEmpty) {
       Future<void>.delayed(const Duration(milliseconds: 260), _showComplete);
@@ -669,6 +638,10 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                     score: score,
                     time: _clock,
                     timeLabel: challengeMode ? 'TANTANGAN' : 'WAKTU',
+                    remainingMistakes: math.max(
+                      0,
+                      _maximumAllowedMistakes - mistakes,
+                    ),
                     onPause: () {
                       setState(() => paused = true);
                       unawaited(GameAudio.instance.pauseGameplay());
@@ -680,13 +653,10 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
               if (paused)
                 _PauseOverlay(
                   level: levelIndex + 1,
-                  canPrevious: _developerLevelNavigation || levelIndex > 0,
+                  canPrevious: levelIndex > 0,
                   canNext: canNavigateToNextLevel(
-                    developer: _developerLevelNavigation,
-                    loggedIn: FirebaseService.instance.user != null,
                     currentLevelCompleted: engine.pieces.isEmpty,
                     levelIndex: levelIndex,
-                    highestUnlockedLevel: highestUnlockedLevel,
                   ),
                   onContinue: () {
                     setState(() => paused = false);
@@ -695,20 +665,10 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                   onRestart: _restart,
                   onMode: _showMode,
                   onPrevious: () => setState(
-                    () => _loadLevel(
-                      _developerLevelNavigation
-                          ? (levelIndex - 1 + totalLevels) % totalLevels
-                          : levelIndex - 1,
-                      keepPaused: true,
-                    ),
+                    () => _loadLevel(levelIndex - 1, keepPaused: true),
                   ),
                   onNext: () => setState(
-                    () => _loadLevel(
-                      _developerLevelNavigation
-                          ? (levelIndex + 1) % totalLevels
-                          : levelIndex + 1,
-                      keepPaused: true,
-                    ),
+                    () => _loadLevel(levelIndex + 1, keepPaused: true),
                   ),
                   onSettings: _showSettings,
                 ),
@@ -1824,7 +1784,7 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
   void _start(Offset point, double cellSize) {
     final touchX = point.dx / cellSize;
     final touchY = point.dy / cellSize;
-    const hitPadding = .28;
+    const hitPadding = .40;
     for (final piece in widget.engine.pieces.reversed) {
       if (pieceCells(piece).any(
         (cell) =>
@@ -1849,17 +1809,17 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
     final piece = active;
     if (piece == null) return;
     final rawDelta = piece.horizontal ? delta.dx : delta.dy;
-    if (rawDelta.abs() > .5) {
+    if (rawDelta.abs() > .20) {
       dragAttempted = true;
       if (!slideSoundPlaying) {
         slideSoundPlaying = true;
         slideSoundSession = GameAudio.instance.beginBlockSlide();
       }
     }
-    if (piece.id == widget.hintedPieceId && rawDelta.abs() > .5) {
+    if (piece.id == widget.hintedPieceId && rawDelta.abs() > .20) {
       widget.onHintConsumed();
     }
-    final proposed = dragCells + (rawDelta / cellSize) * 1.28;
+    final proposed = dragCells + (rawDelta / cellSize) * 1.36;
     if (proposed < -maxNegative - .03 || proposed > maxPositive + .03) {
       _triggerBump(rawDelta.sign);
     }
@@ -2243,6 +2203,7 @@ class _GameHud extends StatelessWidget {
     required this.score,
     required this.time,
     required this.timeLabel,
+    required this.remainingMistakes,
     required this.onPause,
     required this.onHint,
   });
@@ -2250,6 +2211,7 @@ class _GameHud extends StatelessWidget {
   final int score;
   final String time;
   final String timeLabel;
+  final int remainingMistakes;
   final VoidCallback onPause;
   final VoidCallback onHint;
 
@@ -2312,6 +2274,14 @@ class _GameHud extends StatelessWidget {
               child: _HudValue(label: timeLabel, value: time),
             ),
           ),
+          Expanded(
+            child: Center(
+              child: _HudValue(
+                label: 'SISA SALAH',
+                value: '$remainingMistakes/$_maximumAllowedMistakes',
+              ),
+            ),
+          ),
         ],
       ),
     ),
@@ -2328,13 +2298,20 @@ class _HudValue extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.center,
     mainAxisAlignment: MainAxisAlignment.center,
     children: [
-      Text(
-        label,
-        style: const TextStyle(
-          color: Colors.white54,
-          fontSize: 8,
-          letterSpacing: 1.4,
-          fontWeight: FontWeight.w800,
+      SizedBox(
+        height: 10,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            label,
+            maxLines: 1,
+            style: const TextStyle(
+              color: Colors.white54,
+              fontSize: 8,
+              letterSpacing: 1.1,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
         ),
       ),
       const SizedBox(height: 4),
