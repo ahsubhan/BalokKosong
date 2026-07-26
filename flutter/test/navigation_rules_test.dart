@@ -34,6 +34,7 @@ void main() {
           developer: false,
           currentLevelCompleted: false,
           levelIndex: levelIndex,
+          highestUnlockedLevel: 1,
         ),
         isFalse,
       );
@@ -47,6 +48,7 @@ void main() {
           developer: false,
           currentLevelCompleted: true,
           levelIndex: levelIndex,
+          highestUnlockedLevel: 1,
         ),
         isTrue,
       );
@@ -56,6 +58,7 @@ void main() {
         developer: false,
         currentLevelCompleted: true,
         levelIndex: totalLevels - 1,
+        highestUnlockedLevel: totalLevels,
       ),
       isFalse,
     );
@@ -68,6 +71,7 @@ void main() {
           developer: true,
           currentLevelCompleted: false,
           levelIndex: levelIndex,
+          highestUnlockedLevel: 1,
         ),
         isTrue,
       );
@@ -77,8 +81,42 @@ void main() {
         developer: true,
         currentLevelCompleted: false,
         levelIndex: totalLevels - 1,
+        highestUnlockedLevel: 1,
       ),
       isFalse,
+    );
+  });
+
+  test('player can return forward only up to the highest unlocked level', () {
+    const highestUnlockedLevel = 5;
+
+    for (
+      var levelIndex = 0;
+      levelIndex < highestUnlockedLevel - 1;
+      levelIndex++
+    ) {
+      expect(
+        canNavigateToNextLevel(
+          developer: false,
+          currentLevelCompleted: false,
+          levelIndex: levelIndex,
+          highestUnlockedLevel: highestUnlockedLevel,
+        ),
+        isTrue,
+        reason:
+            'Level ${levelIndex + 1} should be able to return toward Level 5',
+      );
+    }
+
+    expect(
+      canNavigateToNextLevel(
+        developer: false,
+        currentLevelCompleted: false,
+        levelIndex: highestUnlockedLevel - 1,
+        highestUnlockedLevel: highestUnlockedLevel,
+      ),
+      isFalse,
+      reason: 'Level 5 must be completed before Level 6 is opened',
     );
   });
 }

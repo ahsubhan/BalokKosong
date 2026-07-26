@@ -54,7 +54,12 @@ bool canNavigateToNextLevel({
   required bool developer,
   required bool currentLevelCompleted,
   required int levelIndex,
-}) => levelIndex < totalLevels - 1 && (developer || currentLevelCompleted);
+  required int highestUnlockedLevel,
+}) =>
+    levelIndex < totalLevels - 1 &&
+    (developer ||
+        currentLevelCompleted ||
+        levelIndex + 1 < highestUnlockedLevel);
 
 enum _HintDialogAction { back, continueHint, watchAd }
 
@@ -89,6 +94,7 @@ class NativeGameScreen extends StatefulWidget {
 
 class _NativeGameScreenState extends State<NativeGameScreen> {
   int levelIndex = 0;
+  int highestUnlockedLevel = 1;
   int score = 0;
   int moves = 0;
   int mistakes = 0;
@@ -176,13 +182,12 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
         preferences.getInt(playerProgressKey('balok_score', userId)) ??
         (hasStarted ? preferences.getInt('balok_score') : null) ??
         0;
-    final sessionLevel = widget.startFromLevelOne ? 1 : playerLevel;
     final sessionScore = widget.startFromLevelOne ? 0 : savedScore;
     if (!widget.settingsOnly) {
       await preferences.setBool(progressKey, true);
       await preferences.setInt(
         playerProgressKey('balok_level', userId),
-        sessionLevel,
+        playerLevel,
       );
       await preferences.setInt(
         playerProgressKey('balok_score', userId),
@@ -192,6 +197,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
     if (!mounted) return;
     setState(() {
       levelIndex = initialLevel - 1;
+      highestUnlockedLevel = playerLevel;
       score = sessionScore;
       gridVisible = preferences.getBool('balok_grid_visible') ?? true;
       musicEnabled = preferences.getBool('balok_music_enabled') ?? true;
@@ -677,6 +683,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                     developer: _developerLevelNavigation,
                     currentLevelCompleted: engine.pieces.isEmpty,
                     levelIndex: levelIndex,
+                    highestUnlockedLevel: highestUnlockedLevel,
                   ),
                   onContinue: () {
                     setState(() => paused = false);
@@ -1470,6 +1477,12 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
 
   void _showComplete() {
     unawaited(GameAudio.instance.playVictory());
+    final unlockedLevel = levelIndex == totalLevels - 1
+        ? totalLevels
+        : levelIndex + 2;
+    if (unlockedLevel > highestUnlockedLevel) {
+      setState(() => highestUnlockedLevel = unlockedLevel);
+    }
     showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -1481,7 +1494,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
             : 1;
         unawaited(
           FirebaseService.instance.saveProgress(
-            level: levelIndex == totalLevels - 1 ? totalLevels : levelIndex + 2,
+            level: unlockedLevel,
             score: score,
             bestTimeSeconds: elapsedSeconds,
             moves: moves,
