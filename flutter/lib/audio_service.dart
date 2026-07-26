@@ -13,7 +13,9 @@ class GameAudio with WidgetsBindingObserver {
 
   static final GameAudio instance = GameAudio._();
   static const double _openingVolume = .40;
-  static const double _gameplayVolume = .50;
+  static const double _gameplayVolume = .24;
+  static const double _gameplayDuckedVolume = .07;
+  static const double _slideVolume = 1;
 
   final AudioPlayer _music = AudioPlayer();
   final AudioPlayer _jingle = AudioPlayer();
@@ -45,7 +47,7 @@ class GameAudio with WidgetsBindingObserver {
       _jingle.setPlayerMode(PlayerMode.mediaPlayer),
       _slide.setPlayerMode(PlayerMode.mediaPlayer),
       _slide.setReleaseMode(ReleaseMode.loop),
-      _slide.setVolume(1),
+      _slide.setVolume(_slideVolume),
     ]);
   }
 
@@ -117,8 +119,14 @@ class GameAudio with WidgetsBindingObserver {
         if (session != _activeSlideSession) return;
         await _ready;
         if (session != _activeSlideSession) return;
+        if (_activeTrack == _MusicTrack.gameplay &&
+            _music.state == PlayerState.playing) {
+          await _music.setVolume(_gameplayDuckedVolume);
+        }
+        if (session != _activeSlideSession) return;
         await _slide.stop();
         if (session != _activeSlideSession) return;
+        await _slide.setVolume(_slideVolume);
         await _slide.play(AssetSource('audio/block_slide.wav'));
       });
     } catch (error) {
@@ -147,6 +155,11 @@ class GameAudio with WidgetsBindingObserver {
         await _ready;
         if (stopSession != _activeSlideSession) return;
         await _slide.stop();
+        if (!_gamePaused &&
+            !_jinglePlaying &&
+            _activeTrack == _MusicTrack.gameplay) {
+          await _music.setVolume(_gameplayVolume);
+        }
       });
     } catch (_) {
       // The player may already be stopped when a gesture is cancelled.
