@@ -175,11 +175,15 @@ class _OpeningSplashScreenState extends State<OpeningSplashScreen>
               ],
             );
           },
-          child: Image.asset(
-            'assets/icon/app_icon.png',
-            width: 220,
-            height: 220,
-            filterQuality: FilterQuality.high,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(34),
+            child: Image.asset(
+              'assets/icon/app_icon.png',
+              width: 220,
+              height: 220,
+              fit: BoxFit.cover,
+              filterQuality: FilterQuality.high,
+            ),
           ),
         ),
       ),
@@ -280,7 +284,12 @@ class HomeScreen extends StatelessWidget {
                     label: 'MASUK DENGAN EMAIL',
                     symbol: Icons.email_outlined,
                     tone: const Color(0xff7340be),
-                    onTap: signedIn ? null : () => _openEmailLogin(context),
+                    onTap: signedIn
+                        ? null
+                        : () {
+                            unawaited(GameAudio.instance.stopOpening());
+                            unawaited(_openEmailLogin(context));
+                          },
                   ),
                   const SizedBox(height: 7),
                   Wrap(
@@ -317,14 +326,24 @@ class HomeScreen extends StatelessWidget {
                     symbol: Icons.g_mobiledata_rounded,
                     tone: const Color(0xfff8f3ff),
                     darkLabel: true,
-                    onTap: signedIn ? null : () => _signIn(context, 'Google'),
+                    onTap: signedIn
+                        ? null
+                        : () {
+                            unawaited(GameAudio.instance.stopOpening());
+                            unawaited(_signIn(context, 'Google'));
+                          },
                   ),
                   const SizedBox(height: 11),
                   _AuthButton(
                     label: 'MAIN SEBAGAI TAMU',
                     symbol: Icons.person_outline_rounded,
                     tone: const Color(0xffa855f7),
-                    onTap: signedIn ? null : () => _signIn(context, 'Tamu'),
+                    onTap: signedIn
+                        ? null
+                        : () {
+                            unawaited(GameAudio.instance.stopOpening());
+                            unawaited(_signIn(context, 'Tamu'));
+                          },
                   ),
                   const SizedBox(height: 13),
                   const Text(
@@ -504,6 +523,7 @@ class HomeScreen extends StatelessWidget {
       await _enterGame(context);
     } catch (error) {
       if (!context.mounted) return;
+      unawaited(GameAudio.instance.playOpening());
       messenger.showSnackBar(
         SnackBar(
           content: Text(
@@ -520,6 +540,8 @@ class HomeScreen extends StatelessWidget {
     ).push<bool>(MaterialPageRoute(builder: (_) => const EmailLoginScreen()));
     if (signedIn == true && context.mounted) {
       await _enterGame(context);
+    } else {
+      unawaited(GameAudio.instance.playOpening());
     }
   }
 

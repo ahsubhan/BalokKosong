@@ -23,6 +23,7 @@ class GameAudio with WidgetsBindingObserver {
   bool? _enabled;
   bool _gamePaused = false;
   bool _jinglePlaying = false;
+  bool _openingStoppedByChoice = false;
   _MusicTrack _desiredTrack = _MusicTrack.opening;
   _MusicTrack? _activeTrack;
 
@@ -52,7 +53,22 @@ class GameAudio with WidgetsBindingObserver {
     return _enabled = preferences.getBool('balok_music_enabled') ?? true;
   }
 
-  Future<void> playOpening() => _selectTrack(_MusicTrack.opening);
+  Future<void> playOpening() {
+    _openingStoppedByChoice = false;
+    return _selectTrack(_MusicTrack.opening);
+  }
+
+  Future<void> stopOpening() async {
+    _openingStoppedByChoice = true;
+    if (_desiredTrack != _MusicTrack.opening) return;
+    try {
+      await _ready;
+      await _music.stop();
+      _activeTrack = null;
+    } catch (_) {
+      // The opening track may already be stopped while navigation begins.
+    }
+  }
 
   Future<void> playGameplay() => _selectTrack(_MusicTrack.gameplay);
 
@@ -71,7 +87,7 @@ class GameAudio with WidgetsBindingObserver {
       await _music.play(
         AssetSource(
           track == _MusicTrack.opening
-              ? 'audio/opening_theme.wav'
+              ? 'audio/opening_theme_long.m4a'
               : 'audio/gameplay_theme.wav',
         ),
       );
@@ -170,6 +186,9 @@ class GameAudio with WidgetsBindingObserver {
         _jinglePlaying = false;
         return;
       }
+      if (_desiredTrack == _MusicTrack.opening && _openingStoppedByChoice) {
+        return;
+      }
       await _selectTrack(_desiredTrack);
     } catch (_) {
       // The persisted setting remains authoritative on the next app launch.
@@ -179,6 +198,9 @@ class GameAudio with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      if (_desiredTrack == _MusicTrack.opening && _openingStoppedByChoice) {
+        return;
+      }
       if (_jinglePlaying && _jingle.state == PlayerState.paused) {
         unawaited(_jingle.resume());
       } else if (!_gamePaused || _desiredTrack != _MusicTrack.gameplay) {
