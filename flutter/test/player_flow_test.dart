@@ -79,10 +79,10 @@ void main() {
     expect(relaxedFromLevelOne, isFalse);
 
     await tester.tap(find.text('Tantangan · 1 ⚡'));
-    expect(challengeFromLevelOne, isFalse);
+    expect(challengeFromLevelOne, isNull);
 
     await tester.tap(find.text('Dari Level 1'));
-    expect(relaxedFromLevelOne, isTrue);
+    expect(challengeFromLevelOne, isTrue);
   });
 
   testWidgets('fresh player starts by tapping a mode', (tester) async {
@@ -120,7 +120,9 @@ void main() {
     expect(challengeStarted, isTrue);
   });
 
-  testWidgets('mode cards immediately start a saved game', (tester) async {
+  testWidgets('returning player selects mode before choosing progress', (
+    tester,
+  ) async {
     bool? relaxedFromLevelOne;
     bool? challengeFromLevelOne;
     await tester.pumpWidget(
@@ -137,10 +139,17 @@ void main() {
     );
 
     await tester.tap(find.text('Santai'));
-    expect(relaxedFromLevelOne, isFalse);
+    expect(relaxedFromLevelOne, isNull);
 
     await tester.tap(find.text('Tantangan · 1 ⚡'));
+    expect(challengeFromLevelOne, isNull);
+
+    await tester.tap(find.text('Lanjutkan'));
     expect(challengeFromLevelOne, isFalse);
+
+    challengeFromLevelOne = null;
+    await tester.tap(find.text('Dari Level 1'));
+    expect(challengeFromLevelOne, isTrue);
   });
 
   testWidgets('main menu opened from settings shows a back button', (
