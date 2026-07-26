@@ -271,15 +271,19 @@ class FirebaseService {
   }) async {
     await initialize();
     _requireReady();
-    var currentUser = user;
-    currentUser ??= await signInAsGuest();
+    final currentUser = user;
+    if (currentUser == null || currentUser.isAnonymous) {
+      throw StateError(
+        'Masuk dengan Email atau Google untuk mengirim feedback.',
+      );
+    }
     final package = await PackageInfo.fromPlatform();
     await FirebaseFirestore.instance.collection('feedback').add({
       'uid': currentUser.uid,
       'email': currentUser.email,
       'displayName': currentUser.displayName,
       'senderName': name,
-      'provider': currentUser.isAnonymous ? 'guest' : 'account',
+      'provider': 'account',
       'message': message,
       'platform': Platform.operatingSystem,
       'appVersion': package.version,
