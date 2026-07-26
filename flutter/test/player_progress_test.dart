@@ -26,6 +26,50 @@ void main() {
     });
   });
 
+  group('saved progress choices', () {
+    test('developer always gets a fresh test session', () {
+      expect(
+        shouldOfferSavedProgress(
+          authenticatedAccount: true,
+          developer: true,
+          hasStarted: true,
+          playerLevel: 10,
+          playerScore: 99999,
+        ),
+        isFalse,
+      );
+    });
+
+    test('regular returning player can continue meaningful progress', () {
+      expect(
+        shouldOfferSavedProgress(
+          authenticatedAccount: true,
+          developer: false,
+          hasStarted: true,
+          playerLevel: 4,
+          playerScore: 2500,
+        ),
+        isTrue,
+      );
+    });
+
+    test(
+      'guest always gets a fresh session even with stale local progress',
+      () {
+        expect(
+          shouldOfferSavedProgress(
+            authenticatedAccount: false,
+            developer: false,
+            hasStarted: true,
+            playerLevel: 10,
+            playerScore: 99999,
+          ),
+          isFalse,
+        );
+      },
+    );
+  });
+
   test('fresh player always starts from level 1 despite legacy level 10', () {
     expect(
       resolveInitialLevel(

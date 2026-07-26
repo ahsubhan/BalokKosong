@@ -4,16 +4,25 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   testWidgets('guest cannot fill or submit feedback', (tester) async {
+    var loginOpened = false;
     await tester.pumpWidget(
-      MaterialApp(home: HelpFeedbackScreen(onOpenGuide: () {})),
+      MaterialApp(
+        home: HelpFeedbackScreen(
+          onOpenGuide: () {},
+          onLoginRequired: () async => loginOpened = true,
+        ),
+      ),
     );
 
-    expect(
-      find.text('Masuk dengan Email atau Google untuk mengirim feedback.'),
-      findsOneWidget,
-    );
+    expect(find.text('Masuk dengan Email atau Google'), findsOneWidget);
+    await tester.drag(find.byType(ListView), const Offset(0, -220));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('feedbackLoginPrompt')));
+    await tester.pump();
+    expect(loginOpened, isTrue);
+
     await tester.scrollUntilVisible(
-      find.text('Login diperlukan'),
+      find.text('Masuk untuk mengirim'),
       300,
       scrollable: find.byType(Scrollable).first,
     );
@@ -23,10 +32,10 @@ void main() {
 
     final button = tester.widget<FilledButton>(
       find.ancestor(
-        of: find.text('Login diperlukan'),
+        of: find.text('Masuk untuk mengirim'),
         matching: find.byType(FilledButton),
       ),
     );
-    expect(button.onPressed, isNull);
+    expect(button.onPressed, isNotNull);
   });
 }

@@ -176,21 +176,23 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
         preferences.getInt(playerProgressKey('balok_score', userId)) ??
         (hasStarted ? preferences.getInt('balok_score') : null) ??
         0;
+    final sessionLevel = widget.startFromLevelOne ? 1 : playerLevel;
+    final sessionScore = widget.startFromLevelOne ? 0 : savedScore;
     if (!widget.settingsOnly) {
       await preferences.setBool(progressKey, true);
       await preferences.setInt(
         playerProgressKey('balok_level', userId),
-        playerLevel,
+        sessionLevel,
       );
       await preferences.setInt(
         playerProgressKey('balok_score', userId),
-        savedScore,
+        sessionScore,
       );
     }
     if (!mounted) return;
     setState(() {
       levelIndex = initialLevel - 1;
-      score = savedScore;
+      score = sessionScore;
       gridVisible = preferences.getBool('balok_grid_visible') ?? true;
       musicEnabled = preferences.getBool('balok_music_enabled') ?? true;
       tokens = preferences.getInt('balok_tokens') ?? 0;
@@ -713,6 +715,9 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
           Navigator.pop(helpContext);
           Future<void>.delayed(const Duration(milliseconds: 180), _showRules);
         },
+        onLoginRequired: () => Navigator.of(
+          helpContext,
+        ).push(MaterialPageRoute(builder: widget.homeBuilder)),
       ),
     ),
   );
