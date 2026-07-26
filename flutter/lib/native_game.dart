@@ -1760,6 +1760,7 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
   double maxPositive = 0;
   bool dragAttempted = false;
   bool slideSoundPlaying = false;
+  int? slideSoundSession;
   double collisionDirection = 0;
   late final AnimationController bumpController;
 
@@ -1852,7 +1853,7 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
       dragAttempted = true;
       if (!slideSoundPlaying) {
         slideSoundPlaying = true;
-        unawaited(GameAudio.instance.startBlockSlide());
+        slideSoundSession = GameAudio.instance.beginBlockSlide();
       }
     }
     if (piece.id == widget.hintedPieceId && rawDelta.abs() > .5) {
@@ -1875,7 +1876,7 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
   }
 
   void _end() {
-    unawaited(GameAudio.instance.stopBlockSlide());
+    _endSlideSound();
     final piece = active;
     if (piece == null) return;
     var moved = false;
@@ -1906,7 +1907,7 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
   }
 
   void _cancelDrag() {
-    unawaited(GameAudio.instance.stopBlockSlide());
+    _endSlideSound();
     if (active == null) return;
     setState(() {
       active = null;
@@ -1914,6 +1915,15 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
       dragAttempted = false;
       slideSoundPlaying = false;
     });
+  }
+
+  void _endSlideSound() {
+    final session = slideSoundSession;
+    slideSoundSession = null;
+    slideSoundPlaying = false;
+    if (session != null) {
+      unawaited(GameAudio.instance.endBlockSlide(session));
+    }
   }
 }
 

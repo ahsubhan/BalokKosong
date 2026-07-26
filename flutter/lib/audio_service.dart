@@ -17,7 +17,7 @@ class GameAudio with WidgetsBindingObserver {
   final AudioPlayer _jingle = AudioPlayer();
   final AudioPlayer _slide = AudioPlayer();
   Future<void> _slideQueue = Future<void>.value();
-  int _slideRequest = 0;
+  int _activeSlideSession = 0;
   late final Future<void> _ready = _configureAudio();
 
   bool? _enabled;
@@ -41,8 +41,8 @@ class GameAudio with WidgetsBindingObserver {
       _slide.setAudioContext(context),
       _music.setPlayerMode(PlayerMode.mediaPlayer),
       _jingle.setPlayerMode(PlayerMode.mediaPlayer),
-      _slide.setPlayerMode(PlayerMode.lowLatency),
-      _slide.setReleaseMode(ReleaseMode.stop),
+      _slide.setPlayerMode(PlayerMode.mediaPlayer),
+      _slide.setReleaseMode(ReleaseMode.loop),
       _slide.setVolume(1),
     ]);
   }
@@ -98,16 +98,21 @@ class GameAudio with WidgetsBindingObserver {
     }
   }
 
-  Future<void> startBlockSlide() async {
+  int beginBlockSlide() {
+    final session = ++_activeSlideSession;
+    unawaited(_startBlockSlide(session));
+    return session;
+  }
+
+  Future<void> _startBlockSlide(int session) async {
     if (!await _isEnabled()) return;
-    final request = ++_slideRequest;
     try {
       await _enqueueSlide(() async {
-        if (request != _slideRequest) return;
+        if (session != _activeSlideSession) return;
         await _ready;
-        if (request != _slideRequest) return;
+        if (session != _activeSlideSession) return;
         await _slide.stop();
-        if (request != _slideRequest) return;
+        if (session != _activeSlideSession) return;
         await _slide.play(AssetSource('audio/block_slide.wav'));
       });
     } catch (error) {
@@ -115,11 +120,23 @@ class GameAudio with WidgetsBindingObserver {
     }
   }
 
+  Future<void> endBlockSlide(int session) async {
+    if (session != _activeSlideSession) return;
+    final stopSession = ++_activeSlideSession;
+    await _stopBlockSlide(stopSession);
+  }
+
   Future<void> stopBlockSlide() async {
-    _slideRequest++;
+    final stopSession = ++_activeSlideSession;
+    await _stopBlockSlide(stopSession);
+  }
+
+  Future<void> _stopBlockSlide(int stopSession) async {
     try {
       await _enqueueSlide(() async {
+        if (stopSession != _activeSlideSession) return;
         await _ready;
+        if (stopSession != _activeSlideSession) return;
         await _slide.stop();
       });
     } catch (_) {
