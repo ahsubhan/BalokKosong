@@ -17,6 +17,11 @@ class _HelpFeedbackScreenState extends State<HelpFeedbackScreen> {
   final controller = TextEditingController();
   bool sending = false;
 
+  bool get _canSendFeedback {
+    final user = FirebaseService.instance.user;
+    return user != null && !user.isAnonymous;
+  }
+
   @override
   void dispose() {
     nameController.dispose();
@@ -89,8 +94,32 @@ class _HelpFeedbackScreenState extends State<HelpFeedbackScreen> {
             ),
           ),
           const SizedBox(height: 8),
+          if (!_canSendFeedback) ...[
+            Container(
+              padding: const EdgeInsets.all(13),
+              decoration: BoxDecoration(
+                color: const Color(0xff32154d),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xff70419b)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.lock_outline_rounded, color: Color(0xffd8a5ff)),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Masuk dengan Email atau Google untuk mengirim feedback.',
+                      style: TextStyle(color: Colors.white70, height: 1.35),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
           TextField(
             controller: nameController,
+            enabled: _canSendFeedback,
             textInputAction: TextInputAction.next,
             autofillHints: const [AutofillHints.name],
             decoration: InputDecoration(
@@ -106,6 +135,7 @@ class _HelpFeedbackScreenState extends State<HelpFeedbackScreen> {
           const SizedBox(height: 10),
           TextField(
             controller: controller,
+            enabled: _canSendFeedback,
             minLines: 4,
             maxLines: 7,
             decoration: InputDecoration(
@@ -122,14 +152,20 @@ class _HelpFeedbackScreenState extends State<HelpFeedbackScreen> {
           SizedBox(
             height: 52,
             child: FilledButton.icon(
-              onPressed: sending ? null : _submit,
+              onPressed: sending || !_canSendFeedback ? null : _submit,
               icon: sending
                   ? const SizedBox.square(
                       dimension: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.send_rounded),
-              label: Text(sending ? 'Mengirim…' : 'Kirim feedback'),
+              label: Text(
+                sending
+                    ? 'Mengirim…'
+                    : _canSendFeedback
+                    ? 'Kirim feedback'
+                    : 'Login diperlukan',
+              ),
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xff9147df),
               ),
@@ -141,6 +177,16 @@ class _HelpFeedbackScreenState extends State<HelpFeedbackScreen> {
   );
 
   Future<void> _submit() async {
+    if (!_canSendFeedback) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Masuk dengan Email atau Google untuk mengirim feedback.',
+          ),
+        ),
+      );
+      return;
+    }
     final name = nameController.text.trim();
     final feedback = controller.text.trim();
     if (name.isEmpty) {

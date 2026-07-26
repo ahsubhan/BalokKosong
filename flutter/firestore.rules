@@ -85,6 +85,7 @@ service cloud.firestore {
     match /feedback/{feedbackId} {
       allow create:
         if request.auth != null
+        && request.auth.token.firebase.sign_in_provider != 'anonymous'
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.message is string
         && request.resource.data.message.size() > 0
@@ -93,7 +94,7 @@ service cloud.firestore {
           || (request.resource.data.senderName is string
             && request.resource.data.senderName.size() > 0
             && request.resource.data.senderName.size() <= 100))
-        && request.resource.data.provider is string
+        && request.resource.data.provider == 'account'
         && request.resource.data.platform is string
         && request.resource.data.appVersion is string
         && request.resource.data.buildNumber is string
