@@ -53,11 +53,16 @@ bool developerLevelNavigationEnabled({
 
 bool canNavigateToNextLevel({
   required bool developer,
+  required bool loggedIn,
+  required bool currentLevelCompleted,
   required int levelIndex,
   required int highestUnlockedLevel,
 }) =>
     developer ||
-    (levelIndex < totalLevels - 1 && levelIndex + 1 < highestUnlockedLevel);
+    (levelIndex < totalLevels - 1 &&
+        (loggedIn
+            ? levelIndex + 1 < highestUnlockedLevel
+            : currentLevelCompleted));
 
 enum _HintDialogAction { back, continueHint, watchAd }
 
@@ -634,6 +639,8 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                 canPrevious: _developerLevelNavigation || levelIndex > 0,
                 canNext: canNavigateToNextLevel(
                   developer: _developerLevelNavigation,
+                  loggedIn: FirebaseService.instance.user != null,
+                  currentLevelCompleted: engine.pieces.isEmpty,
                   levelIndex: levelIndex,
                   highestUnlockedLevel: highestUnlockedLevel,
                 ),
@@ -668,7 +675,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
   void _showRules() => Navigator.of(context).push(
     MaterialPageRoute(
       builder: (guideContext) => HowToPlayScreen(
-        finalLabel: 'Lanjut bermain',
+        finalLabel: 'Lanjut',
         onFinished: () => Navigator.pop(guideContext),
       ),
     ),
@@ -1706,6 +1713,7 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
   double maxNegative = 0;
   double maxPositive = 0;
   bool dragAttempted = false;
+  bool slideSoundPlaying = false;
   double collisionDirection = 0;
   late final AnimationController bumpController;
 
@@ -1720,6 +1728,7 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
 
   @override
   void dispose() {
+    unawaited(GameAudio.instance.stopBlockSlide());
     bumpController.dispose();
     super.dispose();
   }
@@ -1744,6 +1753,7 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
               ? null
               : (details) => _update(details.delta, cell),
           onPanEnd: widget.disabled ? null : (_) => _end(),
+          onPanCancel: widget.disabled ? null : _cancelDrag,
           child: CustomPaint(
             size: Size(width, height),
             painter: _PuzzlePainter(
@@ -1792,7 +1802,13 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
     final piece = active;
     if (piece == null) return;
     final rawDelta = piece.horizontal ? delta.dx : delta.dy;
-    if (rawDelta.abs() > .5) dragAttempted = true;
+    if (rawDelta.abs() > .5) {
+      dragAttempted = true;
+      if (!slideSoundPlaying) {
+        slideSoundPlaying = true;
+        unawaited(GameAudio.instance.startBlockSlide());
+      }
+    }
     if (piece.id == widget.hintedPieceId && rawDelta.abs() > .5) {
       widget.onHintConsumed();
     }
@@ -1813,6 +1829,7 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
   }
 
   void _end() {
+    unawaited(GameAudio.instance.stopBlockSlide());
     final piece = active;
     if (piece == null) return;
     var moved = false;
@@ -1838,6 +1855,18 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
       active = null;
       dragCells = 0;
       dragAttempted = false;
+      slideSoundPlaying = false;
+    });
+  }
+
+  void _cancelDrag() {
+    unawaited(GameAudio.instance.stopBlockSlide());
+    if (active == null) return;
+    setState(() {
+      active = null;
+      dragCells = 0;
+      dragAttempted = false;
+      slideSoundPlaying = false;
     });
   }
 }

@@ -101,6 +101,34 @@ class HomeScreen extends StatelessWidget {
         showBackButton || Navigator.of(context).canPop();
     return Scaffold(
       backgroundColor: const Color(0xff170627),
+      extendBodyBehindAppBar: true,
+      appBar: canReturnToPrevious
+          ? AppBar(
+              automaticallyImplyLeading: false,
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              toolbarHeight: 68,
+              leadingWidth: 76,
+              leading: Padding(
+                padding: const EdgeInsets.only(left: 18),
+                child: Center(
+                  child: IconButton.filled(
+                    tooltip: 'Kembali',
+                    onPressed: () {
+                      unawaited(GameAudio.instance.playGameplay());
+                      Navigator.pop(context);
+                    },
+                    style: IconButton.styleFrom(
+                      backgroundColor: const Color(0xff6f35a8),
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(46, 46),
+                    ),
+                    icon: const Icon(Icons.arrow_back_rounded, size: 25),
+                  ),
+                ),
+              ),
+            )
+          : null,
       body: SafeArea(
         child: Stack(
           children: [
@@ -222,24 +250,6 @@ class HomeScreen extends StatelessWidget {
                 ],
               ),
             ),
-            if (canReturnToPrevious)
-              Positioned(
-                left: 20,
-                top: 12,
-                child: IconButton.filled(
-                  tooltip: 'Kembali',
-                  onPressed: () {
-                    unawaited(GameAudio.instance.playGameplay());
-                    Navigator.pop(context);
-                  },
-                  style: IconButton.styleFrom(
-                    backgroundColor: const Color(0xff6f35a8),
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(46, 46),
-                  ),
-                  icon: const Icon(Icons.arrow_back_rounded, size: 25),
-                ),
-              ),
           ],
         ),
       ),

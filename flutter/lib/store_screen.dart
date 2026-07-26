@@ -1,5 +1,11 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'firebase_service.dart';
@@ -13,18 +19,37 @@ class StoreScreen extends StatefulWidget {
 }
 
 class _StoreScreenState extends State<StoreScreen> {
+  static const _tokenProductId = 'balokkosong_tokens_30';
+  static const _androidRewardedTestId =
+      'ca-app-pub-3940256099942544/5224354917';
+  static const _iosRewardedTestId = 'ca-app-pub-3940256099942544/1712485313';
+  static const _androidRewardedProductionId = String.fromEnvironment(
+    'ADMOB_REWARDED_ANDROID',
+  );
+  static const _iosRewardedProductionId = String.fromEnvironment(
+    'ADMOB_REWARDED_IOS',
+  );
+
   final couponController = TextEditingController();
+  final InAppPurchase _inAppPurchase = InAppPurchase.instance;
+  StreamSubscription<List<PurchaseDetails>>? _purchaseSubscription;
+  ProductDetails? _tokenProduct;
+  RewardedAd? _rewardedAd;
   int tokens = 0;
   int energy = 5;
   bool unlimited = false;
   bool themePack = false;
   bool noAds = false;
   bool loading = true;
+  bool purchasePending = false;
+  bool rewardedAdLoading = false;
   static const int _themePackTokenCost = 20;
   static const int _energyByTokenCost = 2;
 
   @override
   void dispose() {
+    _purchaseSubscription?.cancel();
+    _rewardedAd?.dispose();
     couponController.dispose();
     super.dispose();
   }
@@ -32,7 +57,192 @@ class _StoreScreenState extends State<StoreScreen> {
   @override
   void initState() {
     super.initState();
+    _purchaseSubscription = _inAppPurchase.purchaseStream.listen(
+      _handlePurchaseUpdates,
+      onError: (_) =>
+          _showMessage('Pembelian belum dapat diproses. Silakan coba kembali.'),
+    );
     _load();
+    unawaited(_initializePurchases());
+    unawaited(_initializeRewardedAds());
+  }
+
+  bool get _isMobile => Platform.isAndroid || Platform.isIOS;
+
+  String? get _rewardedAdUnitId {
+    if (!_isMobile) return null;
+    if (kDebugMode) {
+      return Platform.isAndroid ? _androidRewardedTestId : _iosRewardedTestId;
+    }
+    final productionId = Platform.isAndroid
+        ? _androidRewardedProductionId
+        : _iosRewardedProductionId;
+    return productionId.isEmpty ? null : productionId;
+  }
+
+  Future<void> _initializePurchases() async {
+    if (!_isMobile) return;
+    final available = await _inAppPurchase.isAvailable();
+    if (!available) return;
+    final response = await _inAppPurchase.queryProductDetails({
+      _tokenProductId,
+    });
+    if (!mounted) return;
+    setState(() {
+      _tokenProduct = response.productDetails
+          .where((product) => product.id == _tokenProductId)
+          .firstOrNull;
+    });
+  }
+
+  Future<void> _buyTokens() async {
+    final product = _tokenProduct;
+    if (product == null) {
+      _showMessage(
+        'Produk token belum tersedia. Pastikan produk $_tokenProductId '
+        'sudah aktif di store.',
+      );
+      return;
+    }
+    setState(() => purchasePending = true);
+    final started = await _inAppPurchase.buyConsumable(
+      purchaseParam: PurchaseParam(productDetails: product),
+      autoConsume: true,
+    );
+    if (!started && mounted) {
+      setState(() => purchasePending = false);
+      _showMessage('Jendela pembayaran belum dapat dibuka.');
+    }
+  }
+
+  Future<void> _handlePurchaseUpdates(List<PurchaseDetails> purchases) async {
+    for (final purchase in purchases) {
+      if (purchase.status == PurchaseStatus.pending) {
+        if (mounted) setState(() => purchasePending = true);
+        continue;
+      }
+      if (purchase.status == PurchaseStatus.error) {
+        if (mounted) {
+          setState(() => purchasePending = false);
+          _showMessage(purchase.error?.message ?? 'Pembelian tidak berhasil.');
+        }
+      } else if ((purchase.status == PurchaseStatus.purchased ||
+              purchase.status == PurchaseStatus.restored) &&
+          purchase.productID == _tokenProductId) {
+        await _deliverTokenPurchase(purchase);
+      } else if (purchase.status == PurchaseStatus.canceled && mounted) {
+        setState(() => purchasePending = false);
+      }
+      if (purchase.pendingCompletePurchase) {
+        await _inAppPurchase.completePurchase(purchase);
+      }
+    }
+  }
+
+  Future<void> _deliverTokenPurchase(PurchaseDetails purchase) async {
+    final prefs = await SharedPreferences.getInstance();
+    final processed =
+        prefs.getStringList('balok_processed_purchases') ?? <String>[];
+    final transactionKey =
+        purchase.purchaseID ?? purchase.verificationData.serverVerificationData;
+    if (processed.contains(transactionKey)) {
+      if (mounted) setState(() => purchasePending = false);
+      return;
+    }
+    processed.add(transactionKey);
+    if (processed.length > 200) {
+      processed.removeRange(0, processed.length - 200);
+    }
+    await prefs.setStringList('balok_processed_purchases', processed);
+    if (!mounted) return;
+    setState(() {
+      tokens += 30;
+      purchasePending = false;
+    });
+    await _save(
+      message: 'Pembelian berhasil. +30 token diterima.',
+      purchaseTitle: 'Paket 30 Token',
+    );
+  }
+
+  Future<void> _initializeRewardedAds() async {
+    if (_rewardedAdUnitId == null) return;
+    await MobileAds.instance.initialize();
+    await _loadRewardedAd();
+  }
+
+  Future<void> _loadRewardedAd() async {
+    final adUnitId = _rewardedAdUnitId;
+    if (adUnitId == null || rewardedAdLoading || _rewardedAd != null) return;
+    if (mounted) setState(() => rewardedAdLoading = true);
+    await RewardedAd.load(
+      adUnitId: adUnitId,
+      request: const AdRequest(),
+      rewardedAdLoadCallback: RewardedAdLoadCallback(
+        onAdLoaded: (ad) {
+          if (!mounted) {
+            ad.dispose();
+            return;
+          }
+          setState(() {
+            _rewardedAd = ad;
+            rewardedAdLoading = false;
+          });
+        },
+        onAdFailedToLoad: (_) {
+          if (mounted) setState(() => rewardedAdLoading = false);
+        },
+      ),
+    );
+  }
+
+  Future<void> _showRewardedAd({
+    required VoidCallback applyReward,
+    required String message,
+  }) async {
+    final adUnitId = _rewardedAdUnitId;
+    if (adUnitId == null) {
+      _showMessage(
+        kReleaseMode
+            ? 'Iklan belum aktif. ID AdMob produksi perlu dipasang.'
+            : 'Iklan berhadiah hanya tersedia di Android atau iOS.',
+      );
+      return;
+    }
+    final ad = _rewardedAd;
+    if (ad == null) {
+      unawaited(_loadRewardedAd());
+      _showMessage('Iklan sedang disiapkan. Silakan coba beberapa saat lagi.');
+      return;
+    }
+    _rewardedAd = null;
+    var rewardGranted = false;
+    ad.fullScreenContentCallback = FullScreenContentCallback(
+      onAdDismissedFullScreenContent: (closedAd) {
+        closedAd.dispose();
+        unawaited(_loadRewardedAd());
+      },
+      onAdFailedToShowFullScreenContent: (failedAd, _) {
+        failedAd.dispose();
+        unawaited(_loadRewardedAd());
+        _showMessage('Iklan belum dapat ditampilkan.');
+      },
+    );
+    ad.show(
+      onUserEarnedReward: (_, reward) {
+        if (rewardGranted || !mounted) return;
+        rewardGranted = true;
+        setState(applyReward);
+        unawaited(_save(message: message));
+      },
+    );
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _load() async {
@@ -173,28 +383,28 @@ class _StoreScreenState extends State<StoreScreen> {
                         _StoreAction(
                           icon: Icons.play_arrow_rounded,
                           title: '+3 Token Petunjuk',
-                          subtitle: 'Tonton iklan berhadiah',
-                          onTap: () {
-                            setState(() => tokens += 3);
-                            _save(message: 'Hadiah +3 token diterima');
-                          },
+                          subtitle: rewardedAdLoading
+                              ? 'Menyiapkan iklan…'
+                              : 'Tonton iklan berhadiah',
+                          onTap: () => _showRewardedAd(
+                            applyReward: () => tokens += 3,
+                            message: 'Hadiah +3 token diterima',
+                          ),
                         ),
                         _StoreAction(
                           icon: Icons.bolt_rounded,
                           title: '+2 Energy Tantangan',
                           subtitle: 'Dengan iklan berhadiah',
-                          onTap: () async {
+                          onTap: () {
                             if (energy >= 5) {
-                              if (!mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Energy sudah penuh.'),
-                                ),
-                              );
+                              _showMessage('Energy sudah penuh.');
                               return;
                             }
-                            setState(() => energy = (energy + 2).clamp(0, 5));
-                            await _save(message: 'Energy Tantangan bertambah');
+                            _showRewardedAd(
+                              applyReward: () =>
+                                  energy = (energy + 2).clamp(0, 5),
+                              message: 'Energy Tantangan bertambah',
+                            );
                           },
                         ),
                         _StoreAction(
@@ -221,16 +431,14 @@ class _StoreScreenState extends State<StoreScreen> {
                         ),
                         _StoreAction(
                           icon: Icons.diamond_rounded,
-                          title: '+30 Token',
-                          subtitle:
-                              'Paket consumable · sekali bayar · dapat dibeli lagi',
-                          onTap: () {
-                            setState(() => tokens += 30);
-                            _save(
-                              message: '+30 token ditambahkan',
-                              purchaseTitle: 'Paket 30 Token',
-                            );
-                          },
+                          title: purchasePending
+                              ? 'MEMPROSES PEMBELIAN…'
+                              : 'BELI 30 TOKEN',
+                          subtitle: _tokenProduct == null
+                              ? 'Pembelian melalui App Store / Google Play'
+                              : '${_tokenProduct!.price} · dapat dibeli kembali',
+                          enabled: !purchasePending,
+                          onTap: _buyTokens,
                         ),
                         _StoreAction(
                           icon: Icons.all_inclusive_rounded,
@@ -284,8 +492,8 @@ class _StoreScreenState extends State<StoreScreen> {
                         ),
                         const SizedBox(height: 9),
                         const Text(
-                          'Iklan dan pembayaran masih simulasi development. '
-                          'Tombol yang sama akan dihubungkan ke AdMob dan pembelian resmi.',
+                          'Pembayaran diproses oleh App Store atau Google Play. '
+                          'Hadiah iklan diberikan hanya setelah iklan selesai.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Colors.white38,
