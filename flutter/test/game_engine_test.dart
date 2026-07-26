@@ -27,7 +27,7 @@ void main() {
     for (var levelIndex = 0; levelIndex < totalLevels; levelIndex++) {
       test('level ${levelIndex + 1} is complete, valid, and solvable', () {
         final expected = levelPieceCount(levelIndex);
-        final pieces = generateLevel(levelIndex + 4, expected);
+        final pieces = generateLevel(levelIndex + 1, expected);
 
         expect(pieces, hasLength(expected));
         expect(pieces.map((piece) => piece.id).toSet(), hasLength(expected));
@@ -55,8 +55,8 @@ void main() {
     }
 
     test('generation is deterministic', () {
-      final first = generateLevel(20, 100);
-      final second = generateLevel(20, 100);
+      final first = generateLevel(10, 100);
+      final second = generateLevel(10, 100);
       expect(
         first
             .map(
@@ -79,7 +79,7 @@ void main() {
   test('all levels generate within a reasonable budget', () {
     final stopwatch = Stopwatch()..start();
     for (var levelIndex = 0; levelIndex < totalLevels; levelIndex++) {
-      generateLevel(levelIndex + 4, levelPieceCount(levelIndex));
+      generateLevel(levelIndex + 1, levelPieceCount(levelIndex));
     }
     stopwatch.stop();
     expect(
@@ -87,5 +87,27 @@ void main() {
       lessThan(const Duration(seconds: 10)),
       reason: 'Pembuatan level terlalu lambat: ${stopwatch.elapsed}',
     );
+  });
+
+  test('new shapes unlock only at their intended levels', () {
+    const basic = {PieceShape.i, PieceShape.l, PieceShape.j};
+    const middle = {PieceShape.c, PieceShape.u, PieceShape.g};
+    const advanced = {
+      PieceShape.t,
+      PieceShape.f,
+      PieceShape.h,
+      PieceShape.s,
+      PieceShape.e,
+    };
+
+    expect(shapesForLevel(1).toSet(), equals(basic));
+    expect(shapesForLevel(3).toSet(), equals(basic));
+    expect(shapesForLevel(4).toSet(), containsAll({...basic, ...middle}));
+    expect(shapesForLevel(7).toSet(), isNot(containsAll(advanced)));
+    expect(
+      shapesForLevel(8).toSet(),
+      containsAll({...basic, ...middle, ...advanced}),
+    );
+    expect(shapesForLevel(10).toSet(), containsAll(advanced));
   });
 }

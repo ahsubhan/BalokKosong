@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'firebase_service.dart';
+import 'notification_service.dart';
 
 class StoreScreen extends StatefulWidget {
   const StoreScreen({super.key});
@@ -19,6 +20,8 @@ class _StoreScreenState extends State<StoreScreen> {
   bool themePack = false;
   bool noAds = false;
   bool loading = true;
+  static const int _themePackTokenCost = 20;
+  static const int _energyByTokenCost = 2;
 
   @override
   void dispose() {
@@ -45,14 +48,27 @@ class _StoreScreenState extends State<StoreScreen> {
     });
   }
 
-  Future<void> _save({String? message}) async {
+  Future<void> _save({String? message, String? purchaseTitle}) async {
     final prefs = await SharedPreferences.getInstance();
+    final purchaseHistory =
+        prefs.getStringList('balok_purchase_history') ?? <String>[];
+    if (purchaseTitle != null) {
+      final now = DateTime.now();
+      final date =
+          '${now.day.toString().padLeft(2, '0')}/'
+          '${now.month.toString().padLeft(2, '0')}/${now.year}';
+      purchaseHistory.insert(0, '$purchaseTitle · $date');
+      if (purchaseHistory.length > 50) {
+        purchaseHistory.removeRange(50, purchaseHistory.length);
+      }
+    }
     await Future.wait([
       prefs.setInt('balok_tokens', tokens),
       prefs.setInt('balok_energy', energy),
       prefs.setBool('balok_unlimited', unlimited),
       prefs.setBool('balok_theme_pack', themePack),
       prefs.setBool('balok_no_ads', noAds),
+      prefs.setStringList('balok_purchase_history', purchaseHistory),
     ]);
     await FirebaseService.instance.saveInventory(
       tokens: tokens,
@@ -65,11 +81,40 @@ class _StoreScreenState extends State<StoreScreen> {
               .map(int.tryParse)
               .whereType<int>()
               .toList(),
+      purchaseHistory: purchaseHistory,
     );
+    await NotificationService.instance.refreshEnergyReminder();
     if (!mounted || message == null) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), duration: const Duration(seconds: 1)),
     );
+  }
+
+  Future<void> _spendTokens({
+    required int amount,
+    required String itemName,
+    required String message,
+    required VoidCallback apply,
+  }) async {
+    if (amount <= 0) {
+      setState(apply);
+      await _save(message: message);
+      return;
+    }
+    if (tokens < amount) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Token tidak cukup untuk $itemName (butuh $amount).'),
+        ),
+      );
+      return;
+    }
+    setState(() {
+      tokens -= amount;
+      apply();
+    });
+    await _save(message: message);
   }
 
   @override
@@ -122,6 +167,8 @@ class _StoreScreenState extends State<StoreScreen> {
                             height: 1.35,
                           ),
                         ),
+                        const SizedBox(height: 16),
+                        const _TokenMechanismCard(),
                         const SizedBox(height: 20),
                         _StoreAction(
                           icon: Icons.play_arrow_rounded,
@@ -136,18 +183,53 @@ class _StoreScreenState extends State<StoreScreen> {
                           icon: Icons.bolt_rounded,
                           title: '+2 Energy Tantangan',
                           subtitle: 'Dengan iklan berhadiah',
-                          onTap: () {
+                          onTap: () async {
+                            if (energy >= 5) {
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Energy sudah penuh.'),
+                                ),
+                              );
+                              return;
+                            }
                             setState(() => energy = (energy + 2).clamp(0, 5));
-                            _save(message: 'Energy Tantangan bertambah');
+                            await _save(message: 'Energy Tantangan bertambah');
+                          },
+                        ),
+                        _StoreAction(
+                          icon: Icons.electric_bolt_rounded,
+                          title: '+1 Energy Tantangan',
+                          subtitle: '2 token',
+                          onTap: () {
+                            if (energy >= 5) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Energy sudah penuh.'),
+                                ),
+                              );
+                              return;
+                            }
+                            _spendTokens(
+                              amount: _energyByTokenCost,
+                              itemName: 'Energy Tantangan',
+                              message:
+                                  'Energy Tantangan bertambah 1 dengan token',
+                              apply: () => energy = (energy + 1).clamp(0, 5),
+                            );
                           },
                         ),
                         _StoreAction(
                           icon: Icons.diamond_rounded,
                           title: '+30 Token',
-                          subtitle: 'Pembelian sekali · demo',
+                          subtitle:
+                              'Paket consumable · sekali bayar · dapat dibeli lagi',
                           onTap: () {
                             setState(() => tokens += 30);
-                            _save(message: '+30 token ditambahkan');
+                            _save(
+                              message: '+30 token ditambahkan',
+                              purchaseTitle: 'Paket 30 Token',
+                            );
                           },
                         ),
                         _StoreAction(
@@ -159,7 +241,10 @@ class _StoreScreenState extends State<StoreScreen> {
                           enabled: !unlimited,
                           onTap: () {
                             setState(() => unlimited = true);
-                            _save(message: 'Energy tanpa batas diaktifkan');
+                            _save(
+                              message: 'Energy tanpa batas diaktifkan',
+                              purchaseTitle: 'Energy tanpa batas · 30 hari',
+                            );
                           },
                         ),
                         _StoreAction(
@@ -167,20 +252,21 @@ class _StoreScreenState extends State<StoreScreen> {
                           title: themePack
                               ? 'Tema eksklusif aktif'
                               : 'Paket Tema Neon & Ocean',
-                          subtitle: 'Pembelian sekali · demo',
+                          subtitle: themePack
+                              ? 'Aktif'
+                              : '$_themePackTokenCost token',
                           enabled: !themePack,
-                          onTap: () {
-                            setState(() => themePack = true);
-                            _save(message: 'Tema Neon & Ocean terbuka');
-                          },
+                          onTap: () => _spendTokens(
+                            amount: _themePackTokenCost,
+                            itemName: 'Paket Tema Neon & Ocean',
+                            message: 'Tema Neon & Ocean terbuka',
+                            apply: () => themePack = true,
+                          ),
                         ),
                         _StoreAction(
                           icon: Icons.confirmation_number_rounded,
-                          title: themePack
-                              ? 'Kupon tema sudah aktif'
-                              : 'Masukkan Kupon',
-                          subtitle: 'Buka Neon & Ocean dengan kode kupon',
-                          enabled: !themePack,
+                          title: 'Masukkan Kupon',
+                          subtitle: 'Bonus token atau buka tema premium',
                           onTap: _showCouponDialog,
                         ),
                         _StoreAction(
@@ -190,7 +276,10 @@ class _StoreScreenState extends State<StoreScreen> {
                           enabled: !noAds,
                           onTap: () {
                             setState(() => noAds = true);
-                            _save(message: 'Bebas iklan diaktifkan');
+                            _save(
+                              message: 'Bebas iklan diaktifkan',
+                              purchaseTitle: 'Bebas Iklan',
+                            );
                           },
                         ),
                         const SizedBox(height: 9),
@@ -275,6 +364,23 @@ class _StoreScreenState extends State<StoreScreen> {
     );
     if (submitted != true || !mounted) return;
     final code = couponController.text.trim().toUpperCase();
+    final preferences = await SharedPreferences.getInstance();
+    final redeemed =
+        preferences.getStringList('balok_redeemed_coupons') ?? <String>[];
+    if (!mounted) return;
+    if (redeemed.contains(code)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Kupon ini sudah pernah digunakan')),
+      );
+      return;
+    }
+    if (code == 'TOKEN10') {
+      setState(() => tokens += 10);
+      redeemed.add(code);
+      await preferences.setStringList('balok_redeemed_coupons', redeemed);
+      await _save(message: 'Kupon berhasil. Bonus +10 token!');
+      return;
+    }
     if (code != 'BALOKPREMIUM' && code != 'KOSONG2026') {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Kupon tidak valid atau sudah berakhir')),
@@ -282,8 +388,82 @@ class _StoreScreenState extends State<StoreScreen> {
       return;
     }
     setState(() => themePack = true);
+    redeemed.add(code);
+    await preferences.setStringList('balok_redeemed_coupons', redeemed);
     await _save(message: 'Kupon berhasil. Tema Neon & Ocean terbuka!');
   }
+}
+
+class _TokenMechanismCard extends StatelessWidget {
+  const _TokenMechanismCard();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: const Color(0xff32144f),
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: const Color(0xff70419b)),
+    ),
+    child: const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.diamond_outlined, color: Color(0xffffcf5a), size: 22),
+            SizedBox(width: 8),
+            Text(
+              'CARA KERJA TOKEN',
+              style: TextStyle(
+                color: Color(0xffffe5a0),
+                fontWeight: FontWeight.w900,
+                letterSpacing: .8,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 10),
+        Text(
+          'DIGUNAKAN UNTUK',
+          style: TextStyle(
+            color: Color(0xffd8a5ff),
+            fontSize: 11,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        SizedBox(height: 5),
+        Text('• 10 petunjuk pertama gratis (total akun).'),
+        Text('• Setelah itu, 1 token = 1 petunjuk.'),
+        Text('• 1 token = buka grid untuk level 4 ke atas.'),
+        Text('• 1 token = buka tema Neon & Ocean.'),
+        Text('• 2 token = +1 Energy Tantangan (jika energy belum penuh).'),
+        Text('• Grid / tema yang sudah dibuka bersifat permanen.'),
+        SizedBox(height: 11),
+        Text(
+          'CARA MENDAPATKAN',
+          style: TextStyle(
+            color: Color(0xffd8a5ff),
+            fontSize: 11,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        SizedBox(height: 5),
+        Text('• Tonton iklan berhadiah sampai selesai: +3 token.'),
+        Text(
+          '• Beli paket token sekali bayar melalui App Store atau Google Play. '
+          'Paket dapat dibeli kembali.',
+        ),
+        Text('• Masukkan kupon bonus yang masih berlaku.'),
+        SizedBox(height: 10),
+        Text(
+          'Token bukan langganan, tidak diperpanjang otomatis, dan tidak '
+          'kedaluwarsa. Login diperlukan agar saldo tersinkron ke perangkat lain.',
+          style: TextStyle(color: Colors.white60, fontSize: 11, height: 1.35),
+        ),
+      ],
+    ),
+  );
 }
 
 class _StoreAction extends StatelessWidget {

@@ -2,9 +2,9 @@ import 'dart:math' as math;
 
 const int boardCols = 28;
 const int boardRows = 42;
-const int totalLevels = 20;
+const int totalLevels = 10;
 
-enum PieceShape { i, l, j, t, f, z }
+enum PieceShape { i, l, j, c, u, g, t, f, h, s, e }
 
 class GridCell {
   const GridCell(this.x, this.y);
@@ -47,22 +47,57 @@ class PuzzlePiece {
 }
 
 List<GridCell> _baseCells(PieceShape shape, int length) {
-  final line = List.generate(length, (index) => GridCell(index, 0));
+  List<GridCell> row(int y, {int from = 0, int? to}) => [
+    for (var x = from; x <= (to ?? length - 1); x++) GridCell(x, y),
+  ];
+
+  List<GridCell> column(int x, int from, int to) => [
+    for (var y = from; y <= to; y++) GridCell(x, y),
+  ];
+
+  final line = row(0);
   final mid = math.max(1, (length - 1) ~/ 2);
   return switch (shape) {
     PieceShape.i => line,
     PieceShape.l => [...line, GridCell(length - 1, 1)],
     PieceShape.j => [const GridCell(0, 1), ...line],
+    PieceShape.c => [...row(0), const GridCell(0, 1), ...row(2)],
+    PieceShape.u => [
+      ...column(0, 0, 1),
+      ...column(length - 1, 0, 1),
+      ...row(2),
+    ],
+    PieceShape.g => [
+      ...row(0),
+      const GridCell(0, 1),
+      ...row(2),
+      GridCell(length - 1, 1),
+      GridCell(math.max(1, length - 2), 1),
+    ],
     PieceShape.t => [...line, GridCell(mid, 1)],
     PieceShape.f => [
-      ...line,
-      GridCell(mid, 1),
-      GridCell(math.min(length - 1, mid + 1), 1),
+      ...row(0),
+      ...row(2, from: 1, to: math.max(1, length - 2)),
+      ...column(0, 1, 4),
     ],
-    PieceShape.z => [
-      ...line,
-      GridCell(mid, -1),
-      GridCell(math.max(0, mid - 1), 1),
+    PieceShape.h => [
+      ...column(0, 0, 4),
+      ...column(length - 1, 0, 4),
+      ...row(2, from: 1, to: length - 2),
+    ],
+    PieceShape.s => [
+      ...row(0, from: 1),
+      GridCell(length - 1, 1),
+      ...row(2),
+      const GridCell(0, 3),
+      ...row(4, to: length - 2),
+    ],
+    PieceShape.e => [
+      ...row(0),
+      ...row(2),
+      ...row(4),
+      const GridCell(0, 1),
+      const GridCell(0, 3),
     ],
   };
 }
@@ -91,19 +126,152 @@ class _Lcg {
   }
 }
 
-const _shapeOrder = [
+const _basicShapeOrder = [
+  PieceShape.i,
   PieceShape.i,
   PieceShape.l,
   PieceShape.j,
-  PieceShape.t,
-  PieceShape.f,
-  PieceShape.z,
+  PieceShape.i,
   PieceShape.l,
-  PieceShape.t,
+  PieceShape.i,
+  PieceShape.j,
 ];
 
-List<PuzzlePiece> generateLevel(int seedLevel, int requestedCount) {
-  final random = _Lcg(5849 + seedLevel * 941);
+const _middleShapeOrder = [
+  ..._basicShapeOrder,
+  PieceShape.i,
+  PieceShape.l,
+  PieceShape.j,
+  PieceShape.c,
+  PieceShape.u,
+  PieceShape.g,
+];
+
+const _advancedShapeOrder = [
+  ..._middleShapeOrder,
+  ..._basicShapeOrder,
+  PieceShape.t,
+  PieceShape.f,
+  PieceShape.h,
+  PieceShape.s,
+  PieceShape.e,
+];
+
+List<PieceShape> shapesForLevel(int levelNumber) {
+  final safeLevel = levelNumber.clamp(1, totalLevels);
+  if (safeLevel <= 3) return _basicShapeOrder;
+  if (safeLevel <= 7) return _middleShapeOrder;
+  return _advancedShapeOrder;
+}
+
+int _lengthForShape(PieceShape shape, int index, int levelNumber) {
+  return switch (shape) {
+    PieceShape.i => 2 + ((index + levelNumber) % 6),
+    PieceShape.l || PieceShape.j => 3 + ((index * 3 + levelNumber) % 4),
+    _ => 3 + ((index + levelNumber) % 2),
+  };
+}
+
+PuzzlePiece? _enterFromEdge({
+  required String id,
+  required PieceShape shape,
+  required int length,
+  required int colorIndex,
+  required Set<String> occupied,
+  required _Lcg random,
+}) {
+  final direction = switch ((random.next() * 4).floor()) {
+    0 => 0,
+    1 => 90,
+    2 => 180,
+    _ => 270,
+  };
+  final origin = PuzzlePiece(
+    id: id,
+    x: 0,
+    y: 0,
+    direction: direction,
+    shape: shape,
+    length: length,
+    colorIndex: colorIndex,
+  );
+  final relative = pieceCells(origin);
+  final minX = relative.map((cell) => cell.x).reduce(math.min);
+  final maxX = relative.map((cell) => cell.x).reduce(math.max);
+  final minY = relative.map((cell) => cell.y).reduce(math.min);
+  final maxY = relative.map((cell) => cell.y).reduce(math.max);
+  final fromLowSide = random.next() > .5;
+
+  var x = 0;
+  var y = 0;
+  var stepX = 0;
+  var stepY = 0;
+  if (origin.horizontal) {
+    final minAnchorY = -minY;
+    final maxAnchorY = boardRows - 1 - maxY;
+    if (maxAnchorY < minAnchorY) return null;
+    y = minAnchorY + (random.next() * (maxAnchorY - minAnchorY + 1)).floor();
+    x = fromLowSide ? -maxX - 1 : boardCols - minX;
+    stepX = fromLowSide ? 1 : -1;
+  } else {
+    final minAnchorX = -minX;
+    final maxAnchorX = boardCols - 1 - maxX;
+    if (maxAnchorX < minAnchorX) return null;
+    x = minAnchorX + (random.next() * (maxAnchorX - minAnchorX + 1)).floor();
+    y = fromLowSide ? -maxY - 1 : boardRows - minY;
+    stepY = fromLowSide ? 1 : -1;
+  }
+
+  PuzzlePiece? deepest;
+  final travelLimit = boardCols + boardRows + length + 12;
+  for (var step = 0; step < travelLimit; step++) {
+    final probe = PuzzlePiece(
+      id: id,
+      x: x,
+      y: y,
+      direction: direction,
+      shape: shape,
+      length: length,
+      colorIndex: colorIndex,
+    );
+    final cells = pieceCells(probe);
+    final collides = cells.any((cell) {
+      final inside =
+          cell.x >= 0 &&
+          cell.x < boardCols &&
+          cell.y >= 0 &&
+          cell.y < boardRows;
+      return inside && occupied.contains(cell.key);
+    });
+    if (collides) break;
+
+    final fullyInside = cells.every(
+      (cell) =>
+          cell.x >= 0 &&
+          cell.x < boardCols &&
+          cell.y >= 0 &&
+          cell.y < boardRows,
+    );
+    if (fullyInside) deepest = probe;
+
+    final completelyPastBoard = origin.horizontal
+        ? (fromLowSide
+              ? cells.every((cell) => cell.x >= boardCols)
+              : cells.every((cell) => cell.x < 0))
+        : (fromLowSide
+              ? cells.every((cell) => cell.y >= boardRows)
+              : cells.every((cell) => cell.y < 0));
+    if (completelyPastBoard) break;
+    x += stepX;
+    y += stepY;
+  }
+  return deepest;
+}
+
+List<PuzzlePiece> generateLevel(int levelNumber, int requestedCount) {
+  final safeLevel = levelNumber.clamp(1, totalLevels);
+  final shapeOrder = shapesForLevel(safeLevel);
+  final random = _Lcg(5849 + safeLevel * 941);
   var best = <PuzzlePiece>[];
   for (
     var restart = 0;
@@ -113,27 +281,19 @@ List<PuzzlePiece> generateLevel(int seedLevel, int requestedCount) {
     final pieces = <PuzzlePiece>[];
     final used = <String>{};
     for (var index = 0; index < requestedCount; index++) {
-      final shape = _shapeOrder[(index + seedLevel) % _shapeOrder.length];
-      final length = shape == PieceShape.i
-          ? 2 + ((index + seedLevel) % 6)
-          : 3 + ((index * 3 + seedLevel) % 5);
+      final shape = shapeOrder[(index + safeLevel) % shapeOrder.length];
+      final length = _lengthForShape(shape, index, safeLevel);
       var placed = false;
       for (var attempt = 0; attempt < 700 && !placed; attempt++) {
-        final x = (random.next() * boardCols).floor();
-        final y = (random.next() * boardRows).floor();
-        final horizontal = random.next() > .5;
-        final direction = horizontal
-            ? (x < boardCols / 2 ? 180 : 0)
-            : (y < boardRows / 2 ? 270 : 90);
-        final probe = PuzzlePiece(
-          id: '$seedLevel-$index',
-          x: x,
-          y: y,
-          direction: direction,
+        final probe = _enterFromEdge(
+          id: '$safeLevel-$index',
           shape: shape,
           length: length,
-          colorIndex: (index + seedLevel) % 7,
+          colorIndex: (index + safeLevel) % 7,
+          occupied: used,
+          random: random,
         );
+        if (probe == null) continue;
         final own = pieceCells(probe);
         if (own.any(
           (cell) =>

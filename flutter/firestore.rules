@@ -31,6 +31,9 @@ service cloud.firestore {
       return settings is map
         && optionalBool(settings, 'gridVisible')
         && optionalBool(settings, 'musicEnabled')
+        && optionalBool(settings, 'promoNotifications')
+        && optionalBool(settings, 'inactivityNotifications')
+        && optionalBool(settings, 'energyFullNotifications')
         && (!('themeName' in settings)
           || (settings.themeName is string
             && settings.themeName.size() <= 30))
@@ -51,6 +54,10 @@ service cloud.firestore {
         && (!('gridUnlockedLevels' in inventory)
           || (inventory.gridUnlockedLevels is list
             && inventory.gridUnlockedLevels.size() <= 17))
+        && optionalInt(inventory, 'freeHintsUsed', 0, 10)
+        && (!('purchaseHistory' in inventory)
+          || (inventory.purchaseHistory is list
+            && inventory.purchaseHistory.size() <= 50))
         && inventory.updatedAt is timestamp;
     }
 
@@ -81,6 +88,10 @@ service cloud.firestore {
         && request.resource.data.message is string
         && request.resource.data.message.size() > 0
         && request.resource.data.message.size() <= 5000
+        && (!('senderName' in request.resource.data)
+          || (request.resource.data.senderName is string
+            && request.resource.data.senderName.size() > 0
+            && request.resource.data.senderName.size() <= 100))
         && request.resource.data.provider is string
         && request.resource.data.platform is string
         && request.resource.data.appVersion is string

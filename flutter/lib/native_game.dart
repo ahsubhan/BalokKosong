@@ -13,6 +13,8 @@ import 'game_engine.dart';
 import 'help_feedback.dart';
 import 'how_to_play.dart';
 import 'mode_selection.dart';
+import 'notification_service.dart';
+import 'profile_screen.dart';
 import 'store_screen.dart';
 
 const _pieceColors = [
@@ -26,6 +28,11 @@ const _pieceColors = [
 ];
 
 const _testingLevelNavigation = true;
+const _maximumAllowedMistakes = 10;
+
+enum _HintDialogAction { back, continueHint, watchAd }
+
+enum _NotificationKind { promos, inactivity, energyFull }
 
 const _themes = {
   'Gelap': (Color(0xff170b2d), Color(0xff35215e)),
@@ -42,9 +49,11 @@ class NativeGameScreen extends StatefulWidget {
     super.key,
     required this.homeBuilder,
     this.challengeMode = false,
+    this.startFromLevelOne = false,
   });
 
   final bool challengeMode;
+  final bool startFromLevelOne;
   final WidgetBuilder homeBuilder;
 
   @override
@@ -57,13 +66,18 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
   int moves = 0;
   int mistakes = 0;
   int hintsUsed = 0;
+  int freeHintsUsed = 0;
   int elapsedSeconds = 0;
   int remainingSeconds = 0;
   bool paused = false;
+  bool mistakeDialogOpen = false;
   late bool challengeMode;
   bool timeoutDialogOpen = false;
   bool gridVisible = true;
   bool musicEnabled = true;
+  bool promoNotifications = false;
+  bool inactivityNotifications = false;
+  bool energyFullNotifications = false;
   int tokens = 0;
   bool themePack = false;
   Set<int> gridUnlockedLevels = {};
@@ -102,12 +116,22 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
     final preferences = await SharedPreferences.getInstance();
     if (!mounted) return;
     setState(() {
-      levelIndex =
-          (preferences.getInt('balok_level') ?? 1).clamp(1, totalLevels) - 1;
+      levelIndex = widget.startFromLevelOne
+          ? 0
+          : (preferences.getInt('balok_level') ?? 1).clamp(1, totalLevels) - 1;
       score = preferences.getInt('balok_score') ?? 0;
       gridVisible = preferences.getBool('balok_grid_visible') ?? true;
       musicEnabled = preferences.getBool('balok_music_enabled') ?? true;
+      promoNotifications =
+          preferences.getBool(NotificationService.promoPreference) ?? false;
+      inactivityNotifications =
+          preferences.getBool(NotificationService.inactivityPreference) ??
+          false;
+      energyFullNotifications =
+          preferences.getBool(NotificationService.energyFullPreference) ??
+          false;
       tokens = preferences.getInt('balok_tokens') ?? 0;
+      freeHintsUsed = preferences.getInt('balok_free_hints_used') ?? 0;
       themePack = preferences.getBool('balok_theme_pack') ?? false;
       gridUnlockedLevels =
           (preferences.getStringList('balok_grid_unlocked_levels') ?? const [])
@@ -132,22 +156,72 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
     super.dispose();
   }
 
-  void _loadLevel(int next) {
+  void _loadLevel(int next, {bool keepPaused = false}) {
     levelIndex = next.clamp(0, totalLevels - 1);
     engine = PuzzleEngine(
-      generateLevel(levelIndex + 4, levelPieceCount(levelIndex)),
+      generateLevel(levelIndex + 1, levelPieceCount(levelIndex)),
     );
     remainingSeconds = 45 + engine.pieces.length * 3;
     elapsedSeconds = 0;
     moves = 0;
     mistakes = 0;
     hintsUsed = 0;
-    paused = false;
+    paused = keepPaused;
+    mistakeDialogOpen = false;
     timeoutDialogOpen = false;
     hintedPieceId = null;
   }
 
-  void _restart() => setState(() => _loadLevel(levelIndex));
+  Future<void> _restart() async {
+    final restartLevel = await showDialog<int>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xff24103c),
+        icon: const Icon(
+          Icons.refresh_rounded,
+          color: Color(0xffd8a5ff),
+          size: 46,
+        ),
+        title: const Text(
+          'Ulangi permainan?',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => Navigator.pop(dialogContext, 0),
+                icon: const Icon(Icons.first_page_rounded),
+                label: const Text('Mulai lagi dari Level 1'),
+              ),
+            ),
+            const SizedBox(height: 9),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => Navigator.pop(dialogContext, levelIndex),
+                icon: const Icon(Icons.replay_rounded),
+                label: Text('Mulai dari awal Level ${levelIndex + 1}'),
+              ),
+            ),
+          ],
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Kembali'),
+          ),
+        ],
+      ),
+    );
+    if (restartLevel == null || !mounted) return;
+    setState(() => _loadLevel(restartLevel));
+  }
 
   void _onPieceExit(PuzzlePiece piece) {
     setState(() {
@@ -161,6 +235,57 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
     }
   }
 
+  void _onWrongMove() {
+    if (mistakeDialogOpen) return;
+    var levelFailed = false;
+    setState(() {
+      mistakes++;
+      if (mistakes > _maximumAllowedMistakes) {
+        mistakeDialogOpen = true;
+        paused = true;
+        levelFailed = true;
+      }
+    });
+    if (levelFailed) {
+      unawaited(_showMistakeFailure());
+    }
+  }
+
+  Future<void> _showMistakeFailure() async {
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xff24103c),
+        icon: const Icon(
+          Icons.close_rounded,
+          color: Color(0xffff7597),
+          size: 52,
+        ),
+        title: const Text(
+          'Level gagal',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
+        content: Text(
+          'Anda menabrak balok lebih dari $_maximumAllowedMistakes kali. '
+          'Level ${levelIndex + 1} harus dimulai dari awal.',
+          textAlign: TextAlign.center,
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext),
+            icon: const Icon(Icons.replay_rounded),
+            label: Text('ULANGI LEVEL ${levelIndex + 1}'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    setState(() => _loadLevel(levelIndex));
+  }
+
   String get _clock {
     final shown = challengeMode ? remainingSeconds : elapsedSeconds;
     final minutes = shown ~/ 60;
@@ -168,7 +293,85 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
-  void _showHint() {
+  Future<void> _showHint() async {
+    setState(() => paused = true);
+    final freeRemaining = math.max(0, 10 - freeHintsUsed);
+    final needsToken = freeRemaining == 0;
+    final action = await showDialog<_HintDialogAction>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xff24103c),
+        icon: Icon(
+          needsToken ? Icons.diamond_outlined : Icons.lightbulb_rounded,
+          color: const Color(0xffd8a5ff),
+          size: 44,
+        ),
+        title: const Text(
+          'Gunakan Petunjuk?',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
+        content: Text(
+          needsToken
+              ? tokens > 0
+                    ? 'Batas 10 petunjuk gratis sudah habis. Lanjut akan '
+                          'memakai 1 token.\n\nToken tersedia: $tokens\n'
+                          'Token juga bisa didapat dengan menonton iklan.'
+                    : 'Batas 10 petunjuk gratis sudah habis. Petunjuk '
+                          'berikutnya memerlukan 1 token.\n\nLanjut untuk '
+                          'membuka Toko & Hadiah, lalu beli token atau '
+                          'tonton iklan.'
+              : 'Petunjuk gratis hanya dapat dipakai 10 kali total untuk '
+                    'akun ini.\n\n'
+                    'Sisa petunjuk gratis: $freeRemaining\n'
+                    'Setelah habis, gunakan 1 token atau tonton iklan.',
+          textAlign: TextAlign.center,
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton(
+            onPressed: () =>
+                Navigator.pop(dialogContext, _HintDialogAction.back),
+            child: const Text('Kembali'),
+          ),
+          if (needsToken && tokens <= 0)
+            FilledButton.icon(
+              onPressed: () =>
+                  Navigator.pop(dialogContext, _HintDialogAction.watchAd),
+              icon: const Icon(Icons.ondemand_video_rounded),
+              label: const Text('Tonton Iklan'),
+            )
+          else
+            FilledButton(
+              onPressed: () =>
+                  Navigator.pop(dialogContext, _HintDialogAction.continueHint),
+              child: const Text('Lanjut'),
+            ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (action == null || action == _HintDialogAction.back) {
+      setState(() => paused = false);
+      return;
+    }
+    if (action == _HintDialogAction.watchAd) {
+      setState(() => tokens += 3);
+      await _persistHintUsage();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Iklan selesai · +3 token'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+    }
+    if (hintedPieceId != null) {
+      setState(() => paused = false);
+      return;
+    }
+
     PuzzlePiece? best;
     var bestDistance = -1;
     for (final piece in engine.pieces) {
@@ -187,11 +390,42 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
       }
       if (bestDistance == 9999) break;
     }
+    if (best == null) {
+      setState(() => paused = false);
+      return;
+    }
     setState(() {
+      if (needsToken) {
+        tokens--;
+      } else {
+        freeHintsUsed++;
+      }
       hintedPieceId = best?.id;
-      if (best != null) hintsUsed++;
+      hintsUsed++;
       paused = false;
     });
+    await _persistHintUsage();
+  }
+
+  Future<void> _persistHintUsage() async {
+    final preferences = await SharedPreferences.getInstance();
+    await Future.wait([
+      preferences.setInt('balok_tokens', tokens),
+      preferences.setInt('balok_free_hints_used', freeHintsUsed),
+    ]);
+    await FirebaseService.instance.saveInventory(
+      tokens: tokens,
+      energy: preferences.getInt('balok_energy') ?? 5,
+      unlimited: preferences.getBool('balok_unlimited') ?? false,
+      themePack: preferences.getBool('balok_theme_pack') ?? false,
+      noAds: preferences.getBool('balok_no_ads') ?? false,
+      gridUnlockedLevels:
+          (preferences.getStringList('balok_grid_unlocked_levels') ?? const [])
+              .map(int.tryParse)
+              .whereType<int>()
+              .toList(),
+      freeHintsUsed: freeHintsUsed,
+    );
   }
 
   void _showMode() => Navigator.of(context).push(
@@ -209,6 +443,20 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
           setState(() {
             challengeMode = true;
             _loadLevel(levelIndex);
+          });
+        },
+        onRelaxedSelected: (startFromLevelOne) {
+          Navigator.pop(modeContext);
+          setState(() {
+            challengeMode = false;
+            _loadLevel(startFromLevelOne ? 0 : levelIndex);
+          });
+        },
+        onChallengeSelected: (startFromLevelOne) {
+          Navigator.pop(modeContext);
+          setState(() {
+            challengeMode = true;
+            _loadLevel(startFromLevelOne ? 0 : levelIndex);
           });
         },
         onCancel: () => Navigator.pop(modeContext),
@@ -284,7 +532,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                     onHintConsumed: () => setState(() => hintedPieceId = null),
                     onExit: _onPieceExit,
                     onMove: () => setState(() => moves++),
-                    onWrong: () => setState(() => mistakes++),
+                    onWrong: _onWrongMove,
                   ),
                 ),
                 _GameHud(
@@ -293,6 +541,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                   time: _clock,
                   timeLabel: challengeMode ? 'TANTANGAN' : 'WAKTU',
                   onPause: () => setState(() => paused = true),
+                  onHint: _showHint,
                 ),
               ],
             ),
@@ -304,13 +553,13 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                     _testingLevelNavigation || levelIndex < totalLevels - 1,
                 onContinue: () => setState(() => paused = false),
                 onRestart: _restart,
-                onHint: _showHint,
                 onMode: _showMode,
                 onPrevious: () => setState(
                   () => _loadLevel(
                     _testingLevelNavigation
                         ? (levelIndex - 1 + totalLevels) % totalLevels
                         : levelIndex - 1,
+                    keepPaused: true,
                   ),
                 ),
                 onNext: () => setState(
@@ -318,6 +567,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                     _testingLevelNavigation
                         ? (levelIndex + 1) % totalLevels
                         : levelIndex + 1,
+                    keepPaused: true,
                   ),
                 ),
                 onSettings: _showSettings,
@@ -381,6 +631,95 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
     ),
   );
 
+  Future<void> _showProfile() async {
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const ProfileScreen()));
+    final preferences = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      tokens = preferences.getInt('balok_tokens') ?? tokens;
+      themePack = preferences.getBool('balok_theme_pack') ?? themePack;
+      gridUnlockedLevels =
+          (preferences.getStringList('balok_grid_unlocked_levels') ?? const [])
+              .map(int.tryParse)
+              .whereType<int>()
+              .toSet();
+    });
+  }
+
+  Future<void> _setNotification(
+    _NotificationKind kind,
+    bool requested,
+    StateSetter updateSheet,
+  ) async {
+    final enabled = switch (kind) {
+      _NotificationKind.promos => await NotificationService.instance.setPromos(
+        requested,
+      ),
+      _NotificationKind.inactivity =>
+        await NotificationService.instance.setInactivityReminder(requested),
+      _NotificationKind.energyFull =>
+        await NotificationService.instance.setEnergyFullReminder(requested),
+    };
+    if (!mounted) return;
+    setState(() {
+      switch (kind) {
+        case _NotificationKind.promos:
+          promoNotifications = enabled;
+        case _NotificationKind.inactivity:
+          inactivityNotifications = enabled;
+        case _NotificationKind.energyFull:
+          energyFullNotifications = enabled;
+      }
+    });
+    updateSheet(() {});
+    await FirebaseService.instance.saveSettings(
+      promoNotifications: kind == _NotificationKind.promos ? enabled : null,
+      inactivityNotifications: kind == _NotificationKind.inactivity
+          ? enabled
+          : null,
+      energyFullNotifications: kind == _NotificationKind.energyFull
+          ? enabled
+          : null,
+    );
+    if (requested && !enabled && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Izin notifikasi belum diberikan. Anda dapat mengaktifkannya di pengaturan perangkat.',
+          ),
+        ),
+      );
+    }
+  }
+
+  Widget _notificationTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) => Container(
+    decoration: BoxDecoration(
+      color: Colors.white.withValues(alpha: .045),
+      borderRadius: BorderRadius.circular(15),
+      border: Border.all(color: Colors.white12),
+    ),
+    child: SwitchListTile(
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+      subtitle: Text(
+        subtitle,
+        style: const TextStyle(color: Colors.white54, fontSize: 11),
+      ),
+      secondary: Icon(icon, color: const Color(0xffd8a5ff)),
+      value: value,
+      activeThumbColor: Colors.white,
+      activeTrackColor: const Color(0xff8d4fe0),
+      onChanged: onChanged,
+    ),
+  );
+
   void _showSettings() => showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -400,16 +739,47 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
             child: SingleChildScrollView(
               child: Column(
                 children: [
-                  Text(
-                    'ATURAN & PENGATURAN',
-                    style: GoogleFonts.fredoka(
-                      color: const Color(0xffd9a9ff),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.5,
+                  SizedBox(
+                    height: 44,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Text(
+                          'ATURAN & PENGATURAN',
+                          style: GoogleFonts.fredoka(
+                            color: const Color(0xffd9a9ff),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                        if (FirebaseService.instance.user != null &&
+                            FirebaseService.instance.user?.isAnonymous == false)
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: IconButton.filled(
+                              tooltip: 'Profil',
+                              onPressed: () {
+                                Navigator.pop(sheetContext);
+                                Future<void>.delayed(
+                                  const Duration(milliseconds: 180),
+                                  _showProfile,
+                                );
+                              },
+                              style: IconButton.styleFrom(
+                                backgroundColor: const Color(0xff6f35a8),
+                                foregroundColor: Colors.white,
+                              ),
+                              icon: const Icon(
+                                Icons.person_outline_rounded,
+                                size: 22,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 6),
                   const NativeLogo(compact: true),
                   const SizedBox(height: 20),
                   const Text(
@@ -439,7 +809,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                   _SettingsActionCard(
                     icon: Icons.home_rounded,
                     title: 'Kembali ke halaman utama',
-                    subtitle: 'Pilih akun atau Main sebagai Tamu',
+                    subtitle: 'Panah kembali tersedia untuk kembali bermain',
                     onTap: () {
                       Navigator.pop(sheetContext);
                       Future<void>.delayed(
@@ -563,6 +933,55 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                           musicEnabled: value,
                         );
                       },
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'NOTIFIKASI',
+                      style: GoogleFonts.fredoka(
+                        color: const Color(0xffd4a9ff),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _notificationTile(
+                    icon: Icons.local_offer_outlined,
+                    title: 'Promo & hadiah',
+                    subtitle: 'Info pilihan, maksimal 1 kali per minggu',
+                    value: promoNotifications,
+                    onChanged: (value) => _setNotification(
+                      _NotificationKind.promos,
+                      value,
+                      updateSheet,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _notificationTile(
+                    icon: Icons.history_toggle_off_rounded,
+                    title: 'Ingatkan setelah 7 hari',
+                    subtitle: 'Dikirim satu kali jika lama tidak bermain',
+                    value: inactivityNotifications,
+                    onChanged: (value) => _setNotification(
+                      _NotificationKind.inactivity,
+                      value,
+                      updateSheet,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _notificationTile(
+                    icon: Icons.bolt_rounded,
+                    title: 'Energy Tantangan penuh',
+                    subtitle: 'Hanya ketika energy kembali menjadi 5/5',
+                    value: energyFullNotifications,
+                    onChanged: (value) => _setNotification(
+                      _NotificationKind.energyFull,
+                      value,
+                      updateSheet,
                     ),
                   ),
                   const SizedBox(height: 18),
@@ -1574,37 +1993,60 @@ class _GameHud extends StatelessWidget {
     required this.time,
     required this.timeLabel,
     required this.onPause,
+    required this.onHint,
   });
   final int level;
   final int score;
   final String time;
   final String timeLabel;
   final VoidCallback onPause;
+  final VoidCallback onHint;
 
   @override
   Widget build(BuildContext context) => SizedBox(
     height: 70,
     child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       child: Row(
         children: [
-          IconButton.filled(
-            onPressed: onPause,
-            style: IconButton.styleFrom(
-              foregroundColor: Colors.white,
-              backgroundColor: const Color(0xff9d4edd),
-              side: const BorderSide(color: Color(0xffd8b4fe), width: 1.3),
-              shadowColor: const Color(0xffb66aff),
-              elevation: 5,
-            ),
-            icon: const Icon(Icons.pause, size: 24),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton.filled(
+                tooltip: 'Pause',
+                onPressed: onPause,
+                style: IconButton.styleFrom(
+                  minimumSize: const Size.square(44),
+                  maximumSize: const Size.square(44),
+                  foregroundColor: Colors.white,
+                  backgroundColor: const Color(0xff9d4edd),
+                  side: const BorderSide(color: Color(0xffd8b4fe), width: 1.3),
+                  shadowColor: const Color(0xffb66aff),
+                  elevation: 5,
+                ),
+                icon: const Icon(Icons.pause, size: 24),
+              ),
+              const SizedBox(width: 5),
+              IconButton.filled(
+                tooltip: 'Petunjuk',
+                onPressed: onHint,
+                style: IconButton.styleFrom(
+                  minimumSize: const Size.square(44),
+                  maximumSize: const Size.square(44),
+                  foregroundColor: const Color(0xffffefad),
+                  backgroundColor: const Color(0xff5d2d91),
+                  side: const BorderSide(color: Color(0xffb985e8), width: 1.2),
+                ),
+                icon: const Icon(Icons.lightbulb_rounded, size: 22),
+              ),
+            ],
           ),
           Expanded(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _HudValue(label: 'SCORE', value: '$score'),
-                const SizedBox(width: 24),
+                const SizedBox(width: 16),
                 _HudValue(
                   label: 'LEVEL',
                   value: level.toString().padLeft(2, '0'),
@@ -1661,7 +2103,6 @@ class _PauseOverlay extends StatelessWidget {
     required this.canNext,
     required this.onContinue,
     required this.onRestart,
-    required this.onHint,
     required this.onMode,
     required this.onPrevious,
     required this.onNext,
@@ -1673,7 +2114,6 @@ class _PauseOverlay extends StatelessWidget {
   final bool canNext;
   final VoidCallback onContinue;
   final VoidCallback onRestart;
-  final VoidCallback onHint;
   final VoidCallback onMode;
   final VoidCallback onPrevious;
   final VoidCallback onNext;
@@ -1734,11 +2174,6 @@ class _PauseOverlay extends StatelessWidget {
                     icon: Icons.refresh_rounded,
                     label: 'Ulangi',
                     onTap: onRestart,
-                  ),
-                  _PauseAction(
-                    icon: Icons.lightbulb_rounded,
-                    label: 'Petunjuk',
-                    onTap: onHint,
                   ),
                   _PauseAction(
                     icon: Icons.timer_outlined,

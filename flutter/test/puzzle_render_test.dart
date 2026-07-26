@@ -10,7 +10,7 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(430, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    final pieces = generateLevel(23, 100);
+    final pieces = generateLevel(10, 100);
     final engine = PuzzleEngine(pieces);
     final stopwatch = Stopwatch()..start();
 

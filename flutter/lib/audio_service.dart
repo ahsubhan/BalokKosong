@@ -15,10 +15,25 @@ class GameAudio with WidgetsBindingObserver {
 
   final AudioPlayer _music = AudioPlayer();
   final AudioPlayer _jingle = AudioPlayer();
+  late final Future<void> _ready = _configureAudio();
 
   bool? _enabled;
   _MusicTrack _desiredTrack = _MusicTrack.opening;
   _MusicTrack? _activeTrack;
+
+  Future<void> initialize() => _ready;
+
+  Future<void> _configureAudio() async {
+    final context = AudioContextConfig(
+      focus: AudioContextConfigFocus.gain,
+      respectSilence: false,
+    ).build();
+    await AudioPlayer.global.setAudioContext(context);
+    await Future.wait([
+      _music.setAudioContext(context),
+      _jingle.setAudioContext(context),
+    ]);
+  }
 
   Future<bool> _isEnabled() async {
     if (_enabled case final value?) return value;
@@ -34,11 +49,12 @@ class GameAudio with WidgetsBindingObserver {
     _desiredTrack = track;
     if (!await _isEnabled()) return;
     try {
+      await _ready;
       if (_activeTrack == track && _music.state == PlayerState.playing) return;
       await _jingle.stop();
       await _music.stop();
       await _music.setReleaseMode(ReleaseMode.loop);
-      await _music.setVolume(track == _MusicTrack.opening ? .30 : .20);
+      await _music.setVolume(track == _MusicTrack.opening ? .55 : .42);
       await _music.play(
         AssetSource(
           track == _MusicTrack.opening
@@ -47,21 +63,22 @@ class GameAudio with WidgetsBindingObserver {
         ),
       );
       _activeTrack = track;
-    } catch (_) {
-      // Audio is optional; the game must remain playable if a device rejects it.
+    } catch (error) {
+      debugPrint('BalokKosong gagal memutar musik: $error');
     }
   }
 
   Future<void> playVictory() async {
     if (!await _isEnabled()) return;
     try {
+      await _ready;
       await _music.pause();
       await _jingle.stop();
       await _jingle.setReleaseMode(ReleaseMode.stop);
-      await _jingle.setVolume(.42);
+      await _jingle.setVolume(.72);
       await _jingle.play(AssetSource('audio/victory_jingle.wav'));
-    } catch (_) {
-      // Keep the level-complete flow working even when audio is unavailable.
+    } catch (error) {
+      debugPrint('BalokKosong gagal memutar musik kemenangan: $error');
     }
   }
 

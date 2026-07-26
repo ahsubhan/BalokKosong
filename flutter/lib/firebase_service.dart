@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -68,38 +67,68 @@ class FirebaseService {
     return result;
   }
 
-  Future<UserCredential> signInWithApple() async {
+  Future<UserCredential> signInWithEmail({
+    required String email,
+    required String password,
+  }) async {
     await initialize();
     _requireReady();
-    final provider = AppleAuthProvider()
-      ..addScope('email')
-      ..addScope('name');
-    final result = await FirebaseAuth.instance.signInWithProvider(provider);
-    if (result.user != null) {
-      await _saveUser(result.user!);
-      await syncRemoteToLocal();
+    final result = await FirebaseAuth.instance.signInWithEmailAndPassword(
+      email: email.trim(),
+      password: password,
+    );
+    await result.user?.reload();
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null || !currentUser.emailVerified) {
+      await FirebaseAuth.instance.signOut();
+      throw FirebaseAuthException(
+        code: 'email-not-verified',
+        message: 'Alamat email belum diverifikasi.',
+      );
     }
+    await _saveUser(currentUser);
+    await syncRemoteToLocal();
     return result;
   }
 
-  Future<UserCredential> signInWithFacebook() async {
+  Future<void> registerWithEmail({
+    required String name,
+    required String email,
+    required String password,
+  }) async {
     await initialize();
     _requireReady();
-    final login = await FacebookAuth.instance.login();
-    if (login.status != LoginStatus.success || login.accessToken == null) {
-      throw FirebaseAuthException(
-        code: 'facebook-cancelled',
-        message: login.message ?? 'Masuk dengan Facebook dibatalkan.',
+    final auth = FirebaseAuth.instance;
+    final credential = EmailAuthProvider.credential(
+      email: email.trim(),
+      password: password,
+    );
+    UserCredential result;
+    final currentUser = auth.currentUser;
+    if (currentUser != null && currentUser.isAnonymous) {
+      result = await currentUser.linkWithCredential(credential);
+    } else {
+      if (currentUser != null) await auth.signOut();
+      result = await auth.createUserWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
       );
     }
-    final result = await FirebaseAuth.instance.signInWithCredential(
-      FacebookAuthProvider.credential(login.accessToken!.tokenString),
-    );
-    if (result.user != null) {
-      await _saveUser(result.user!);
-      await syncRemoteToLocal();
+    final registeredUser = result.user;
+    if (registeredUser == null) {
+      throw FirebaseAuthException(
+        code: 'registration-failed',
+        message: 'Akun belum berhasil dibuat.',
+      );
     }
-    return result;
+    try {
+      await registeredUser.updateDisplayName(name.trim());
+      await registeredUser.sendEmailVerification();
+      await registeredUser.reload();
+      await _saveUser(FirebaseAuth.instance.currentUser ?? registeredUser);
+    } finally {
+      await auth.signOut();
+    }
   }
 
   Future<void> signOut() async {
@@ -109,11 +138,6 @@ class FirebaseService {
       await GoogleSignIn.instance.signOut();
     } catch (_) {
       // The user may have signed in with another provider.
-    }
-    try {
-      await FacebookAuth.instance.logOut();
-    } catch (_) {
-      // The Facebook SDK may not be initialized for this session.
     }
     await FirebaseAuth.instance.signOut();
   }
@@ -153,8 +177,10 @@ class FirebaseService {
     final currentUser = user;
     if (!_ready || currentUser == null) return;
     final prefs = await SharedPreferences.getInstance();
+    final savedLevel = prefs.getInt('balok_level') ?? 1;
+    final unlockedLevel = level > savedLevel ? level : savedLevel;
     await Future.wait([
-      prefs.setInt('balok_level', level),
+      prefs.setInt('balok_level', unlockedLevel),
       prefs.setInt('balok_score', score),
     ]);
     await FirebaseFirestore.instance
@@ -162,7 +188,7 @@ class FirebaseService {
         .doc(currentUser.uid)
         .set({
           'game': {
-            'level': level,
+            'level': unlockedLevel,
             'score': score,
             'bestTimeSeconds': ?bestTimeSeconds,
             'moves': ?moves,
@@ -179,6 +205,9 @@ class FirebaseService {
     bool? gridVisible,
     bool? musicEnabled,
     String? themeName,
+    bool? promoNotifications,
+    bool? inactivityNotifications,
+    bool? energyFullNotifications,
   }) async {
     final currentUser = user;
     if (!_ready || currentUser == null) return;
@@ -190,6 +219,9 @@ class FirebaseService {
             'gridVisible': ?gridVisible,
             'musicEnabled': ?musicEnabled,
             'themeName': ?themeName,
+            'promoNotifications': ?promoNotifications,
+            'inactivityNotifications': ?inactivityNotifications,
+            'energyFullNotifications': ?energyFullNotifications,
             'updatedAt': FieldValue.serverTimestamp(),
           },
         }, SetOptions(merge: true));
@@ -202,6 +234,8 @@ class FirebaseService {
     required bool themePack,
     required bool noAds,
     List<int>? gridUnlockedLevels,
+    int? freeHintsUsed,
+    List<String>? purchaseHistory,
   }) async {
     final currentUser = user;
     if (!_ready || currentUser == null) return;
@@ -216,12 +250,17 @@ class FirebaseService {
             'themePack': themePack,
             'noAds': noAds,
             'gridUnlockedLevels': ?gridUnlockedLevels,
+            'freeHintsUsed': ?freeHintsUsed,
+            'purchaseHistory': ?purchaseHistory,
             'updatedAt': FieldValue.serverTimestamp(),
           },
         }, SetOptions(merge: true));
   }
 
-  Future<void> submitFeedback(String message) async {
+  Future<void> submitFeedback({
+    required String name,
+    required String message,
+  }) async {
     await initialize();
     _requireReady();
     var currentUser = user;
@@ -231,6 +270,7 @@ class FirebaseService {
       'uid': currentUser.uid,
       'email': currentUser.email,
       'displayName': currentUser.displayName,
+      'senderName': name,
       'provider': currentUser.isAnonymous ? 'guest' : 'account',
       'message': message,
       'platform': Platform.operatingSystem,
@@ -308,8 +348,32 @@ class FirebaseService {
         settings['themeName'] as String,
       );
     }
+    if (settings['promoNotifications'] is bool) {
+      await prefs.setBool(
+        'balok_notify_promos',
+        settings['promoNotifications'] as bool,
+      );
+    }
+    if (settings['inactivityNotifications'] is bool) {
+      await prefs.setBool(
+        'balok_notify_inactivity',
+        settings['inactivityNotifications'] as bool,
+      );
+    }
+    if (settings['energyFullNotifications'] is bool) {
+      await prefs.setBool(
+        'balok_notify_energy_full',
+        settings['energyFullNotifications'] as bool,
+      );
+    }
     if (inventory['tokens'] is num) {
       await prefs.setInt('balok_tokens', (inventory['tokens'] as num).toInt());
+    }
+    if (inventory['freeHintsUsed'] is num) {
+      await prefs.setInt(
+        'balok_free_hints_used',
+        (inventory['freeHintsUsed'] as num).toInt(),
+      );
     }
     if (inventory['energy'] is num) {
       await prefs.setInt('balok_energy', (inventory['energy'] as num).toInt());
@@ -330,6 +394,12 @@ class FirebaseService {
             .whereType<num>()
             .map((level) => '${level.toInt()}')
             .toList(),
+      );
+    }
+    if (inventory['purchaseHistory'] is List) {
+      await prefs.setStringList(
+        'balok_purchase_history',
+        (inventory['purchaseHistory'] as List).whereType<String>().toList(),
       );
     }
   }

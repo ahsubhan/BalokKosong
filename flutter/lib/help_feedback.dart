@@ -13,11 +13,13 @@ class HelpFeedbackScreen extends StatefulWidget {
 }
 
 class _HelpFeedbackScreenState extends State<HelpFeedbackScreen> {
+  final nameController = TextEditingController();
   final controller = TextEditingController();
   bool sending = false;
 
   @override
   void dispose() {
+    nameController.dispose();
     controller.dispose();
     super.dispose();
   }
@@ -63,6 +65,11 @@ class _HelpFeedbackScreenState extends State<HelpFeedbackScreen> {
                 'Token menyalakan satu balok yang dapat digerakkan. Sorotan berhenti setelah balok digeser manual.',
           ),
           const _FaqTile(
+            question: 'Bagaimana cara kerja dan membeli Token?',
+            answer:
+                'Token adalah saldo virtual untuk memakai petunjuk setelah 10 kali gratis, membuka grid Level 4 ke atas, membuka tema premium, dan menambah Energy Tantangan. Token bisa diperoleh dari iklan berhadiah (+3), kupon, atau membeli paket sekali bayar di Toko & Hadiah melalui App Store atau Google Play. Token bukan langganan, tidak kedaluwarsa, dan dapat disinkronkan ke perangkat lain setelah login.',
+          ),
+          const _FaqTile(
             question: 'Apa perbedaan Santai dan Tantangan?',
             answer:
                 'Santai tidak memiliki batas waktu. Tantangan memakai countdown dan energy per percobaan.',
@@ -77,6 +84,21 @@ class _HelpFeedbackScreenState extends State<HelpFeedbackScreen> {
             ),
           ),
           const SizedBox(height: 8),
+          TextField(
+            controller: nameController,
+            textInputAction: TextInputAction.next,
+            autofillHints: const [AutofillHints.name],
+            decoration: InputDecoration(
+              hintText: 'Nama (wajib diisi)',
+              filled: true,
+              fillColor: Colors.white.withValues(alpha: .05),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(15),
+                borderSide: const BorderSide(color: Colors.white12),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
           TextField(
             controller: controller,
             minLines: 4,
@@ -114,7 +136,14 @@ class _HelpFeedbackScreenState extends State<HelpFeedbackScreen> {
   );
 
   Future<void> _submit() async {
+    final name = nameController.text.trim();
     final feedback = controller.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Nama wajib diisi.')));
+      return;
+    }
     if (feedback.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Tuliskan feedback terlebih dahulu.')),
@@ -123,13 +152,15 @@ class _HelpFeedbackScreenState extends State<HelpFeedbackScreen> {
     }
     setState(() => sending = true);
     try {
-      await FirebaseService.instance.submitFeedback(feedback);
+      await FirebaseService.instance.submitFeedback(
+        name: name,
+        message: feedback,
+      );
       if (!mounted) return;
+      nameController.clear();
       controller.clear();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Terima kasih. Feedback sudah terkirim.'),
-        ),
+        const SnackBar(content: Text('Terima kasih. Feedback sudah terkirim.')),
       );
     } catch (_) {
       if (!mounted) return;

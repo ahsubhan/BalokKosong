@@ -116,7 +116,7 @@ class LegalScreen extends StatelessWidget {
     (
       title: 'Informasi yang kami kumpulkan',
       body:
-          'Jika Anda masuk, kami dapat menerima nama, alamat email, foto profil, dan pengenal akun dari Google, Apple, atau Facebook sesuai izin yang Anda berikan. Kami juga memproses data permainan seperti skor, level, bintang, token, energy, tema, pilihan mode, pengaturan, pembelian, dan waktu bermain. Jika Anda mengirim feedback, kami menyimpan isi pesan tersebut.',
+          'Jika Anda mendaftar atau masuk, kami dapat menerima nama, alamat email, foto profil, dan pengenal akun dari data yang Anda masukkan atau dari Google sesuai izin yang Anda berikan. Kami juga memproses data permainan seperti skor, level, bintang, token, energy, tema, pilihan mode, pengaturan, pembelian, dan waktu bermain. Jika Anda mengirim feedback, kami menyimpan nama dan isi pesan tersebut.',
     ),
     (
       title: 'Data teknis dan iklan',

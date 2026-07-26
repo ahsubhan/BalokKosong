@@ -6,16 +6,25 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'audio_service.dart';
+import 'email_auth_screen.dart';
 import 'firebase_service.dart';
 import 'how_to_play.dart';
 import 'legal_screen.dart';
 import 'mode_selection.dart';
 import 'native_game.dart';
+import 'notification_service.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await GameAudio.instance.initialize();
+  await NotificationService.instance.initialize();
   runApp(const BalokKosongApp());
-  unawaited(FirebaseService.instance.initialize());
+  unawaited(_initializeOnlineServices());
+}
+
+Future<void> _initializeOnlineServices() async {
+  await FirebaseService.instance.initialize();
+  await NotificationService.instance.syncPromoSubscription();
 }
 
 class BalokKosongApp extends StatelessWidget {
@@ -99,17 +108,29 @@ class HomeScreen extends StatelessWidget {
                   ),
                   const Spacer(flex: 2),
                   _AuthButton(
-                    label: 'MASUK DENGAN APPLE',
-                    symbol: Icons.apple_rounded,
-                    tone: const Color(0xff4d2b70),
-                    onTap: () => _signIn(context, 'Apple'),
-                  ),
-                  const SizedBox(height: 11),
-                  _AuthButton(
-                    label: 'MASUK DENGAN FACEBOOK',
-                    symbol: Icons.facebook_rounded,
+                    label: 'MASUK DENGAN EMAIL',
+                    symbol: Icons.email_outlined,
                     tone: const Color(0xff7340be),
-                    onTap: () => _signIn(context, 'Facebook'),
+                    onTap: () => _openEmailLogin(context),
+                  ),
+                  const SizedBox(height: 7),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      const Text(
+                        'Belum mendaftar? ',
+                        style: TextStyle(color: Colors.white70, fontSize: 12),
+                      ),
+                      _PolicyLink(
+                        label: 'Mendaftar',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const EmailRegistrationScreen(),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 11),
                   _AuthButton(
@@ -139,7 +160,7 @@ class HomeScreen extends StatelessWidget {
                   ),
                   const Spacer(),
                   const Text(
-                    'Dengan mengetuk Apple, Facebook, Google, atau Tamu,',
+                    'Dengan mengetuk Email, Google, atau Tamu,',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.white70,
@@ -238,6 +259,25 @@ class HomeScreen extends StatelessWidget {
             NativeGameScreen(challengeMode: true, homeBuilder: _settingsHome),
       ),
     ),
+    onRelaxedSelected: (startFromLevelOne) =>
+        Navigator.of(modeContext).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => NativeGameScreen(
+              homeBuilder: _settingsHome,
+              startFromLevelOne: startFromLevelOne,
+            ),
+          ),
+        ),
+    onChallengeSelected: (startFromLevelOne) =>
+        Navigator.of(modeContext).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => NativeGameScreen(
+              challengeMode: true,
+              homeBuilder: _settingsHome,
+              startFromLevelOne: startFromLevelOne,
+            ),
+          ),
+        ),
     onCancel: () => Navigator.pop(modeContext),
   );
 
@@ -249,10 +289,6 @@ class HomeScreen extends StatelessWidget {
     try {
       if (provider == 'Google') {
         await FirebaseService.instance.signInWithGoogle();
-      } else if (provider == 'Apple') {
-        await FirebaseService.instance.signInWithApple();
-      } else if (provider == 'Facebook') {
-        await FirebaseService.instance.signInWithFacebook();
       } else {
         await FirebaseService.instance.signInAsGuest();
       }
@@ -267,6 +303,15 @@ class HomeScreen extends StatelessWidget {
           ),
         ),
       );
+    }
+  }
+
+  static Future<void> _openEmailLogin(BuildContext context) async {
+    final signedIn = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (_) => const EmailLoginScreen()));
+    if (signedIn == true && context.mounted) {
+      await _enterGame(context);
     }
   }
 

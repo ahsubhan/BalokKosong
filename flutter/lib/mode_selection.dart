@@ -1,19 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class ModeSelectionScreen extends StatelessWidget {
+class ModeSelectionScreen extends StatefulWidget {
   const ModeSelectionScreen({
     super.key,
     required this.onRelaxed,
     required this.onChallenge,
     required this.onCancel,
+    this.onRelaxedSelected,
+    this.onChallengeSelected,
     this.energy = 5,
   });
 
   final VoidCallback onRelaxed;
   final VoidCallback onChallenge;
   final VoidCallback onCancel;
+  final ValueChanged<bool>? onRelaxedSelected;
+  final ValueChanged<bool>? onChallengeSelected;
   final int energy;
+
+  @override
+  State<ModeSelectionScreen> createState() => _ModeSelectionScreenState();
+}
+
+class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
+  bool startFromLevelOne = false;
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -62,7 +73,7 @@ class ModeSelectionScreen extends StatelessWidget {
                     child: Column(
                       children: [
                         Text(
-                          '⚡ $energy/5 ENERGY',
+                          '⚡ ${widget.energy}/5 ENERGY',
                           style: const TextStyle(
                             color: Color(0xffd8a5ff),
                             fontWeight: FontWeight.w900,
@@ -77,13 +88,67 @@ class ModeSelectionScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 19),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: .045),
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(color: Colors.white12),
+                    ),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'Lanjutkan permainan sebelumnya atau mulai lagi dari Level 1?',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            height: 1.35,
+                          ),
+                        ),
+                        const SizedBox(height: 11),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _ProgressChoice(
+                                label: 'Lanjutkan',
+                                icon: Icons.play_arrow_rounded,
+                                selected: !startFromLevelOne,
+                                onTap: () =>
+                                    setState(() => startFromLevelOne = false),
+                              ),
+                            ),
+                            const SizedBox(width: 9),
+                            Expanded(
+                              child: _ProgressChoice(
+                                label: 'Dari Level 1',
+                                icon: Icons.replay_rounded,
+                                selected: startFromLevelOne,
+                                onTap: () =>
+                                    setState(() => startFromLevelOne = true),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 19),
                   _ModeCard(
                     icon: Icons.all_inclusive_rounded,
                     title: 'Santai',
                     description:
                         'Timer menghitung waktu, tidak ada batas energy.',
                     selected: true,
-                    onTap: onRelaxed,
+                    onTap: () {
+                      final callback = widget.onRelaxedSelected;
+                      if (callback != null) {
+                        callback(startFromLevelOne);
+                      } else {
+                        widget.onRelaxed();
+                      }
+                    },
                   ),
                   const SizedBox(height: 12),
                   _ModeCard(
@@ -91,14 +156,80 @@ class ModeSelectionScreen extends StatelessWidget {
                     title: 'Tantangan · 1 ⚡',
                     description:
                         'Countdown habis = ulang level. Energy dipakai per percobaan.',
-                    onTap: energy > 0 ? onChallenge : null,
+                    onTap: widget.energy > 0
+                        ? () {
+                            final callback = widget.onChallengeSelected;
+                            if (callback != null) {
+                              callback(startFromLevelOne);
+                            } else {
+                              widget.onChallenge();
+                            }
+                          }
+                        : null,
                   ),
                   const SizedBox(height: 20),
-                  TextButton(onPressed: onCancel, child: const Text('Batal')),
+                  TextButton(
+                    onPressed: widget.onCancel,
+                    child: const Text('Batal'),
+                  ),
                 ],
               ),
             ),
           ),
+        ),
+      ),
+    ),
+  );
+}
+
+class _ProgressChoice extends StatelessWidget {
+  const _ProgressChoice({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: selected
+        ? const Color(0xff6f35a8)
+        : Colors.white.withValues(alpha: .035),
+    borderRadius: BorderRadius.circular(11),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(11),
+      child: Container(
+        height: 42,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(11),
+          border: Border.all(
+            color: selected ? const Color(0xffc084fc) : Colors.white12,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 18),
+            const SizedBox(width: 5),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     ),
