@@ -13,6 +13,7 @@ import 'legal_screen.dart';
 import 'mode_selection.dart';
 import 'native_game.dart';
 import 'notification_service.dart';
+import 'player_progress.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -409,7 +410,16 @@ class HomeScreen extends StatelessWidget {
     final tutorialKey = 'balok_kosong_tutorial_seen_$userId';
     final tutorialSeen = preferences.getBool(tutorialKey) ?? false;
     final progressKey = 'balok_has_started_$userId';
-    final hasProgress = preferences.getBool(progressKey) ?? false;
+    final hasStarted = preferences.getBool(progressKey) ?? false;
+    final hasProgress = hasMeaningfulProgress(
+      hasStarted: hasStarted,
+      playerLevel:
+          preferences.getInt(playerProgressKey('balok_level', userId)) ??
+          (hasStarted ? preferences.getInt('balok_level') : null),
+      playerScore:
+          preferences.getInt(playerProgressKey('balok_score', userId)) ??
+          (hasStarted ? preferences.getInt('balok_score') : null),
+    );
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (modeContext) => _modeSelection(

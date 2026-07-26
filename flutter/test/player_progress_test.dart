@@ -2,6 +2,30 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:balok_kosong/player_progress.dart';
 
 void main() {
+  group('meaningful progress', () {
+    test('level 1 without score remains a fresh player', () {
+      expect(
+        hasMeaningfulProgress(hasStarted: true, playerLevel: 1, playerScore: 0),
+        isFalse,
+      );
+    });
+
+    test('completed level or saved score enables progress choices', () {
+      expect(
+        hasMeaningfulProgress(hasStarted: true, playerLevel: 2, playerScore: 0),
+        isTrue,
+      );
+      expect(
+        hasMeaningfulProgress(
+          hasStarted: true,
+          playerLevel: 1,
+          playerScore: 100,
+        ),
+        isTrue,
+      );
+    });
+  });
+
   test('fresh player always starts from level 1 despite legacy level 10', () {
     expect(
       resolveInitialLevel(
