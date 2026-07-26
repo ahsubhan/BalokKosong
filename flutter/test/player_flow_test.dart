@@ -6,7 +6,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+Widget _testHomeBuilder(BuildContext context) => const SizedBox.shrink();
+
 void main() {
+  test('new game screen defaults to Level 1 instead of saved progress', () {
+    const screen = NativeGameScreen(homeBuilder: _testHomeBuilder);
+    expect(screen.startFromLevelOne, isTrue);
+  });
+
   testWidgets('tutorial completes and opens mode selection', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
