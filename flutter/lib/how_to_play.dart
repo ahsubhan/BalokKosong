@@ -141,18 +141,21 @@ class _HowToPlayScreenState extends State<HowToPlayScreen> {
                     const SizedBox(height: 25),
                     Row(
                       children: [
-                        if (page > 0) ...[
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () => setState(() => page--),
-                              style: _buttonStyle(outlined: true),
-                              child: const Text('Kembali'),
-                            ),
-                          ),
-                          const SizedBox(width: 11),
-                        ],
                         Expanded(
-                          flex: page > 0 ? 1 : 2,
+                          child: OutlinedButton(
+                            onPressed: () {
+                              if (page > 0) {
+                                setState(() => page--);
+                              } else {
+                                Navigator.maybePop(context);
+                              }
+                            },
+                            style: _buttonStyle(outlined: true),
+                            child: const Text('Kembali'),
+                          ),
+                        ),
+                        const SizedBox(width: 11),
+                        Expanded(
                           child: FilledButton(
                             onPressed: last
                                 ? widget.onFinished

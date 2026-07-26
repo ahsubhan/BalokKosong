@@ -74,6 +74,11 @@ class _HelpFeedbackScreenState extends State<HelpFeedbackScreen> {
             answer:
                 'Santai tidak memiliki batas waktu. Tantangan memakai countdown dan energy per percobaan.',
           ),
+          const _FaqTile(
+            question: 'Berapa batas kesalahan menabrak balok?',
+            answer:
+                'Maksimal 10 kesalahan atau benturan diperbolehkan dalam satu level. Jika terjadi kesalahan ke-11, level dianggap gagal dan akan dimulai kembali dari awal.',
+          ),
           const SizedBox(height: 18),
           Text(
             'KIRIM FEEDBACK',

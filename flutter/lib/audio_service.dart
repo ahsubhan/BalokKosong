@@ -127,6 +127,9 @@ class GameAudio with WidgetsBindingObserver {
   }
 
   Future<void> endBlockSlide(int session) async {
+    // Give very short pieces enough time to produce an audible effect before
+    // their exit animation ends the gesture.
+    await Future<void>.delayed(const Duration(milliseconds: 140));
     if (session != _activeSlideSession) return;
     final stopSession = ++_activeSlideSession;
     await _stopBlockSlide(stopSession);

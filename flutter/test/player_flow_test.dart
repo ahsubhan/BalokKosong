@@ -48,6 +48,7 @@ void main() {
       MaterialApp(home: HowToPlayScreen(onFinished: () {})),
     );
 
+    expect(find.text('Kembali'), findsOneWidget);
     await tester.tap(find.text('Berikutnya'));
     await tester.pumpAndSettle();
     expect(find.text('CARA BERMAIN · 2/4'), findsOneWidget);
@@ -88,6 +89,8 @@ void main() {
   testWidgets('fresh player starts by tapping a mode', (tester) async {
     var relaxedStarted = false;
     var challengeStarted = false;
+    bool? relaxedFromLevelOne;
+    bool? challengeFromLevelOne;
     await tester.pumpWidget(
       MaterialApp(
         home: ModeSelectionScreen(
@@ -95,6 +98,8 @@ void main() {
           onChallenge: () => challengeStarted = true,
           onCancel: () {},
           onSettings: () {},
+          onRelaxedSelected: (value) => relaxedFromLevelOne = value,
+          onChallengeSelected: (value) => challengeFromLevelOne = value,
         ),
       ),
     );
@@ -113,11 +118,12 @@ void main() {
     expect(find.byTooltip('Pengaturan'), findsOneWidget);
 
     await tester.tap(find.text('Santai'));
-    expect(relaxedStarted, isTrue);
+    expect(relaxedStarted, isFalse);
+    expect(relaxedFromLevelOne, isTrue);
 
-    relaxedStarted = false;
     await tester.tap(find.text('Tantangan · 1 ⚡'));
-    expect(challengeStarted, isTrue);
+    expect(challengeStarted, isFalse);
+    expect(challengeFromLevelOne, isTrue);
   });
 
   testWidgets('returning player selects mode before choosing progress', (
