@@ -447,7 +447,10 @@ class HomeScreen extends StatelessWidget {
         tutorialSeen: tutorialSeen,
         tutorialKey: tutorialKey,
         preferences: preferences,
-        gameBuilder: (_) => NativeGameScreen(homeBuilder: _settingsHome),
+        gameBuilder: (_) => const NativeGameScreen(
+          homeBuilder: _settingsHome,
+          startFromLevelOne: true,
+        ),
       ),
     ),
     onChallenge: () => unawaited(
@@ -456,8 +459,11 @@ class HomeScreen extends StatelessWidget {
         tutorialSeen: tutorialSeen,
         tutorialKey: tutorialKey,
         preferences: preferences,
-        gameBuilder: (_) =>
-            NativeGameScreen(challengeMode: true, homeBuilder: _settingsHome),
+        gameBuilder: (_) => const NativeGameScreen(
+          challengeMode: true,
+          homeBuilder: _settingsHome,
+          startFromLevelOne: true,
+        ),
       ),
     ),
     onRelaxedSelected: (startFromLevelOne) => unawaited(

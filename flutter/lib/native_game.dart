@@ -76,7 +76,7 @@ class NativeGameScreen extends StatefulWidget {
     super.key,
     required this.homeBuilder,
     this.challengeMode = false,
-    this.startFromLevelOne = false,
+    this.startFromLevelOne = true,
     this.settingsOnly = false,
   });
 
