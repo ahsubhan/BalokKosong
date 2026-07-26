@@ -16,6 +16,8 @@ class GameAudio with WidgetsBindingObserver {
   final AudioPlayer _music = AudioPlayer();
   final AudioPlayer _jingle = AudioPlayer();
   final AudioPlayer _slide = AudioPlayer();
+  Future<void> _slideQueue = Future<void>.value();
+  int _slideRequest = 0;
   late final Future<void> _ready = _configureAudio();
 
   bool? _enabled;
@@ -39,6 +41,8 @@ class GameAudio with WidgetsBindingObserver {
       _music.setPlayerMode(PlayerMode.mediaPlayer),
       _jingle.setPlayerMode(PlayerMode.mediaPlayer),
       _slide.setPlayerMode(PlayerMode.lowLatency),
+      _slide.setReleaseMode(ReleaseMode.stop),
+      _slide.setVolume(1),
     ]);
   }
 
@@ -79,32 +83,49 @@ class GameAudio with WidgetsBindingObserver {
 
   Future<void> startBlockSlide() async {
     if (!await _isEnabled()) return;
+    final request = ++_slideRequest;
     try {
-      await _ready;
-      if (_slide.state == PlayerState.playing) return;
-      await _slide.setReleaseMode(ReleaseMode.stop);
-      await _slide.setVolume(1);
-      await _slide.play(AssetSource('audio/block_slide.wav'));
+      await _enqueueSlide(() async {
+        if (request != _slideRequest) return;
+        await _ready;
+        if (request != _slideRequest) return;
+        await _slide.stop();
+        if (request != _slideRequest) return;
+        await _slide.play(AssetSource('audio/block_slide.wav'));
+      });
     } catch (error) {
       debugPrint('BalokKosong gagal memutar efek balok: $error');
     }
   }
 
   Future<void> stopBlockSlide() async {
+    _slideRequest++;
     try {
-      await _slide.stop();
+      await _enqueueSlide(() async {
+        await _ready;
+        await _slide.stop();
+      });
     } catch (_) {
       // The player may already be stopped when a gesture is cancelled.
     }
+  }
+
+  Future<void> _enqueueSlide(Future<void> Function() operation) {
+    final next = _slideQueue.then(
+      (_) => operation(),
+      onError: (_, _) => operation(),
+    );
+    _slideQueue = next;
+    return next;
   }
 
   Future<void> playVictory() async {
     if (!await _isEnabled()) return;
     try {
       await _ready;
-      await Future.wait([_music.pause(), _slide.stop()]);
+      await Future.wait([_music.pause(), stopBlockSlide()]);
       await _jingle.stop();
-      await _jingle.setReleaseMode(ReleaseMode.loop);
+      await _jingle.setReleaseMode(ReleaseMode.stop);
       await _jingle.setVolume(.78);
       await _jingle.play(AssetSource('audio/victory_jingle.wav'));
       _jinglePlaying = true;
@@ -117,7 +138,7 @@ class GameAudio with WidgetsBindingObserver {
     _gamePaused = true;
     try {
       await _ready;
-      await Future.wait([_music.pause(), _jingle.pause(), _slide.stop()]);
+      await Future.wait([_music.pause(), _jingle.pause(), stopBlockSlide()]);
     } catch (_) {
       // A stopped player does not need to be paused.
     }
@@ -144,7 +165,7 @@ class GameAudio with WidgetsBindingObserver {
     _enabled = value;
     try {
       if (!value) {
-        await Future.wait([_music.stop(), _jingle.stop(), _slide.stop()]);
+        await Future.wait([_music.stop(), _jingle.stop(), stopBlockSlide()]);
         _activeTrack = null;
         _jinglePlaying = false;
         return;
@@ -173,7 +194,7 @@ class GameAudio with WidgetsBindingObserver {
 
   Future<void> _pauseAll() async {
     try {
-      await Future.wait([_music.pause(), _jingle.pause(), _slide.pause()]);
+      await Future.wait([_music.pause(), _jingle.pause(), stopBlockSlide()]);
     } catch (_) {
       // Some platforms report a harmless error when a stopped player is paused.
     }

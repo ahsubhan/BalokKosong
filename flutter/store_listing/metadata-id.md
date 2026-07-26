@@ -6,7 +6,7 @@
 - Developer: **ahmadss**
 - Kategori utama: **Game / Puzzle**
 - Versi rilis awal: **1.0.0 (build 1)**
-- Android application ID: `com.ahsubhan.balok_kosong`
+- Android application ID: `com.ahmadss.balokkosong`
 - Hak cipta: **© 2026 ahmadss**
 
 ## Google Play

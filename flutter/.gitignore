@@ -28,6 +28,7 @@ migrate_working_dir/
 **/ios/Flutter/.last_build_id
 .dart_tool/
 .flutter-plugins-dependencies
+.firebase/
 .pub-cache/
 .pub/
 /build/
@@ -43,3 +44,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Android upload signing credentials (local only)
+/android/key.properties
+/android/*.jks
+/android/*.keystore
