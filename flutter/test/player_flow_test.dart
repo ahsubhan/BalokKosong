@@ -65,7 +65,7 @@ void main() {
     expect(find.text('CARA BERMAIN · 1/4'), findsOneWidget);
   });
 
-  testWidgets('progress buttons start the selected mode and level', (
+  testWidgets('progress buttons and mode cards can both start a game', (
     tester,
   ) async {
     bool? relaxedFromLevelOne;
@@ -87,7 +87,7 @@ void main() {
     expect(relaxedFromLevelOne, isFalse);
 
     await tester.tap(find.text('Tantangan · 1 ⚡'));
-    expect(challengeFromLevelOne, isNull);
+    expect(challengeFromLevelOne, isFalse);
 
     await tester.tap(find.text('Dari Level 1'));
     expect(challengeFromLevelOne, isTrue);
@@ -133,7 +133,7 @@ void main() {
     expect(challengeFromLevelOne, isTrue);
   });
 
-  testWidgets('returning player selects mode before choosing progress', (
+  testWidgets('returning player can start from either action group', (
     tester,
   ) async {
     bool? relaxedFromLevelOne;
@@ -151,16 +151,12 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('Santai'));
-    expect(relaxedFromLevelOne, isNull);
+    await tester.tap(find.text('Lanjutkan'));
+    expect(relaxedFromLevelOne, isFalse);
 
     await tester.tap(find.text('Tantangan · 1 ⚡'));
-    expect(challengeFromLevelOne, isNull);
-
-    await tester.tap(find.text('Lanjutkan'));
     expect(challengeFromLevelOne, isFalse);
 
-    challengeFromLevelOne = null;
     await tester.tap(find.text('Dari Level 1'));
     expect(challengeFromLevelOne, isTrue);
   });

@@ -77,7 +77,7 @@ void main() {
     expect(find.textContaining('Menyiapkan progres'), findsOneWidget);
     expect(finished, isFalse);
 
-    await tester.pump(const Duration(milliseconds: 1900));
+    await tester.pump(const Duration(milliseconds: 4100));
     expect(finished, isTrue);
   });
 
