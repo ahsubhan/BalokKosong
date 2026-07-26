@@ -574,33 +574,29 @@ class _StoreScreenState extends State<StoreScreen> {
     );
     if (submitted != true || !mounted) return;
     final code = couponController.text.trim().toUpperCase();
-    final preferences = await SharedPreferences.getInstance();
-    final redeemed =
-        preferences.getStringList('balok_redeemed_coupons') ?? <String>[];
-    if (!mounted) return;
-    if (redeemed.contains(code)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Kupon ini sudah pernah digunakan')),
-      );
-      return;
+    try {
+      final result = await FirebaseService.instance.redeemCoupon(code);
+      if (!mounted) return;
+      setState(() {
+        tokens = result.tokens;
+        energy = result.energy;
+        themePack = result.themePack;
+        noAds = result.noAds;
+      });
+      await NotificationService.instance.refreshEnergyReminder();
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(result.message)));
+    } catch (error) {
+      if (!mounted) return;
+      final message = error is StateError
+          ? error.message.toString()
+          : 'Kupon belum dapat digunakan. Coba kembali.';
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     }
-    if (code == 'TOKEN10') {
-      setState(() => tokens += 10);
-      redeemed.add(code);
-      await preferences.setStringList('balok_redeemed_coupons', redeemed);
-      await _save(message: 'Kupon berhasil. Bonus +10 token!');
-      return;
-    }
-    if (code != 'BALOKPREMIUM' && code != 'KOSONG2026') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Kupon tidak valid atau sudah berakhir')),
-      );
-      return;
-    }
-    setState(() => themePack = true);
-    redeemed.add(code);
-    await preferences.setStringList('balok_redeemed_coupons', redeemed);
-    await _save(message: 'Kupon berhasil. Tema Neon & Ocean terbuka!');
   }
 }
 

@@ -72,6 +72,119 @@ service cloud.firestore {
           || validInventory(request.resource.data.inventory));
     }
 
+    function isDeveloper() {
+      return request.auth != null
+        && request.auth.token.email == 'ah.subhan@gmail.com'
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+
+    function isSignedInAccount() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
+    function validRewards(rewards) {
+      return rewards is map
+        && rewards.keys().hasOnly(
+          ['tokens', 'energy', 'themePack', 'customTheme', 'noAds'])
+        && rewards.tokens is int
+        && rewards.tokens >= 0
+        && rewards.tokens <= 10000
+        && rewards.energy is int
+        && rewards.energy >= 0
+        && rewards.energy <= 5
+        && rewards.themePack is bool
+        && rewards.customTheme is bool
+        && rewards.noAds is bool
+        && (rewards.tokens > 0
+          || rewards.energy > 0
+          || rewards.themePack
+          || rewards.customTheme
+          || rewards.noAds);
+    }
+
+    function validCoupon(couponId) {
+      return request.resource.data.keys().hasOnly([
+          'code',
+          'label',
+          'active',
+          'startsAt',
+          'expiresAt',
+          'maxRedemptions',
+          'redemptionCount',
+          'rewards',
+          'createdAt',
+          'createdBy',
+          'updatedAt',
+          'lastRedeemedAt'
+        ])
+        && request.resource.data.code == couponId
+        && couponId.matches('^[A-Z0-9-]{4,24}$')
+        && request.resource.data.label is string
+        && request.resource.data.label.size() <= 100
+        && request.resource.data.active is bool
+        && request.resource.data.startsAt is timestamp
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.expiresAt > request.resource.data.startsAt
+        && request.resource.data.maxRedemptions is int
+        && request.resource.data.maxRedemptions > 0
+        && request.resource.data.maxRedemptions <= 100000
+        && request.resource.data.redemptionCount is int
+        && request.resource.data.redemptionCount >= 0
+        && request.resource.data.redemptionCount
+          <= request.resource.data.maxRedemptions
+        && validRewards(request.resource.data.rewards)
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.createdBy is string
+        && request.resource.data.updatedAt is timestamp
+        && (!('lastRedeemedAt' in request.resource.data)
+          || request.resource.data.lastRedeemedAt is timestamp);
+    }
+
+    function validCouponClaim(couponId) {
+      let redemptionId = request.auth.uid + '_' + couponId;
+      let redemption = getAfter(
+        /databases/$(database)/documents/coupon_redemptions/$(redemptionId)
+      ).data;
+      return isSignedInAccount()
+        && resource.data.active
+        && request.time >= resource.data.startsAt
+        && request.time <= resource.data.expiresAt
+        && resource.data.redemptionCount < resource.data.maxRedemptions
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['redemptionCount', 'lastRedeemedAt'])
+        && request.resource.data.redemptionCount
+          == resource.data.redemptionCount + 1
+        && request.resource.data.lastRedeemedAt == request.time
+        && redemption.uid == request.auth.uid
+        && redemption.code == couponId
+        && redemption.rewards == resource.data.rewards
+        && redemption.redeemedAt == request.time;
+    }
+
+    function validRedemption(couponId, redemptionId) {
+      let coupon = get(
+        /databases/$(database)/documents/coupons/$(couponId)
+      ).data;
+      let nextCoupon = getAfter(
+        /databases/$(database)/documents/coupons/$(couponId)
+      ).data;
+      return isSignedInAccount()
+        && redemptionId == request.auth.uid + '_' + couponId
+        && request.resource.data.keys().hasOnly(
+          ['uid', 'code', 'rewards', 'redeemedAt', 'platform'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.code == couponId
+        && request.resource.data.rewards == coupon.rewards
+        && request.resource.data.redeemedAt == request.time
+        && request.resource.data.platform is string
+        && coupon.active
+        && request.time >= coupon.startsAt
+        && request.time <= coupon.expiresAt
+        && coupon.redemptionCount < coupon.maxRedemptions
+        && nextCoupon.redemptionCount == coupon.redemptionCount + 1;
+    }
+
     match /users/{userId} {
       allow read, delete:
         if request.auth != null
@@ -104,7 +217,35 @@ service cloud.firestore {
           || request.resource.data.category == 'account_deletion')
         && (!('reviewWithinHours' in request.resource.data)
           || request.resource.data.reviewWithinHours == 24);
-      allow read, update, delete: if false;
+      allow read: if isDeveloper();
+      allow update:
+        if isDeveloper()
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'reviewedAt', 'reviewedBy'])
+        && request.resource.data.status in
+          ['new', 'pending_review', 'read', 'resolved']
+        && request.resource.data.reviewedAt is timestamp
+        && request.resource.data.reviewedBy == request.auth.uid;
+      allow delete: if false;
+    }
+
+    match /coupons/{couponId} {
+      allow get: if isSignedInAccount();
+      allow list: if isDeveloper();
+      allow create, delete: if isDeveloper() && validCoupon(couponId);
+      allow update:
+        if (isDeveloper() && validCoupon(couponId))
+        || validCouponClaim(couponId);
+    }
+
+    match /coupon_redemptions/{redemptionId} {
+      allow read:
+        if isDeveloper()
+        || (request.auth != null
+          && resource.data.uid == request.auth.uid);
+      allow create:
+        if validRedemption(request.resource.data.code, redemptionId);
+      allow update, delete: if false;
     }
   }
 }

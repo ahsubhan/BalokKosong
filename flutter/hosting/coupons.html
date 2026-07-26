@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>BalokKosong — Admin Kupon</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/coupons.css?v=2">
+</head>
+<body>
+  <main class="coupon-shell">
+    <div class="brand">BALOK<span>KOSONG</span></div>
+
+    <section id="login-panel" class="panel admin-login">
+      <p class="eyebrow">ADMIN KUPON</p>
+      <h1>Kupon hadiah, terkendali.</h1>
+      <p>Buat kupon dengan hadiah, masa berlaku, dan batas pemakaian yang jelas.</p>
+      <button id="login-button" class="primary-button">Masuk dengan Google</button>
+      <p class="small">Hanya akun <strong>ah.subhan@gmail.com</strong> yang dapat mengelola kupon.</p>
+    </section>
+
+    <section id="admin-panel" class="admin-panel" hidden>
+      <header class="admin-header">
+        <div>
+          <p class="eyebrow">ADMIN KUPON</p>
+          <h1>Kelola Kupon</h1>
+          <p id="admin-email" class="small"></p>
+        </div>
+        <button id="logout-button" class="ghost-button">Keluar</button>
+      </header>
+
+      <div class="admin-grid">
+        <form id="coupon-form" class="panel coupon-form">
+          <h2>Buat atau perbarui kupon</h2>
+          <label>
+            Kode kupon
+            <input id="code" maxlength="24" pattern="[A-Za-z0-9-]{4,24}" placeholder="BALOKHEMAT" required>
+          </label>
+          <label>
+            Nama kampanye
+            <input id="label" maxlength="100" placeholder="Promo peluncuran" required>
+          </label>
+
+          <div class="two-columns">
+            <label>
+              Mulai berlaku
+              <input id="starts-at" type="datetime-local" required>
+            </label>
+            <label>
+              Berakhir
+              <input id="expires-at" type="datetime-local" required>
+            </label>
+          </div>
+
+          <label>
+            Maksimal pemakaian
+            <input id="max-redemptions" type="number" min="1" max="100000" value="100" required>
+          </label>
+
+          <fieldset>
+            <legend>Hadiah</legend>
+            <div class="two-columns">
+              <label>
+                Token
+                <input id="reward-tokens" type="number" min="0" max="10000" value="10">
+              </label>
+              <label>
+                Energy
+                <input id="reward-energy" type="number" min="0" max="5" value="0">
+              </label>
+            </div>
+            <label class="check-row"><input id="reward-theme" type="checkbox"> Buka tema Neon & Ocean</label>
+            <label class="check-row"><input id="reward-custom" type="checkbox"> Buka tema Custom</label>
+            <label class="check-row"><input id="reward-no-ads" type="checkbox"> Bebas iklan</label>
+          </fieldset>
+
+          <label class="check-row active-row"><input id="active" type="checkbox" checked> Kupon aktif</label>
+          <button id="save-button" class="primary-button" type="submit">Simpan kupon</button>
+          <p id="form-message" class="form-message" role="status"></p>
+        </form>
+
+        <section class="coupon-list-section">
+          <div class="stats-row">
+            <article><strong id="active-count">0</strong><span>Aktif</span></article>
+            <article><strong id="claim-count">0</strong><span>Diklaim</span></article>
+            <article><strong id="coupon-count">0</strong><span>Total kupon</span></article>
+          </div>
+          <div class="list-heading">
+            <div>
+              <h2>Daftar kupon</h2>
+              <p class="small">Kupon terbaru tampil paling atas.</p>
+            </div>
+            <button id="refresh-button" class="ghost-button">Muat ulang</button>
+          </div>
+          <div id="coupon-list" class="coupon-list">
+            <p class="empty-state">Belum ada kupon.</p>
+          </div>
+        </section>
+      </div>
+
+      <section class="panel feedback-section">
+        <div class="list-heading">
+          <div>
+            <p class="eyebrow">INBOX</p>
+            <h2>Help & Feedback</h2>
+            <p class="small">Feedback terbaru dari pemain BalokKosong.</p>
+          </div>
+          <button id="feedback-refresh-button" class="ghost-button">Muat ulang</button>
+        </div>
+        <div id="feedback-list" class="feedback-list">
+          <p class="empty-state">Memuat feedback…</p>
+        </div>
+      </section>
+    </section>
+
+    <footer>© 2026 ahmadss · BalokKosong</footer>
+  </main>
+  <script type="module" src="/coupons.js?v=2"></script>
+</body>
+</html>

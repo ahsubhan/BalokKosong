@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -8,6 +9,45 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'player_progress.dart';
+
+class CouponRedemptionResult {
+  const CouponRedemptionResult({
+    required this.code,
+    required this.tokens,
+    required this.energy,
+    required this.themePack,
+    required this.customThemeUnlocked,
+    required this.noAds,
+    required this.tokenReward,
+    required this.energyReward,
+    required this.themePackReward,
+    required this.customThemeReward,
+    required this.noAdsReward,
+  });
+
+  final String code;
+  final int tokens;
+  final int energy;
+  final bool themePack;
+  final bool customThemeUnlocked;
+  final bool noAds;
+  final int tokenReward;
+  final int energyReward;
+  final bool themePackReward;
+  final bool customThemeReward;
+  final bool noAdsReward;
+
+  String get message {
+    final rewards = <String>[
+      if (tokenReward > 0) '+$tokenReward token',
+      if (energyReward > 0) '+$energyReward energy',
+      if (themePackReward) 'tema Neon & Ocean',
+      if (customThemeReward) 'tema Custom',
+      if (noAdsReward) 'bebas iklan',
+    ];
+    return 'Kupon berhasil: ${rewards.join(', ')}.';
+  }
+}
 
 class FirebaseService {
   FirebaseService._();
@@ -291,6 +331,159 @@ class FirebaseService {
       'status': 'new',
       'createdAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  Future<CouponRedemptionResult> redeemCoupon(String rawCode) async {
+    await initialize();
+    _requireReady();
+    final currentUser = user;
+    if (currentUser == null || currentUser.isAnonymous) {
+      throw StateError(
+        'Masuk dengan Email atau Google untuk menggunakan kupon.',
+      );
+    }
+
+    final code = rawCode.trim().toUpperCase().replaceAll(RegExp(r'\s+'), '');
+    if (!RegExp(r'^[A-Z0-9-]{4,24}$').hasMatch(code)) {
+      throw StateError('Format kode kupon tidak valid.');
+    }
+
+    final firestore = FirebaseFirestore.instance;
+    final couponRef = firestore.collection('coupons').doc(code);
+    final redemptionRef = firestore
+        .collection('coupon_redemptions')
+        .doc('${currentUser.uid}_$code');
+    final userRef = firestore.collection('users').doc(currentUser.uid);
+
+    final result = await firestore.runTransaction<CouponRedemptionResult>((
+      transaction,
+    ) async {
+      final couponSnapshot = await transaction.get(couponRef);
+      final redemptionSnapshot = await transaction.get(redemptionRef);
+      final userSnapshot = await transaction.get(userRef);
+      if (!couponSnapshot.exists) {
+        throw StateError('Kupon tidak ditemukan.');
+      }
+      if (redemptionSnapshot.exists) {
+        throw StateError('Kupon ini sudah pernah digunakan.');
+      }
+
+      final coupon = couponSnapshot.data()!;
+      final now = DateTime.now();
+      final startsAt = coupon['startsAt'];
+      final expiresAt = coupon['expiresAt'];
+      final active = coupon['active'] == true;
+      final redemptionCount = (coupon['redemptionCount'] as num?)?.toInt() ?? 0;
+      final maxRedemptions = (coupon['maxRedemptions'] as num?)?.toInt() ?? 0;
+      if (!active) throw StateError('Kupon sedang tidak aktif.');
+      if (startsAt is Timestamp && now.isBefore(startsAt.toDate())) {
+        throw StateError('Kupon belum mulai berlaku.');
+      }
+      if (expiresAt is! Timestamp || now.isAfter(expiresAt.toDate())) {
+        throw StateError('Kupon sudah berakhir.');
+      }
+      if (maxRedemptions <= 0 || redemptionCount >= maxRedemptions) {
+        throw StateError('Batas pemakaian kupon sudah habis.');
+      }
+
+      final rewards = Map<String, dynamic>.from(
+        coupon['rewards'] as Map? ?? const {},
+      );
+      final tokenReward = (rewards['tokens'] as num?)?.toInt() ?? 0;
+      final energyReward = (rewards['energy'] as num?)?.toInt() ?? 0;
+      final themePackReward = rewards['themePack'] == true;
+      final customThemeReward = rewards['customTheme'] == true;
+      final noAdsReward = rewards['noAds'] == true;
+      if (tokenReward <= 0 &&
+          energyReward <= 0 &&
+          !themePackReward &&
+          !customThemeReward &&
+          !noAdsReward) {
+        throw StateError('Hadiah kupon belum dikonfigurasi.');
+      }
+
+      final userData = userSnapshot.data() ?? const <String, dynamic>{};
+      final inventory = Map<String, dynamic>.from(
+        userData['inventory'] as Map? ?? const {},
+      );
+      final tokens =
+          ((inventory['tokens'] as num?)?.toInt() ?? 0) + tokenReward;
+      final energy = math.min(
+        5,
+        ((inventory['energy'] as num?)?.toInt() ?? 5) + energyReward,
+      );
+      final themePack = inventory['themePack'] == true || themePackReward;
+      final customTheme =
+          inventory['customThemeUnlocked'] == true || customThemeReward;
+      final noAds = inventory['noAds'] == true || noAdsReward;
+      final purchaseHistory = List<String>.from(
+        (inventory['purchaseHistory'] as List? ?? const []).whereType<String>(),
+      );
+      purchaseHistory.insert(0, 'Kupon $code');
+      if (purchaseHistory.length > 50) {
+        purchaseHistory.removeRange(50, purchaseHistory.length);
+      }
+
+      final nextInventory = <String, dynamic>{
+        'tokens': tokens,
+        'energy': energy,
+        'unlimited': inventory['unlimited'] == true,
+        'themePack': themePack,
+        'customThemeUnlocked': customTheme,
+        'noAds': noAds,
+        'gridUnlockedLevels': List<int>.from(
+          (inventory['gridUnlockedLevels'] as List? ?? const [])
+              .whereType<num>()
+              .map((value) => value.toInt()),
+        ),
+        'freeHintsUsed':
+            (inventory['freeHintsUsed'] as num?)?.toInt().clamp(0, 10) ?? 0,
+        'purchaseHistory': purchaseHistory,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      transaction.update(couponRef, {
+        'redemptionCount': redemptionCount + 1,
+        'lastRedeemedAt': FieldValue.serverTimestamp(),
+      });
+      transaction.set(redemptionRef, {
+        'uid': currentUser.uid,
+        'code': code,
+        'rewards': rewards,
+        'redeemedAt': FieldValue.serverTimestamp(),
+        'platform': Platform.operatingSystem,
+      });
+      transaction.set(userRef, {
+        'inventory': nextInventory,
+      }, SetOptions(merge: true));
+
+      return CouponRedemptionResult(
+        code: code,
+        tokens: tokens,
+        energy: energy,
+        themePack: themePack,
+        customThemeUnlocked: customTheme,
+        noAds: noAds,
+        tokenReward: tokenReward,
+        energyReward: energyReward,
+        themePackReward: themePackReward,
+        customThemeReward: customThemeReward,
+        noAdsReward: noAdsReward,
+      );
+    });
+
+    final preferences = await SharedPreferences.getInstance();
+    await Future.wait([
+      preferences.setInt('balok_tokens', result.tokens),
+      preferences.setInt('balok_energy', result.energy),
+      preferences.setBool('balok_theme_pack', result.themePack),
+      preferences.setBool(
+        'balok_custom_theme_unlocked',
+        result.customThemeUnlocked,
+      ),
+      preferences.setBool('balok_no_ads', result.noAds),
+    ]);
+    return result;
   }
 
   Future<void> submitAccountDeletionRequest() async {
