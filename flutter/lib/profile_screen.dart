@@ -209,7 +209,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         backgroundColor: const Color(0xff24103c),
         title: const Text('Logout dari akun?'),
         content: const Text(
-          'Skor, progres, token, dan pembelian tetap tersimpan di akun.',
+          'Data permainan di perangkat ini akan dibersihkan. Skor, progres, '
+          'token, dan pembelian tetap aman di akun dan akan kembali setelah '
+          'Anda login lagi.',
         ),
         actions: [
           TextButton(

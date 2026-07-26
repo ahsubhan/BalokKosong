@@ -33,9 +33,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
   void _selectMode({required bool challenge}) {
     if (challenge && widget.energy <= 0) return;
     setState(() => challengeSelected = challenge);
-    if (!widget.hasProgress) {
-      _startMode(challenge: challenge, fromLevelOne: true);
-    }
+    _startMode(challenge: challenge, fromLevelOne: !widget.hasProgress);
   }
 
   void _startMode({required bool challenge, required bool fromLevelOne}) {
@@ -171,6 +169,18 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                     ),
                   ),
                   const SizedBox(height: 19),
+                  Text(
+                    widget.hasProgress
+                        ? 'Atau ketuk mode untuk langsung melanjutkan:'
+                        : 'Ketuk mode untuk mulai bermain:',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 9),
                   _ModeCard(
                     icon: Icons.all_inclusive_rounded,
                     title: 'Santai',

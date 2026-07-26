@@ -253,7 +253,7 @@ class _ReturningPlayerWelcomeScreenState
 
   Future<void> _continueToGame() async {
     await Future.wait([
-      Future<void>.delayed(const Duration(milliseconds: 1800)),
+      Future<void>.delayed(const Duration(seconds: 4)),
       FirebaseService.instance.waitForSessionRestore(),
     ]);
     if (!mounted) return;

@@ -7,9 +7,57 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'player_progress.dart';
+
+const _localAccountDataKeys = <String>[
+  'balok_level',
+  'balok_score',
+  'balok_tokens',
+  'balok_energy',
+  'balok_unlimited',
+  'balok_theme_pack',
+  'balok_custom_theme_unlocked',
+  'balok_no_ads',
+  'balok_grid_unlocked_levels',
+  'balok_free_hints_used',
+  'balok_purchase_history',
+  'balok_custom_background_path',
+];
+
+Future<void> clearSignedOutAccountData(
+  SharedPreferences preferences, {
+  required String userId,
+}) async {
+  final customBackgroundPath = preferences.getString(
+    'balok_custom_background_path',
+  );
+  await Future.wait([
+    for (final key in _localAccountDataKeys) preferences.remove(key),
+    preferences.remove(playerProgressKey('balok_level', userId)),
+    preferences.remove(playerProgressKey('balok_score', userId)),
+    preferences.remove(playerProgressKey('balok_has_started', userId)),
+  ]);
+
+  if (customBackgroundPath == null || customBackgroundPath.isEmpty) return;
+  try {
+    final documentsDirectory = await getApplicationDocumentsDirectory();
+    final documentsPath = documentsDirectory.absolute.path;
+    final backgroundFile = File(customBackgroundPath).absolute;
+    final isAppDocument =
+        backgroundFile.path == documentsPath ||
+        backgroundFile.path.startsWith(
+          '$documentsPath${Platform.pathSeparator}',
+        );
+    if (isAppDocument && await backgroundFile.exists()) {
+      await backgroundFile.delete();
+    }
+  } catch (_) {
+    // The preference is already cleared; an unavailable old file is harmless.
+  }
+}
 
 class CouponRedemptionResult {
   const CouponRedemptionResult({
@@ -202,12 +250,17 @@ class FirebaseService {
   Future<void> signOut() async {
     await initialize();
     _requireReady();
+    final currentUser = user;
+    if (currentUser == null) return;
     try {
       await GoogleSignIn.instance.signOut();
     } catch (_) {
       // The user may have signed in with another provider.
     }
     await FirebaseAuth.instance.signOut();
+    _sessionRestore = null;
+    final preferences = await SharedPreferences.getInstance();
+    await clearSignedOutAccountData(preferences, userId: currentUser.uid);
   }
 
   Future<void> _saveUser(User user) async {
