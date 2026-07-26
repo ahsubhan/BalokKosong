@@ -1000,7 +1000,6 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                   _SettingsActionCard(
                     icon: Icons.notifications_active_rounded,
                     title: 'Notifikasi',
-                    subtitle: 'Promo, pengingat 7 hari, dan energy penuh aktif',
                     onTap: () async {
                       await NotificationService.instance.requestPermission();
                       await AppSettings.openAppSettings(
@@ -2225,57 +2224,77 @@ class _GameHud extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    height: 70,
+    height: 78,
     child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
       child: Row(
         children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton.filled(
-                tooltip: 'Pause',
-                onPressed: onPause,
-                style: IconButton.styleFrom(
-                  minimumSize: const Size.square(44),
-                  maximumSize: const Size.square(44),
-                  foregroundColor: Colors.white,
-                  backgroundColor: const Color(0xff9d4edd),
-                  side: const BorderSide(color: Color(0xffd8b4fe), width: 1.3),
-                  shadowColor: const Color(0xffb66aff),
-                  elevation: 5,
-                ),
-                icon: const Icon(Icons.pause, size: 24),
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton.filled(
+                    tooltip: 'Pause',
+                    onPressed: onPause,
+                    style: IconButton.styleFrom(
+                      minimumSize: const Size.square(44),
+                      maximumSize: const Size.square(44),
+                      foregroundColor: Colors.white,
+                      backgroundColor: const Color(0xff9d4edd),
+                      side: const BorderSide(
+                        color: Color(0xffd8b4fe),
+                        width: 1.3,
+                      ),
+                      shadowColor: const Color(0xffb66aff),
+                      elevation: 5,
+                    ),
+                    icon: const Icon(Icons.pause, size: 24),
+                  ),
+                  const SizedBox(width: 6),
+                  IconButton.filled(
+                    tooltip: 'Petunjuk',
+                    onPressed: onHint,
+                    style: IconButton.styleFrom(
+                      minimumSize: const Size.square(44),
+                      maximumSize: const Size.square(44),
+                      foregroundColor: const Color(0xffffefad),
+                      backgroundColor: const Color(0xff5d2d91),
+                      side: const BorderSide(
+                        color: Color(0xffb985e8),
+                        width: 1.2,
+                      ),
+                    ),
+                    icon: const Icon(Icons.lightbulb_rounded, size: 22),
+                  ),
+                ],
               ),
-              const SizedBox(width: 5),
-              IconButton.filled(
-                tooltip: 'Petunjuk',
-                onPressed: onHint,
-                style: IconButton.styleFrom(
-                  minimumSize: const Size.square(44),
-                  maximumSize: const Size.square(44),
-                  foregroundColor: const Color(0xffffefad),
-                  backgroundColor: const Color(0xff5d2d91),
-                  side: const BorderSide(color: Color(0xffb985e8), width: 1.2),
-                ),
-                icon: const Icon(Icons.lightbulb_rounded, size: 22),
-              ),
-            ],
+            ),
           ),
           Expanded(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _HudValue(label: 'SCORE', value: '$score'),
-                const SizedBox(width: 16),
-                _HudValue(
-                  label: 'LEVEL',
-                  value: level.toString().padLeft(2, '0'),
+                Flexible(
+                  child: _HudValue(label: 'SCORE', value: '$score'),
+                ),
+                const SizedBox(width: 18),
+                Flexible(
+                  child: _HudValue(
+                    label: 'LEVEL',
+                    value: level.toString().padLeft(2, '0'),
+                  ),
                 ),
               ],
             ),
           ),
-          _HudValue(label: timeLabel, value: time, right: true),
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: _HudValue(label: timeLabel, value: time, right: true),
+            ),
+          ),
         ],
       ),
     ),
@@ -2462,13 +2481,13 @@ class _SettingsActionCard extends StatelessWidget {
   const _SettingsActionCard({
     required this.icon,
     required this.title,
-    required this.subtitle,
+    this.subtitle,
     required this.onTap,
   });
 
   final IconData icon;
   final String title;
-  final String subtitle;
+  final String? subtitle;
   final VoidCallback onTap;
 
   @override
@@ -2507,11 +2526,16 @@ class _SettingsActionCard extends StatelessWidget {
                       fontSize: 13,
                     ),
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(color: Colors.white54, fontSize: 10),
-                  ),
+                  if (subtitle case final subtitle?) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
