@@ -32,7 +32,10 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
 
   void _selectMode({required bool challenge}) {
     if (challenge && widget.energy <= 0) return;
-    _startMode(challenge: challenge, fromLevelOne: !widget.hasProgress);
+    setState(() => challengeSelected = challenge);
+    if (!widget.hasProgress) {
+      _startMode(challenge: challenge, fromLevelOne: true);
+    }
   }
 
   void _startMode({required bool challenge, required bool fromLevelOne}) {
