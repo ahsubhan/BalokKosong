@@ -5,7 +5,7 @@ class HowToPlayScreen extends StatefulWidget {
   const HowToPlayScreen({
     super.key,
     required this.onFinished,
-    this.finalLabel = 'Lanjut bermain',
+    this.finalLabel = 'Lanjut',
   });
 
   final VoidCallback onFinished;

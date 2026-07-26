@@ -15,6 +15,7 @@ class GameAudio with WidgetsBindingObserver {
 
   final AudioPlayer _music = AudioPlayer();
   final AudioPlayer _jingle = AudioPlayer();
+  final AudioPlayer _slide = AudioPlayer();
   late final Future<void> _ready = _configureAudio();
 
   bool? _enabled;
@@ -32,6 +33,7 @@ class GameAudio with WidgetsBindingObserver {
     await Future.wait([
       _music.setAudioContext(context),
       _jingle.setAudioContext(context),
+      _slide.setAudioContext(context),
     ]);
   }
 
@@ -50,21 +52,41 @@ class GameAudio with WidgetsBindingObserver {
     if (!await _isEnabled()) return;
     try {
       await _ready;
-      if (_activeTrack == track && _music.state == PlayerState.playing) return;
       await _jingle.stop();
+      if (track == _MusicTrack.gameplay) {
+        await _music.stop();
+        _activeTrack = track;
+        return;
+      }
+      if (_activeTrack == track && _music.state == PlayerState.playing) return;
       await _music.stop();
       await _music.setReleaseMode(ReleaseMode.loop);
-      await _music.setVolume(track == _MusicTrack.opening ? .55 : .42);
-      await _music.play(
-        AssetSource(
-          track == _MusicTrack.opening
-              ? 'audio/opening_theme.wav'
-              : 'audio/gameplay_theme.wav',
-        ),
-      );
+      await _music.setVolume(.55);
+      await _music.play(AssetSource('audio/opening_theme.wav'));
       _activeTrack = track;
     } catch (error) {
       debugPrint('BalokKosong gagal memutar musik: $error');
+    }
+  }
+
+  Future<void> startBlockSlide() async {
+    if (!await _isEnabled()) return;
+    try {
+      await _ready;
+      if (_slide.state == PlayerState.playing) return;
+      await _slide.setReleaseMode(ReleaseMode.loop);
+      await _slide.setVolume(.34);
+      await _slide.play(AssetSource('audio/block_slide.wav'));
+    } catch (error) {
+      debugPrint('BalokKosong gagal memutar efek balok: $error');
+    }
+  }
+
+  Future<void> stopBlockSlide() async {
+    try {
+      await _slide.stop();
+    } catch (_) {
+      // The player may already be stopped when a gesture is cancelled.
     }
   }
 
@@ -72,7 +94,7 @@ class GameAudio with WidgetsBindingObserver {
     if (!await _isEnabled()) return;
     try {
       await _ready;
-      await _music.pause();
+      await Future.wait([_music.pause(), _slide.stop()]);
       await _jingle.stop();
       await _jingle.setReleaseMode(ReleaseMode.stop);
       await _jingle.setVolume(.72);
@@ -86,7 +108,7 @@ class GameAudio with WidgetsBindingObserver {
     _enabled = value;
     try {
       if (!value) {
-        await Future.wait([_music.stop(), _jingle.stop()]);
+        await Future.wait([_music.stop(), _jingle.stop(), _slide.stop()]);
         _activeTrack = null;
         return;
       }
@@ -110,7 +132,7 @@ class GameAudio with WidgetsBindingObserver {
 
   Future<void> _pauseAll() async {
     try {
-      await Future.wait([_music.pause(), _jingle.pause()]);
+      await Future.wait([_music.pause(), _jingle.pause(), _slide.pause()]);
     } catch (_) {
       // Some platforms report a harmless error when a stopped player is paused.
     }

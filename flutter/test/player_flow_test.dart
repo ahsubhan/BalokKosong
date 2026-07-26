@@ -35,7 +35,7 @@ void main() {
       expect(find.text('CARA BERMAIN · ${page + 1}/4'), findsOneWidget);
     }
 
-    await tester.tap(find.text('Lanjut bermain'));
+    await tester.tap(find.text('Lanjut'));
     await tester.pumpAndSettle();
 
     expect(find.text('PILIH MODE'), findsOneWidget);
