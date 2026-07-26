@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:balok_kosong/game_engine.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -116,5 +118,26 @@ void main() {
       containsAll({...basic, ...middle, ...advanced}),
     );
     expect(shapesForLevel(10).toSet(), containsAll(advanced));
+  });
+
+  test('every generated piece moves along its visibly longest side', () {
+    for (var level = 1; level <= totalLevels; level++) {
+      final pieces = generateLevel(level, levelPieceCount(level - 1));
+      for (final piece in pieces) {
+        final cells = pieceCells(piece);
+        final xs = cells.map((cell) => cell.x);
+        final ys = cells.map((cell) => cell.y);
+        final width = xs.reduce(math.max) - xs.reduce(math.min) + 1;
+        final height = ys.reduce(math.max) - ys.reduce(math.min) + 1;
+
+        expect(
+          piece.horizontal,
+          width > height,
+          reason:
+              'Level $level, balok ${piece.id} berukuran '
+              '${width}x$height tetapi arah geraknya salah.',
+        );
+      }
+    }
   });
 }

@@ -18,21 +18,23 @@ Harga ditampilkan otomatis dari masing-masing store. Pembelian consumable tidak 
 
 ## AdMob rewarded ad
 
-Konfigurasi saat ini memakai App ID dan ad unit test resmi Google. Sebelum mengirim build produksi:
+Konfigurasi AdMob produksi BalokKosong:
 
-1. Tambahkan aplikasi Android dan iOS BalokKosong di AdMob.
-2. Buat masing-masing satu unit iklan **Rewarded**.
-3. Ganti App ID test pada:
-   - `android/app/src/main/AndroidManifest.xml`
-   - `ios/Runner/Info.plist`
-4. Build produksi dengan ID rewarded milik BalokKosong:
+- Android App ID: `ca-app-pub-5653870627581625~6699714213`
+- Android Rewarded: `ca-app-pub-5653870627581625/8185974718`
+- iOS App ID: `ca-app-pub-5653870627581625~8739554199`
+- iOS Rewarded: `ca-app-pub-5653870627581625/4605968146`
+
+App ID produksi sudah terpasang pada `AndroidManifest.xml` dan `Info.plist`.
+Build release otomatis memakai rewarded ID produksi di atas. Nilainya masih
+dapat diganti saat build jika diperlukan:
 
 ```text
 flutter build appbundle --release \
-  --dart-define=ADMOB_REWARDED_ANDROID=ca-app-pub-XXXXXXXXXXXXXXXX/YYYYYYYYYY
+  --dart-define=ADMOB_REWARDED_ANDROID=ca-app-pub-5653870627581625/8185974718
 
 flutter build ipa --release \
-  --dart-define=ADMOB_REWARDED_IOS=ca-app-pub-XXXXXXXXXXXXXXXX/YYYYYYYYYY
+  --dart-define=ADMOB_REWARDED_IOS=ca-app-pub-5653870627581625/4605968146
 ```
 
 Jangan memakai unit iklan produksi saat development. Google mewajibkan penggunaan unit test selama pengembangan.

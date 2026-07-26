@@ -33,7 +33,9 @@ Future<void> _initializeOnlineServices() async {
 }
 
 class BalokKosongApp extends StatelessWidget {
-  const BalokKosongApp({super.key});
+  const BalokKosongApp({super.key, this.showSplash = true});
+
+  final bool showSplash;
 
   @override
   Widget build(BuildContext context) => MaterialApp(
@@ -56,7 +58,132 @@ class BalokKosongApp extends StatelessWidget {
         child: child!,
       );
     },
-    home: const HomeScreen(),
+    home: showSplash ? const OpeningSplashScreen() : const HomeScreen(),
+  );
+}
+
+class OpeningSplashScreen extends StatefulWidget {
+  const OpeningSplashScreen({super.key});
+
+  @override
+  State<OpeningSplashScreen> createState() => _OpeningSplashScreenState();
+}
+
+class _OpeningSplashScreenState extends State<OpeningSplashScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  Timer? _navigationTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(GameAudio.instance.playOpening());
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..forward();
+    _navigationTimer = Timer(const Duration(milliseconds: 2600), _openHome);
+  }
+
+  void _openHome() {
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder<void>(
+        transitionDuration: const Duration(milliseconds: 480),
+        pageBuilder: (_, _, _) => const HomeScreen(),
+        transitionsBuilder: (_, animation, _, child) => FadeTransition(
+          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _navigationTimer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: const Color(0xff130421),
+    body: DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: RadialGradient(
+          center: Alignment(0, -.1),
+          radius: .85,
+          colors: [Color(0xff4e167d), Color(0xff1d0733), Color(0xff10021c)],
+        ),
+      ),
+      child: Center(
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (_, child) {
+            final entrance = CurvedAnimation(
+              parent: _controller,
+              curve: const Interval(0, .62, curve: Curves.elasticOut),
+            ).value;
+            final glow = .45 + .35 * math.sin(_controller.value * math.pi * 3);
+            return Stack(
+              alignment: Alignment.center,
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 245 + glow * 30,
+                  height: 245 + glow * 30,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(
+                          0xffa855f7,
+                        ).withValues(alpha: glow * .55),
+                        blurRadius: 70,
+                        spreadRadius: 12,
+                      ),
+                    ],
+                  ),
+                ),
+                Transform.scale(
+                  scale: entrance,
+                  child: Opacity(opacity: entrance.clamp(0, 1), child: child),
+                ),
+                for (final sparkle in const [
+                  (Alignment(-1.25, -.9), 22.0, .12),
+                  (Alignment(1.2, -.55), 16.0, .3),
+                  (Alignment(-1.05, .85), 14.0, .48),
+                  (Alignment(1.05, .95), 20.0, .62),
+                ])
+                  Align(
+                    alignment: sparkle.$1,
+                    widthFactor: 5.2,
+                    heightFactor: 5.2,
+                    child: Opacity(
+                      opacity: ((_controller.value - sparkle.$3) * 3).clamp(
+                        0,
+                        1,
+                      ),
+                      child: Icon(
+                        Icons.auto_awesome_rounded,
+                        color: Colors.white,
+                        size: sparkle.$2,
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
+          child: Image.asset(
+            'assets/icon/app_icon.png',
+            width: 220,
+            height: 220,
+            filterQuality: FilterQuality.high,
+          ),
+        ),
+      ),
+    ),
   );
 }
 
@@ -264,28 +391,14 @@ class HomeScreen extends StatelessWidget {
     final tutorialSeen = preferences.getBool(tutorialKey) ?? false;
     final progressKey = 'balok_has_started_$userId';
     final hasProgress = preferences.getBool(progressKey) ?? false;
-    if (tutorialSeen) {
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (modeContext) =>
-              _modeSelection(modeContext, hasProgress: hasProgress),
-        ),
-      );
-      return;
-    }
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (guideContext) => HowToPlayScreen(
-          onFinished: () async {
-            await preferences.setBool(tutorialKey, true);
-            if (!guideContext.mounted) return;
-            await Navigator.of(guideContext).pushReplacement(
-              MaterialPageRoute(
-                builder: (modeContext) =>
-                    _modeSelection(modeContext, hasProgress: hasProgress),
-              ),
-            );
-          },
+        builder: (modeContext) => _modeSelection(
+          modeContext,
+          hasProgress: hasProgress,
+          tutorialSeen: tutorialSeen,
+          tutorialKey: tutorialKey,
+          preferences: preferences,
         ),
       ),
     );
@@ -294,41 +407,87 @@ class HomeScreen extends StatelessWidget {
   static Widget _modeSelection(
     BuildContext modeContext, {
     required bool hasProgress,
+    required bool tutorialSeen,
+    required String tutorialKey,
+    required SharedPreferences preferences,
   }) => ModeSelectionScreen(
     hasProgress: hasProgress,
-    onRelaxed: () => Navigator.of(modeContext).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => NativeGameScreen(homeBuilder: _settingsHome),
+    onRelaxed: () => unawaited(
+      _startSelectedGame(
+        modeContext,
+        tutorialSeen: tutorialSeen,
+        tutorialKey: tutorialKey,
+        preferences: preferences,
+        gameBuilder: (_) => NativeGameScreen(homeBuilder: _settingsHome),
       ),
     ),
-    onChallenge: () => Navigator.of(modeContext).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) =>
+    onChallenge: () => unawaited(
+      _startSelectedGame(
+        modeContext,
+        tutorialSeen: tutorialSeen,
+        tutorialKey: tutorialKey,
+        preferences: preferences,
+        gameBuilder: (_) =>
             NativeGameScreen(challengeMode: true, homeBuilder: _settingsHome),
       ),
     ),
-    onRelaxedSelected: (startFromLevelOne) =>
-        Navigator.of(modeContext).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => NativeGameScreen(
-              homeBuilder: _settingsHome,
-              startFromLevelOne: startFromLevelOne,
-            ),
-          ),
+    onRelaxedSelected: (startFromLevelOne) => unawaited(
+      _startSelectedGame(
+        modeContext,
+        tutorialSeen: tutorialSeen,
+        tutorialKey: tutorialKey,
+        preferences: preferences,
+        gameBuilder: (_) => NativeGameScreen(
+          homeBuilder: _settingsHome,
+          startFromLevelOne: startFromLevelOne,
         ),
-    onChallengeSelected: (startFromLevelOne) =>
-        Navigator.of(modeContext).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => NativeGameScreen(
-              challengeMode: true,
-              homeBuilder: _settingsHome,
-              startFromLevelOne: startFromLevelOne,
-            ),
-          ),
+      ),
+    ),
+    onChallengeSelected: (startFromLevelOne) => unawaited(
+      _startSelectedGame(
+        modeContext,
+        tutorialSeen: tutorialSeen,
+        tutorialKey: tutorialKey,
+        preferences: preferences,
+        gameBuilder: (_) => NativeGameScreen(
+          challengeMode: true,
+          homeBuilder: _settingsHome,
+          startFromLevelOne: startFromLevelOne,
         ),
+      ),
+    ),
     onCancel: () => Navigator.pop(modeContext),
     onSettings: () => openNativeGameSettings(modeContext, _settingsHome),
   );
+
+  static Future<void> _startSelectedGame(
+    BuildContext modeContext, {
+    required bool tutorialSeen,
+    required String tutorialKey,
+    required SharedPreferences preferences,
+    required WidgetBuilder gameBuilder,
+  }) async {
+    if (!modeContext.mounted) return;
+    if (tutorialSeen) {
+      await Navigator.of(
+        modeContext,
+      ).pushReplacement(MaterialPageRoute(builder: gameBuilder));
+      return;
+    }
+    await Navigator.of(modeContext).pushReplacement(
+      MaterialPageRoute(
+        builder: (guideContext) => HowToPlayScreen(
+          onFinished: () async {
+            await preferences.setBool(tutorialKey, true);
+            if (!guideContext.mounted) return;
+            await Navigator.of(
+              guideContext,
+            ).pushReplacement(MaterialPageRoute(builder: gameBuilder));
+          },
+        ),
+      ),
+    );
+  }
 
   static Widget _settingsHome(BuildContext _) =>
       const HomeScreen(showBackButton: true);

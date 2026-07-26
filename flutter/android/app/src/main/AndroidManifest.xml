@@ -9,10 +9,10 @@
         android:allowBackup="false"
         android:fullBackupContent="false"
         android:usesCleartextTraffic="false">
-        <!-- ID test resmi Google. Ganti dengan App ID AdMob BalokKosong sebelum rilis. -->
+        <!-- AdMob App ID BalokKosong Android. Debug tetap memakai rewarded test ID. -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3940256099942544~3347511713" />
+            android:value="ca-app-pub-5653870627581625~6699714213" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

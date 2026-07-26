@@ -53,16 +53,17 @@ class GameAudio with WidgetsBindingObserver {
     try {
       await _ready;
       await _jingle.stop();
-      if (track == _MusicTrack.gameplay) {
-        await _music.stop();
-        _activeTrack = track;
-        return;
-      }
       if (_activeTrack == track && _music.state == PlayerState.playing) return;
       await _music.stop();
       await _music.setReleaseMode(ReleaseMode.loop);
-      await _music.setVolume(.55);
-      await _music.play(AssetSource('audio/opening_theme.wav'));
+      await _music.setVolume(track == _MusicTrack.opening ? .55 : .14);
+      await _music.play(
+        AssetSource(
+          track == _MusicTrack.opening
+              ? 'audio/opening_theme.wav'
+              : 'audio/gameplay_theme.wav',
+        ),
+      );
       _activeTrack = track;
     } catch (error) {
       debugPrint('BalokKosong gagal memutar musik: $error');
@@ -75,7 +76,7 @@ class GameAudio with WidgetsBindingObserver {
       await _ready;
       if (_slide.state == PlayerState.playing) return;
       await _slide.setReleaseMode(ReleaseMode.loop);
-      await _slide.setVolume(.34);
+      await _slide.setVolume(.52);
       await _slide.play(AssetSource('audio/block_slide.wav'));
     } catch (error) {
       debugPrint('BalokKosong gagal memutar efek balok: $error');

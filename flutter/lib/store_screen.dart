@@ -25,9 +25,11 @@ class _StoreScreenState extends State<StoreScreen> {
   static const _iosRewardedTestId = 'ca-app-pub-3940256099942544/1712485313';
   static const _androidRewardedProductionId = String.fromEnvironment(
     'ADMOB_REWARDED_ANDROID',
+    defaultValue: 'ca-app-pub-5653870627581625/8185974718',
   );
   static const _iosRewardedProductionId = String.fromEnvironment(
     'ADMOB_REWARDED_IOS',
+    defaultValue: 'ca-app-pub-5653870627581625/4605968146',
   );
 
   final couponController = TextEditingController();

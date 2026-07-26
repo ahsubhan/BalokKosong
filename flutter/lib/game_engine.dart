@@ -23,7 +23,7 @@ class PuzzlePiece {
     required this.shape,
     required this.length,
     required this.colorIndex,
-  });
+  }) : horizontal = _hasHorizontalFootprint(shape, length, direction);
 
   final String id;
   int x;
@@ -32,8 +32,7 @@ class PuzzlePiece {
   final PieceShape shape;
   final int length;
   final int colorIndex;
-
-  bool get horizontal => direction == 0 || direction == 180;
+  final bool horizontal;
 
   PuzzlePiece copy() => PuzzlePiece(
     id: id,
@@ -108,6 +107,23 @@ GridCell _rotate(GridCell cell, int direction) => switch (direction) {
   180 => GridCell(-cell.x, -cell.y),
   _ => GridCell(cell.y, -cell.x),
 };
+
+bool _hasHorizontalFootprint(PieceShape shape, int length, int direction) {
+  final cells = _baseCells(
+    shape,
+    length,
+  ).map((cell) => _rotate(cell, direction)).toList();
+  final width =
+      cells.map((cell) => cell.x).reduce(math.max) -
+      cells.map((cell) => cell.x).reduce(math.min) +
+      1;
+  final height =
+      cells.map((cell) => cell.y).reduce(math.max) -
+      cells.map((cell) => cell.y).reduce(math.min) +
+      1;
+  if (width == height) return direction == 0 || direction == 180;
+  return width > height;
+}
 
 List<GridCell> pieceCells(PuzzlePiece piece, {int dx = 0, int dy = 0}) {
   return _baseCells(piece.shape, piece.length).map((cell) {

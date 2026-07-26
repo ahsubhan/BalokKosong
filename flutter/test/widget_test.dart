@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   testWidgets('shows the Balok Kosong home screen', (tester) async {
-    await tester.pumpWidget(const BalokKosongApp());
+    await tester.pumpWidget(const BalokKosongApp(showSplash: false));
 
     expect(find.text('BALOK'), findsOneWidget);
     expect(find.text('KOSONG'), findsOneWidget);
@@ -17,7 +17,7 @@ void main() {
   });
 
   testWidgets('opens email registration form', (tester) async {
-    await tester.pumpWidget(const BalokKosongApp());
+    await tester.pumpWidget(const BalokKosongApp(showSplash: false));
 
     await tester.tap(find.text('Mendaftar'));
     await tester.pumpAndSettle();
@@ -28,6 +28,20 @@ void main() {
     expect(find.text('Password (minimal 6 karakter)'), findsOneWidget);
     expect(find.text('KIRIM VERIFIKASI'), findsOneWidget);
     expect(find.textContaining('folder Junk/Spam'), findsOneWidget);
+  });
+
+  testWidgets('shows opening animation before the home screen', (tester) async {
+    await tester.pumpWidget(const BalokKosongApp());
+
+    expect(find.byType(OpeningSplashScreen), findsOneWidget);
+    expect(find.byType(Image), findsOneWidget);
+    expect(find.text('MASUK DENGAN EMAIL'), findsNothing);
+
+    await tester.pump(const Duration(milliseconds: 2700));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(OpeningSplashScreen), findsNothing);
+    expect(find.text('MASUK DENGAN EMAIL'), findsOneWidget);
   });
 
   testWidgets('shows back button when home is opened from settings', (

@@ -594,79 +594,82 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = _themes[themeName]!;
-    return Scaffold(
-      backgroundColor: palette.$1,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child:
-                  themeName == 'Custom' &&
-                      customBackgroundPath != null &&
-                      File(customBackgroundPath!).existsSync()
-                  ? _CustomThemeBackdrop(path: customBackgroundPath!)
-                  : _ThemeBackdrop(themeName: themeName),
-            ),
-            Column(
-              children: [
-                Expanded(
-                  child: PuzzleCanvas(
-                    engine: engine,
-                    boardColor: palette.$2,
-                    themeName: themeName,
-                    showGrid: _gridAvailable && gridVisible,
-                    disabled: paused,
-                    hintedPieceId: hintedPieceId,
-                    onHintConsumed: () => setState(() => hintedPieceId = null),
-                    onExit: _onPieceExit,
-                    onMove: () => setState(() => moves++),
-                    onWrong: _onWrongMove,
-                  ),
-                ),
-                _GameHud(
-                  level: levelIndex + 1,
-                  score: score,
-                  time: _clock,
-                  timeLabel: challengeMode ? 'TANTANGAN' : 'WAKTU',
-                  onPause: () => setState(() => paused = true),
-                  onHint: _showHint,
-                ),
-              ],
-            ),
-            if (paused)
-              _PauseOverlay(
-                level: levelIndex + 1,
-                canPrevious: _developerLevelNavigation || levelIndex > 0,
-                canNext: canNavigateToNextLevel(
-                  developer: _developerLevelNavigation,
-                  loggedIn: FirebaseService.instance.user != null,
-                  currentLevelCompleted: engine.pieces.isEmpty,
-                  levelIndex: levelIndex,
-                  highestUnlockedLevel: highestUnlockedLevel,
-                ),
-                onContinue: () => setState(() => paused = false),
-                onRestart: _restart,
-                onMode: _showMode,
-                onPrevious: () => setState(
-                  () => _loadLevel(
-                    _developerLevelNavigation
-                        ? (levelIndex - 1 + totalLevels) % totalLevels
-                        : levelIndex - 1,
-                    keepPaused: true,
-                  ),
-                ),
-                onNext: () => setState(
-                  () => _loadLevel(
-                    _developerLevelNavigation
-                        ? (levelIndex + 1) % totalLevels
-                        : levelIndex + 1,
-                    keepPaused: true,
-                  ),
-                ),
-                onSettings: _showSettings,
-                onHome: () => Navigator.pop(context),
+    return PopScope(
+      canPop: widget.settingsOnly,
+      child: Scaffold(
+        backgroundColor: palette.$1,
+        body: SafeArea(
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child:
+                    themeName == 'Custom' &&
+                        customBackgroundPath != null &&
+                        File(customBackgroundPath!).existsSync()
+                    ? _CustomThemeBackdrop(path: customBackgroundPath!)
+                    : _ThemeBackdrop(themeName: themeName),
               ),
-          ],
+              Column(
+                children: [
+                  Expanded(
+                    child: PuzzleCanvas(
+                      engine: engine,
+                      boardColor: palette.$2,
+                      themeName: themeName,
+                      showGrid: _gridAvailable && gridVisible,
+                      disabled: paused,
+                      hintedPieceId: hintedPieceId,
+                      onHintConsumed: () =>
+                          setState(() => hintedPieceId = null),
+                      onExit: _onPieceExit,
+                      onMove: () => setState(() => moves++),
+                      onWrong: _onWrongMove,
+                    ),
+                  ),
+                  _GameHud(
+                    level: levelIndex + 1,
+                    score: score,
+                    time: _clock,
+                    timeLabel: challengeMode ? 'TANTANGAN' : 'WAKTU',
+                    onPause: () => setState(() => paused = true),
+                    onHint: _showHint,
+                  ),
+                ],
+              ),
+              if (paused)
+                _PauseOverlay(
+                  level: levelIndex + 1,
+                  canPrevious: _developerLevelNavigation || levelIndex > 0,
+                  canNext: canNavigateToNextLevel(
+                    developer: _developerLevelNavigation,
+                    loggedIn: FirebaseService.instance.user != null,
+                    currentLevelCompleted: engine.pieces.isEmpty,
+                    levelIndex: levelIndex,
+                    highestUnlockedLevel: highestUnlockedLevel,
+                  ),
+                  onContinue: () => setState(() => paused = false),
+                  onRestart: _restart,
+                  onMode: _showMode,
+                  onPrevious: () => setState(
+                    () => _loadLevel(
+                      _developerLevelNavigation
+                          ? (levelIndex - 1 + totalLevels) % totalLevels
+                          : levelIndex - 1,
+                      keepPaused: true,
+                    ),
+                  ),
+                  onNext: () => setState(
+                    () => _loadLevel(
+                      _developerLevelNavigation
+                          ? (levelIndex + 1) % totalLevels
+                          : levelIndex + 1,
+                      keepPaused: true,
+                    ),
+                  ),
+                  onSettings: _showSettings,
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -2302,7 +2305,6 @@ class _PauseOverlay extends StatelessWidget {
     required this.onPrevious,
     required this.onNext,
     required this.onSettings,
-    required this.onHome,
   });
   final int level;
   final bool canPrevious;
@@ -2313,7 +2315,6 @@ class _PauseOverlay extends StatelessWidget {
   final VoidCallback onPrevious;
   final VoidCallback onNext;
   final VoidCallback onSettings;
-  final VoidCallback onHome;
 
   @override
   Widget build(BuildContext context) => ColoredBox(
@@ -2379,11 +2380,6 @@ class _PauseOverlay extends StatelessWidget {
                     icon: Icons.settings_rounded,
                     label: 'Aturan',
                     onTap: onSettings,
-                  ),
-                  _PauseAction(
-                    icon: Icons.home_rounded,
-                    label: 'Utama',
-                    onTap: onHome,
                   ),
                 ],
               ),
