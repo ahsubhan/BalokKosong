@@ -2247,73 +2247,59 @@ class _GameHud extends StatelessWidget {
   Widget build(BuildContext context) => SizedBox(
     height: 78,
     child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
       child: Row(
         children: [
           Expanded(
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton.filled(
-                    tooltip: 'Pause',
-                    onPressed: onPause,
-                    style: IconButton.styleFrom(
-                      minimumSize: const Size.square(44),
-                      maximumSize: const Size.square(44),
-                      foregroundColor: Colors.white,
-                      backgroundColor: const Color(0xff9d4edd),
-                      side: const BorderSide(
-                        color: Color(0xffd8b4fe),
-                        width: 1.3,
-                      ),
-                      shadowColor: const Color(0xffb66aff),
-                      elevation: 5,
-                    ),
-                    icon: const Icon(Icons.pause, size: 24),
-                  ),
-                  const SizedBox(width: 6),
-                  IconButton.filled(
-                    tooltip: 'Petunjuk',
-                    onPressed: onHint,
-                    style: IconButton.styleFrom(
-                      minimumSize: const Size.square(44),
-                      maximumSize: const Size.square(44),
-                      foregroundColor: const Color(0xffffefad),
-                      backgroundColor: const Color(0xff5d2d91),
-                      side: const BorderSide(
-                        color: Color(0xffb985e8),
-                        width: 1.2,
-                      ),
-                    ),
-                    icon: const Icon(Icons.lightbulb_rounded, size: 22),
-                  ),
-                ],
+            child: Center(
+              child: IconButton.filled(
+                tooltip: 'Pause',
+                onPressed: onPause,
+                style: IconButton.styleFrom(
+                  minimumSize: const Size.square(44),
+                  maximumSize: const Size.square(44),
+                  foregroundColor: Colors.white,
+                  backgroundColor: const Color(0xff9d4edd),
+                  side: const BorderSide(color: Color(0xffd8b4fe), width: 1.3),
+                  shadowColor: const Color(0xffb66aff),
+                  elevation: 5,
+                ),
+                icon: const Icon(Icons.pause, size: 24),
               ),
             ),
           ),
           Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Flexible(
-                  child: _HudValue(label: 'SCORE', value: '$score'),
+            child: Center(
+              child: IconButton.filled(
+                tooltip: 'Petunjuk',
+                onPressed: onHint,
+                style: IconButton.styleFrom(
+                  minimumSize: const Size.square(44),
+                  maximumSize: const Size.square(44),
+                  foregroundColor: const Color(0xffffefad),
+                  backgroundColor: const Color(0xff5d2d91),
+                  side: const BorderSide(color: Color(0xffb985e8), width: 1.2),
                 ),
-                const SizedBox(width: 18),
-                Flexible(
-                  child: _HudValue(
-                    label: 'LEVEL',
-                    value: level.toString().padLeft(2, '0'),
-                  ),
-                ),
-              ],
+                icon: const Icon(Icons.lightbulb_rounded, size: 22),
+              ),
             ),
           ),
           Expanded(
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: _HudValue(label: timeLabel, value: time, right: true),
+            child: Center(
+              child: _HudValue(label: 'SCORE', value: '$score'),
+            ),
+          ),
+          Expanded(
+            child: Center(
+              child: _HudValue(
+                label: 'LEVEL',
+                value: level.toString().padLeft(2, '0'),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Center(
+              child: _HudValue(label: timeLabel, value: time),
             ),
           ),
         ],
@@ -2323,20 +2309,13 @@ class _GameHud extends StatelessWidget {
 }
 
 class _HudValue extends StatelessWidget {
-  const _HudValue({
-    required this.label,
-    required this.value,
-    this.right = false,
-  });
+  const _HudValue({required this.label, required this.value});
   final String label;
   final String value;
-  final bool right;
 
   @override
   Widget build(BuildContext context) => Column(
-    crossAxisAlignment: right
-        ? CrossAxisAlignment.end
-        : CrossAxisAlignment.center,
+    crossAxisAlignment: CrossAxisAlignment.center,
     mainAxisAlignment: MainAxisAlignment.center,
     children: [
       Text(
