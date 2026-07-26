@@ -18,7 +18,6 @@ class HelpFeedbackScreen extends StatefulWidget {
 }
 
 class _HelpFeedbackScreenState extends State<HelpFeedbackScreen> {
-  final nameController = TextEditingController();
   final controller = TextEditingController();
   bool sending = false;
 
@@ -29,7 +28,6 @@ class _HelpFeedbackScreenState extends State<HelpFeedbackScreen> {
 
   @override
   void dispose() {
-    nameController.dispose();
     controller.dispose();
     super.dispose();
   }
@@ -147,22 +145,6 @@ class _HelpFeedbackScreenState extends State<HelpFeedbackScreen> {
             const SizedBox(height: 10),
           ],
           TextField(
-            controller: nameController,
-            enabled: _canSendFeedback,
-            textInputAction: TextInputAction.next,
-            autofillHints: const [AutofillHints.name],
-            decoration: InputDecoration(
-              hintText: 'Nama (wajib diisi)',
-              filled: true,
-              fillColor: Colors.white.withValues(alpha: .05),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(15),
-                borderSide: const BorderSide(color: Colors.white12),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          TextField(
             controller: controller,
             enabled: _canSendFeedback,
             minLines: 4,
@@ -231,14 +213,7 @@ class _HelpFeedbackScreenState extends State<HelpFeedbackScreen> {
       );
       return;
     }
-    final name = nameController.text.trim();
     final feedback = controller.text.trim();
-    if (name.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Nama wajib diisi.')));
-      return;
-    }
     if (feedback.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Tuliskan feedback terlebih dahulu.')),
@@ -247,12 +222,8 @@ class _HelpFeedbackScreenState extends State<HelpFeedbackScreen> {
     }
     setState(() => sending = true);
     try {
-      await FirebaseService.instance.submitFeedback(
-        name: name,
-        message: feedback,
-      );
+      await FirebaseService.instance.submitFeedback(message: feedback);
       if (!mounted) return;
-      nameController.clear();
       controller.clear();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Terima kasih. Feedback sudah terkirim.')),

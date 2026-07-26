@@ -27,7 +27,7 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
     final fields = tester.widgetList<TextField>(find.byType(TextField));
-    expect(fields, hasLength(2));
+    expect(fields, hasLength(1));
     expect(fields.every((field) => field.enabled == false), isTrue);
 
     final button = tester.widget<FilledButton>(

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -56,6 +57,7 @@ class FirebaseService {
 
   bool _ready = false;
   Future<void>? _initializing;
+  Future<void>? _sessionRestore;
   bool get isReady => _ready;
   User? get user => _ready ? FirebaseAuth.instance.currentUser : null;
 
@@ -70,13 +72,37 @@ class FirebaseService {
       _ready = true;
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser != null) {
-        await _saveUser(currentUser);
-        await syncRemoteToLocal();
+        _sessionRestore = _restoreSignedInSession(currentUser);
       }
     } catch (_) {
       _ready = false;
     } finally {
       _initializing = null;
+    }
+  }
+
+  Future<void> _restoreSignedInSession(User currentUser) async {
+    try {
+      await _saveUser(currentUser);
+    } catch (_) {
+      // Continue restoring progress even if updating last-login data fails.
+    }
+    try {
+      await syncRemoteToLocal();
+    } catch (_) {
+      // Authentication stays usable when Firestore is temporarily unavailable.
+    }
+  }
+
+  Future<void> waitForSessionRestore({
+    Duration timeout = const Duration(seconds: 3),
+  }) async {
+    final restore = _sessionRestore;
+    if (restore == null) return;
+    try {
+      await restore.timeout(timeout);
+    } on TimeoutException {
+      // Continue with the local progress; synchronization keeps running.
     }
   }
 
@@ -305,10 +331,7 @@ class FirebaseService {
         }, SetOptions(merge: true));
   }
 
-  Future<void> submitFeedback({
-    required String name,
-    required String message,
-  }) async {
+  Future<void> submitFeedback({required String message}) async {
     await initialize();
     _requireReady();
     final currentUser = user;
@@ -317,12 +340,19 @@ class FirebaseService {
         'Masuk dengan Email atau Google untuk mengirim feedback.',
       );
     }
+    final profileName = currentUser.displayName?.trim();
+    final email = currentUser.email?.trim();
+    final senderName = profileName != null && profileName.isNotEmpty
+        ? profileName
+        : email != null && email.contains('@')
+        ? email.substring(0, email.indexOf('@'))
+        : 'Pengguna';
     final package = await PackageInfo.fromPlatform();
     await FirebaseFirestore.instance.collection('feedback').add({
       'uid': currentUser.uid,
       'email': currentUser.email,
       'displayName': currentUser.displayName,
-      'senderName': name,
+      'senderName': senderName,
       'provider': 'account',
       'message': message,
       'platform': Platform.operatingSystem,
