@@ -225,7 +225,7 @@ class HomeScreen extends StatelessWidget {
             if (canReturnToPrevious)
               Positioned(
                 left: 20,
-                top: 20,
+                top: 12,
                 child: IconButton.filled(
                   tooltip: 'Kembali',
                   onPressed: () {
@@ -237,7 +237,7 @@ class HomeScreen extends StatelessWidget {
                     foregroundColor: Colors.white,
                     minimumSize: const Size(46, 46),
                   ),
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 23),
+                  icon: const Icon(Icons.arrow_back_rounded, size: 25),
                 ),
               ),
           ],
@@ -252,10 +252,8 @@ class HomeScreen extends StatelessWidget {
     final userId = FirebaseService.instance.user?.uid ?? 'perangkat';
     final tutorialKey = 'balok_kosong_tutorial_seen_$userId';
     final tutorialSeen = preferences.getBool(tutorialKey) ?? false;
-    final hasProgress =
-        (preferences.getBool('balok_has_started') ?? false) ||
-        (preferences.getInt('balok_level') ?? 1) > 1 ||
-        (preferences.getInt('balok_score') ?? 0) > 0;
+    final progressKey = 'balok_has_started_$userId';
+    final hasProgress = preferences.getBool(progressKey) ?? false;
     if (tutorialSeen) {
       await Navigator.of(context).push(
         MaterialPageRoute(

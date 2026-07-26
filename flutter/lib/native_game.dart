@@ -115,6 +115,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
   String themeName = 'Midnight';
   late PuzzleEngine engine;
   Timer? timer;
+  bool settingsRouteReplaced = false;
 
   @override
   void initState() {
@@ -153,13 +154,14 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
     await Future<void>.delayed(Duration.zero);
     if (!mounted) return;
     await _showSettings();
-    if (mounted) Navigator.pop(context);
+    if (mounted && !settingsRouteReplaced) Navigator.pop(context);
   }
 
   Future<void> _loadSettings() async {
     final preferences = await SharedPreferences.getInstance();
     if (!widget.settingsOnly) {
-      await preferences.setBool('balok_has_started', true);
+      final userId = FirebaseService.instance.user?.uid ?? 'perangkat';
+      await preferences.setBool('balok_has_started_$userId', true);
     }
     if (!mounted) return;
     setState(() {
@@ -823,6 +825,20 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                     title: 'Kembali ke halaman utama',
                     subtitle: 'Panah kembali tersedia untuk kembali bermain',
                     onTap: () {
+                      if (widget.settingsOnly) {
+                        settingsRouteReplaced = true;
+                        Navigator.pop(sheetContext);
+                        Future<void>.delayed(
+                          const Duration(milliseconds: 180),
+                          () {
+                            if (!mounted) return;
+                            Navigator.of(context).pushReplacement(
+                              MaterialPageRoute(builder: widget.homeBuilder),
+                            );
+                          },
+                        );
+                        return;
+                      }
                       Navigator.pop(sheetContext);
                       Future<void>.delayed(
                         const Duration(milliseconds: 180),
@@ -856,11 +872,11 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                         : () => _unlockGridForCurrentLevel(updateSheet),
                     child: Opacity(
                       opacity: _gridAvailable ? 1 : .48,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: .045),
+                      child: Material(
+                        color: Colors.white.withValues(alpha: .045),
+                        shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(15),
-                          border: Border.all(color: Colors.white12),
+                          side: const BorderSide(color: Colors.white12),
                         ),
                         child: SwitchListTile(
                           title: const Text(
@@ -905,11 +921,11 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: .045),
+                  Material(
+                    color: Colors.white.withValues(alpha: .045),
+                    shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(15),
-                      border: Border.all(color: Colors.white12),
+                      side: const BorderSide(color: Colors.white12),
                     ),
                     child: SwitchListTile(
                       title: const Text(

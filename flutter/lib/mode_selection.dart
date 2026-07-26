@@ -32,19 +32,11 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
 
   void _selectMode({required bool challenge}) {
     if (challenge && widget.energy <= 0) return;
-    if (!widget.hasProgress) {
-      if (challenge) {
-        widget.onChallenge();
-      } else {
-        widget.onRelaxed();
-      }
-      return;
-    }
-    setState(() => challengeSelected = challenge);
+    _startMode(challenge: challenge, fromLevelOne: !widget.hasProgress);
   }
 
-  void _start({required bool fromLevelOne}) {
-    if (challengeSelected) {
+  void _startMode({required bool challenge, required bool fromLevelOne}) {
+    if (challenge) {
       if (widget.energy <= 0) return;
       final callback = widget.onChallengeSelected;
       if (callback != null) {
@@ -60,6 +52,10 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
     } else {
       widget.onRelaxed();
     }
+  }
+
+  void _start({required bool fromLevelOne}) {
+    _startMode(challenge: challengeSelected, fromLevelOne: fromLevelOne);
   }
 
   @override
