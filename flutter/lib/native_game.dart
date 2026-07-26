@@ -33,6 +33,7 @@ const _pieceColors = [
 ];
 
 const _maximumAllowedMistakes = 10;
+const _developerGoogleEmail = 'ah.subhan@gmail.com';
 
 Future<void> openNativeGameSettings(
   BuildContext context,
@@ -44,10 +45,18 @@ Future<void> openNativeGameSettings(
   ),
 );
 
+bool developerLevelNavigationEnabled({
+  required String? email,
+  required Iterable<String> providerIds,
+}) =>
+    email?.trim().toLowerCase() == _developerGoogleEmail &&
+    providerIds.contains('google.com');
+
 bool canNavigateToNextLevel({
+  required bool developer,
   required bool currentLevelCompleted,
   required int levelIndex,
-}) => levelIndex < totalLevels - 1 && currentLevelCompleted;
+}) => levelIndex < totalLevels - 1 && (developer || currentLevelCompleted);
 
 enum _HintDialogAction { back, continueHint, watchAd }
 
@@ -215,6 +224,16 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
 
   bool get _gridAvailable =>
       levelIndex < 3 || gridUnlockedLevels.contains(levelIndex + 1);
+
+  bool get _developerLevelNavigation {
+    final user = FirebaseService.instance.user;
+    return developerLevelNavigationEnabled(
+      email: user?.email,
+      providerIds:
+          user?.providerData.map((provider) => provider.providerId) ??
+          const <String>[],
+    );
+  }
 
   @override
   void dispose() {
@@ -655,6 +674,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                   level: levelIndex + 1,
                   canPrevious: levelIndex > 0,
                   canNext: canNavigateToNextLevel(
+                    developer: _developerLevelNavigation,
                     currentLevelCompleted: engine.pieces.isEmpty,
                     levelIndex: levelIndex,
                   ),
