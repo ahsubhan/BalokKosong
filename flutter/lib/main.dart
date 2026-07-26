@@ -35,9 +35,14 @@ Future<void> _initializeOnlineServices() async {
 }
 
 class BalokKosongApp extends StatelessWidget {
-  const BalokKosongApp({super.key, this.showSplash = true});
+  const BalokKosongApp({
+    super.key,
+    this.showSplash = true,
+    this.startupInitializer,
+  });
 
   final bool showSplash;
+  final Future<void> Function()? startupInitializer;
 
   @override
   Widget build(BuildContext context) => MaterialApp(
@@ -60,12 +65,16 @@ class BalokKosongApp extends StatelessWidget {
         child: child!,
       );
     },
-    home: showSplash ? const OpeningSplashScreen() : const HomeScreen(),
+    home: showSplash
+        ? OpeningSplashScreen(initializeServices: startupInitializer)
+        : const HomeScreen(),
   );
 }
 
 class OpeningSplashScreen extends StatefulWidget {
-  const OpeningSplashScreen({super.key});
+  const OpeningSplashScreen({super.key, this.initializeServices});
+
+  final Future<void> Function()? initializeServices;
 
   @override
   State<OpeningSplashScreen> createState() => _OpeningSplashScreenState();
@@ -75,6 +84,7 @@ class _OpeningSplashScreenState extends State<OpeningSplashScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   Timer? _navigationTimer;
+  bool _navigationStarted = false;
 
   @override
   void initState() {
@@ -84,15 +94,30 @@ class _OpeningSplashScreenState extends State<OpeningSplashScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1800),
     )..forward();
-    _navigationTimer = Timer(const Duration(milliseconds: 2600), _openHome);
+    _navigationTimer = Timer(
+      const Duration(milliseconds: 2600),
+      () => unawaited(_openNext()),
+    );
   }
 
-  void _openHome() {
+  Future<void> _openNext() async {
+    if (_navigationStarted) return;
+    _navigationStarted = true;
+    await (widget.initializeServices ?? FirebaseService.instance.initialize)();
     if (!mounted) return;
+    final user = FirebaseService.instance.user;
+    final returningAccount = user != null && !user.isAnonymous;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder<void>(
         transitionDuration: const Duration(milliseconds: 480),
-        pageBuilder: (_, _, _) => const HomeScreen(),
+        pageBuilder: (_, _, _) => returningAccount
+            ? ReturningPlayerWelcomeScreen(
+                playerName: returningPlayerName(
+                  displayName: user.displayName,
+                  email: user.email,
+                ),
+              )
+            : const HomeScreen(),
         transitionsBuilder: (_, animation, _, child) => FadeTransition(
           opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
           child: child,
@@ -186,6 +211,113 @@ class _OpeningSplashScreenState extends State<OpeningSplashScreen>
               fit: BoxFit.cover,
               filterQuality: FilterQuality.high,
             ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+String returningPlayerName({String? displayName, String? email}) {
+  final name = displayName?.trim();
+  if (name != null && name.isNotEmpty) return name;
+  final address = email?.trim();
+  if (address != null && address.contains('@')) {
+    return address.substring(0, address.indexOf('@'));
+  }
+  return 'Pemain';
+}
+
+class ReturningPlayerWelcomeScreen extends StatefulWidget {
+  const ReturningPlayerWelcomeScreen({
+    super.key,
+    required this.playerName,
+    this.onFinished,
+  });
+
+  final String playerName;
+  final VoidCallback? onFinished;
+
+  @override
+  State<ReturningPlayerWelcomeScreen> createState() =>
+      _ReturningPlayerWelcomeScreenState();
+}
+
+class _ReturningPlayerWelcomeScreenState
+    extends State<ReturningPlayerWelcomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_continueToGame());
+  }
+
+  Future<void> _continueToGame() async {
+    await Future.wait([
+      Future<void>.delayed(const Duration(milliseconds: 1800)),
+      FirebaseService.instance.waitForSessionRestore(),
+    ]);
+    if (!mounted) return;
+    unawaited(GameAudio.instance.stopOpening());
+    final onFinished = widget.onFinished;
+    if (onFinished != null) {
+      onFinished();
+      return;
+    }
+    await HomeScreen._enterGame(
+      context,
+      replaceCurrent: true,
+      forceProgressChoices: true,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: const Color(0xff130421),
+    body: DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: RadialGradient(
+          center: Alignment(0, -.12),
+          radius: .9,
+          colors: [Color(0xff512080), Color(0xff22083a), Color(0xff10021c)],
+        ),
+      ),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const _Logo(),
+              const SizedBox(height: 30),
+              Text(
+                'Welcome, ${widget.playerName}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 25,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Menyiapkan progres permainan Anda…',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Color(0xffd9b8ff),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 22),
+              const SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(
+                  strokeWidth: 3,
+                  color: Color(0xffb35cff),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -404,7 +536,11 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  static Future<void> _enterGame(BuildContext context) async {
+  static Future<void> _enterGame(
+    BuildContext context, {
+    bool replaceCurrent = false,
+    bool forceProgressChoices = false,
+  }) async {
     final preferences = await SharedPreferences.getInstance();
     if (!context.mounted) return;
     final userId = FirebaseService.instance.user?.uid ?? 'perangkat';
@@ -419,28 +555,33 @@ class HomeScreen extends StatelessWidget {
           user?.providerData.map((provider) => provider.providerId) ??
           const <String>[],
     );
-    final hasProgress = shouldOfferSavedProgress(
-      authenticatedAccount: user != null && !user.isAnonymous,
-      developer: developer,
-      hasStarted: hasStarted,
-      playerLevel:
-          preferences.getInt(playerProgressKey('balok_level', userId)) ??
-          (hasStarted ? preferences.getInt('balok_level') : null),
-      playerScore:
-          preferences.getInt(playerProgressKey('balok_score', userId)) ??
-          (hasStarted ? preferences.getInt('balok_score') : null),
-    );
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (modeContext) => _modeSelection(
-          modeContext,
-          hasProgress: hasProgress,
-          tutorialSeen: tutorialSeen,
-          tutorialKey: tutorialKey,
-          preferences: preferences,
-        ),
+    final hasProgress =
+        forceProgressChoices ||
+        shouldOfferSavedProgress(
+          authenticatedAccount: user != null && !user.isAnonymous,
+          developer: developer,
+          hasStarted: hasStarted,
+          playerLevel:
+              preferences.getInt(playerProgressKey('balok_level', userId)) ??
+              (hasStarted ? preferences.getInt('balok_level') : null),
+          playerScore:
+              preferences.getInt(playerProgressKey('balok_score', userId)) ??
+              (hasStarted ? preferences.getInt('balok_score') : null),
+        );
+    final route = MaterialPageRoute(
+      builder: (modeContext) => _modeSelection(
+        modeContext,
+        hasProgress: hasProgress,
+        tutorialSeen: tutorialSeen,
+        tutorialKey: tutorialKey,
+        preferences: preferences,
       ),
     );
+    if (replaceCurrent) {
+      await Navigator.of(context).pushReplacement(route);
+    } else {
+      await Navigator.of(context).push(route);
+    }
   }
 
   static Widget _modeSelection(
@@ -501,7 +642,15 @@ class HomeScreen extends StatelessWidget {
         ),
       ),
     ),
-    onCancel: () => Navigator.pop(modeContext),
+    onCancel: () {
+      if (Navigator.of(modeContext).canPop()) {
+        Navigator.pop(modeContext);
+      } else {
+        Navigator.of(modeContext).pushReplacement(
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
+      }
+    },
     onSettings: () => openNativeGameSettings(modeContext, _settingsHome),
   );
 

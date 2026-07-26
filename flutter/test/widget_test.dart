@@ -2,6 +2,8 @@ import 'package:balok_kosong/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+Future<void> _initializeForTest() async {}
+
 void main() {
   testWidgets('shows the Balok Kosong home screen', (tester) async {
     await tester.pumpWidget(const BalokKosongApp(showSplash: false));
@@ -31,7 +33,9 @@ void main() {
   });
 
   testWidgets('shows opening animation before the home screen', (tester) async {
-    await tester.pumpWidget(const BalokKosongApp());
+    await tester.pumpWidget(
+      const BalokKosongApp(startupInitializer: _initializeForTest),
+    );
 
     expect(find.byType(OpeningSplashScreen), findsOneWidget);
     expect(find.byType(Image), findsOneWidget);
@@ -42,6 +46,39 @@ void main() {
 
     expect(find.byType(OpeningSplashScreen), findsNothing);
     expect(find.text('MASUK DENGAN EMAIL'), findsOneWidget);
+  });
+
+  test('returning player name prefers profile name then email address', () {
+    expect(
+      returningPlayerName(
+        displayName: 'Ahmad Subhan',
+        email: 'ah.subhan@gmail.com',
+      ),
+      'Ahmad Subhan',
+    );
+    expect(
+      returningPlayerName(displayName: ' ', email: 'ah.subhan@gmail.com'),
+      'ah.subhan',
+    );
+  });
+
+  testWidgets('returning player sees a welcome screen briefly', (tester) async {
+    var finished = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ReturningPlayerWelcomeScreen(
+          playerName: 'ah.subhan',
+          onFinished: () => finished = true,
+        ),
+      ),
+    );
+
+    expect(find.text('Welcome, ah.subhan'), findsOneWidget);
+    expect(find.textContaining('Menyiapkan progres'), findsOneWidget);
+    expect(finished, isFalse);
+
+    await tester.pump(const Duration(milliseconds: 1900));
+    expect(finished, isTrue);
   });
 
   testWidgets('shows back button when home is opened from settings', (
