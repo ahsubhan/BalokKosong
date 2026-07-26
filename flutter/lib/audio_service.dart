@@ -12,6 +12,8 @@ class GameAudio with WidgetsBindingObserver {
   }
 
   static final GameAudio instance = GameAudio._();
+  static const double _openingVolume = .40;
+  static const double _gameplayVolume = .50;
 
   final AudioPlayer _music = AudioPlayer();
   final AudioPlayer _jingle = AudioPlayer();
@@ -81,10 +83,14 @@ class GameAudio with WidgetsBindingObserver {
       await _ready;
       _jinglePlaying = false;
       await _jingle.stop();
+      final targetVolume = track == _MusicTrack.opening
+          ? _openingVolume
+          : _gameplayVolume;
+      await _music.setVolume(targetVolume);
       if (_activeTrack == track && _music.state == PlayerState.playing) return;
       await _music.stop();
       await _music.setReleaseMode(ReleaseMode.loop);
-      await _music.setVolume(track == _MusicTrack.opening ? .40 : .065);
+      await _music.setVolume(targetVolume);
       await _music.play(
         AssetSource(
           track == _MusicTrack.opening
@@ -186,6 +192,7 @@ class GameAudio with WidgetsBindingObserver {
       if (_desiredTrack == _MusicTrack.gameplay &&
           _activeTrack == _MusicTrack.gameplay &&
           _music.state == PlayerState.paused) {
+        await _music.setVolume(_gameplayVolume);
         await _music.resume();
         return;
       }
