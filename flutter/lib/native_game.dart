@@ -18,6 +18,7 @@ import 'help_feedback.dart';
 import 'how_to_play.dart';
 import 'mode_selection.dart';
 import 'notification_service.dart';
+import 'player_progress.dart';
 import 'profile_screen.dart';
 import 'store_screen.dart';
 
@@ -167,20 +168,40 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
 
   Future<void> _loadSettings() async {
     final preferences = await SharedPreferences.getInstance();
+    final userId = FirebaseService.instance.user?.uid ?? 'perangkat';
+    final progressKey = playerProgressKey('balok_has_started', userId);
+    final hasStarted = preferences.getBool(progressKey) ?? false;
+    final playerLevel =
+        (preferences.getInt(playerProgressKey('balok_level', userId)) ??
+                (hasStarted ? preferences.getInt('balok_level') : null) ??
+                1)
+            .clamp(1, totalLevels);
+    final initialLevel = resolveInitialLevel(
+      startFromLevelOne: widget.startFromLevelOne,
+      hasStarted: hasStarted,
+      playerLevel: playerLevel,
+      legacyLevel: preferences.getInt('balok_level'),
+    );
+    final savedScore =
+        preferences.getInt(playerProgressKey('balok_score', userId)) ??
+        (hasStarted ? preferences.getInt('balok_score') : null) ??
+        0;
     if (!widget.settingsOnly) {
-      final userId = FirebaseService.instance.user?.uid ?? 'perangkat';
-      await preferences.setBool('balok_has_started_$userId', true);
+      await preferences.setBool(progressKey, true);
+      await preferences.setInt(
+        playerProgressKey('balok_level', userId),
+        playerLevel,
+      );
+      await preferences.setInt(
+        playerProgressKey('balok_score', userId),
+        savedScore,
+      );
     }
     if (!mounted) return;
     setState(() {
-      levelIndex = widget.startFromLevelOne
-          ? 0
-          : (preferences.getInt('balok_level') ?? 1).clamp(1, totalLevels) - 1;
-      highestUnlockedLevel = (preferences.getInt('balok_level') ?? 1).clamp(
-        1,
-        totalLevels,
-      );
-      score = preferences.getInt('balok_score') ?? 0;
+      levelIndex = initialLevel - 1;
+      highestUnlockedLevel = playerLevel;
+      score = savedScore;
       gridVisible = preferences.getBool('balok_grid_visible') ?? true;
       musicEnabled = preferences.getBool('balok_music_enabled') ?? true;
       tokens = preferences.getInt('balok_tokens') ?? 0;
