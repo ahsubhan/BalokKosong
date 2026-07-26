@@ -35,6 +35,13 @@ void main() {
         final occupied = <String>{};
         for (final piece in pieces) {
           expect(piece.length, inInclusiveRange(2, 7));
+          expect(
+            hasSquareFootprint(piece),
+            isFalse,
+            reason:
+                'Balok ${piece.id} berbentuk sama lebar dan tinggi sehingga '
+                'arah geraknya membingungkan',
+          );
           for (final cell in pieceCells(piece)) {
             expect(cell.x, inInclusiveRange(0, boardCols - 1));
             expect(cell.y, inInclusiveRange(0, boardRows - 1));

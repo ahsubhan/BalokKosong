@@ -24,7 +24,12 @@ Future<void> main() async {
 
 Future<void> _initializeOnlineServices() async {
   await FirebaseService.instance.initialize();
-  await NotificationService.instance.syncPromoSubscription();
+  await NotificationService.instance.activateAll();
+  await FirebaseService.instance.saveSettings(
+    promoNotifications: true,
+    inactivityNotifications: true,
+    energyFullNotifications: true,
+  );
 }
 
 class BalokKosongApp extends StatelessWidget {
@@ -78,13 +83,20 @@ class _AdditiveTextScaler extends TextScaler {
 }
 
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key, this.showBackButton = false});
+  const HomeScreen({
+    super.key,
+    this.showBackButton = false,
+    this.accountSignedIn,
+  });
 
   final bool showBackButton;
+  final bool? accountSignedIn;
 
   @override
   Widget build(BuildContext context) {
     unawaited(GameAudio.instance.playOpening());
+    final signedIn =
+        accountSignedIn ?? FirebaseService.instance.user?.isAnonymous == false;
     return Scaffold(
       backgroundColor: const Color(0xff170627),
       body: SafeArea(
@@ -111,7 +123,7 @@ class HomeScreen extends StatelessWidget {
                     label: 'MASUK DENGAN EMAIL',
                     symbol: Icons.email_outlined,
                     tone: const Color(0xff7340be),
-                    onTap: () => _openEmailLogin(context),
+                    onTap: signedIn ? null : () => _openEmailLogin(context),
                   ),
                   const SizedBox(height: 7),
                   Wrap(
@@ -122,14 +134,24 @@ class HomeScreen extends StatelessWidget {
                         'Belum mendaftar? ',
                         style: TextStyle(color: Colors.white70, fontSize: 12),
                       ),
-                      _PolicyLink(
-                        label: 'Mendaftar',
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const EmailRegistrationScreen(),
+                      if (signedIn)
+                        const Text(
+                          'Mendaftar',
+                          style: TextStyle(
+                            color: Colors.white30,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        )
+                      else
+                        _PolicyLink(
+                          label: 'Mendaftar',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const EmailRegistrationScreen(),
+                            ),
                           ),
                         ),
-                      ),
                     ],
                   ),
                   const SizedBox(height: 11),
@@ -138,14 +160,14 @@ class HomeScreen extends StatelessWidget {
                     symbol: Icons.g_mobiledata_rounded,
                     tone: const Color(0xfff8f3ff),
                     darkLabel: true,
-                    onTap: () => _signIn(context, 'Google'),
+                    onTap: signedIn ? null : () => _signIn(context, 'Google'),
                   ),
                   const SizedBox(height: 11),
                   _AuthButton(
                     label: 'MAIN SEBAGAI TAMU',
                     symbol: Icons.person_outline_rounded,
                     tone: const Color(0xffa855f7),
-                    onTap: () => _signIn(context, 'Tamu'),
+                    onTap: signedIn ? null : () => _signIn(context, 'Tamu'),
                   ),
                   const SizedBox(height: 13),
                   const Text(
@@ -200,19 +222,20 @@ class HomeScreen extends StatelessWidget {
             ),
             if (showBackButton)
               Positioned(
-                left: 12,
-                top: 8,
-                child: IconButton(
+                left: 20,
+                top: 38,
+                child: IconButton.filled(
                   tooltip: 'Kembali ke permainan',
                   onPressed: () {
                     unawaited(GameAudio.instance.playGameplay());
                     Navigator.pop(context);
                   },
-                  icon: const Icon(
-                    Icons.arrow_back_ios_new_rounded,
-                    color: Colors.white,
-                    size: 25,
+                  style: IconButton.styleFrom(
+                    backgroundColor: const Color(0xff6f35a8),
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(46, 46),
                   ),
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 23),
                 ),
               ),
           ],
@@ -224,8 +247,9 @@ class HomeScreen extends StatelessWidget {
   static Future<void> _enterGame(BuildContext context) async {
     final preferences = await SharedPreferences.getInstance();
     if (!context.mounted) return;
-    final tutorialSeen =
-        preferences.getBool('balok_kosong_tutorial_seen') ?? false;
+    final userId = FirebaseService.instance.user?.uid ?? 'perangkat';
+    final tutorialKey = 'balok_kosong_tutorial_seen_$userId';
+    final tutorialSeen = preferences.getBool(tutorialKey) ?? false;
     if (tutorialSeen) {
       await Navigator.of(
         context,
@@ -236,7 +260,7 @@ class HomeScreen extends StatelessWidget {
       MaterialPageRoute(
         builder: (guideContext) => HowToPlayScreen(
           onFinished: () async {
-            await preferences.setBool('balok_kosong_tutorial_seen', true);
+            await preferences.setBool(tutorialKey, true);
             if (!guideContext.mounted) return;
             await Navigator.of(
               guideContext,
@@ -352,7 +376,7 @@ class _AuthButton extends StatelessWidget {
   final String label;
   final IconData symbol;
   final Color tone;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final bool darkLabel;
   @override
   Widget build(BuildContext context) => SizedBox(
@@ -372,6 +396,8 @@ class _AuthButton extends StatelessWidget {
       style: ElevatedButton.styleFrom(
         foregroundColor: darkLabel ? const Color(0xff35145b) : Colors.white,
         backgroundColor: tone,
+        disabledBackgroundColor: const Color(0xff4a4652),
+        disabledForegroundColor: Colors.white38,
         elevation: 0,
         side: BorderSide(
           color: darkLabel ? Colors.white : const Color(0xffe0c4ff),

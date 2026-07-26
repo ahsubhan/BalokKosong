@@ -24,7 +24,26 @@ class ModeSelectionScreen extends StatefulWidget {
 }
 
 class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
-  bool startFromLevelOne = false;
+  bool challengeSelected = false;
+
+  void _start({required bool fromLevelOne}) {
+    if (challengeSelected) {
+      if (widget.energy <= 0) return;
+      final callback = widget.onChallengeSelected;
+      if (callback != null) {
+        callback(fromLevelOne);
+      } else {
+        widget.onChallenge();
+      }
+      return;
+    }
+    final callback = widget.onRelaxedSelected;
+    if (callback != null) {
+      callback(fromLevelOne);
+    } else {
+      widget.onRelaxed();
+    }
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -114,9 +133,8 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                               child: _ProgressChoice(
                                 label: 'Lanjutkan',
                                 icon: Icons.play_arrow_rounded,
-                                selected: !startFromLevelOne,
-                                onTap: () =>
-                                    setState(() => startFromLevelOne = false),
+                                emphasized: true,
+                                onTap: () => _start(fromLevelOne: false),
                               ),
                             ),
                             const SizedBox(width: 9),
@@ -124,9 +142,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                               child: _ProgressChoice(
                                 label: 'Dari Level 1',
                                 icon: Icons.replay_rounded,
-                                selected: startFromLevelOne,
-                                onTap: () =>
-                                    setState(() => startFromLevelOne = true),
+                                onTap: () => _start(fromLevelOne: true),
                               ),
                             ),
                           ],
@@ -140,15 +156,8 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                     title: 'Santai',
                     description:
                         'Timer menghitung waktu, tidak ada batas energy.',
-                    selected: true,
-                    onTap: () {
-                      final callback = widget.onRelaxedSelected;
-                      if (callback != null) {
-                        callback(startFromLevelOne);
-                      } else {
-                        widget.onRelaxed();
-                      }
-                    },
+                    selected: !challengeSelected,
+                    onTap: () => setState(() => challengeSelected = false),
                   ),
                   const SizedBox(height: 12),
                   _ModeCard(
@@ -156,15 +165,9 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                     title: 'Tantangan · 1 ⚡',
                     description:
                         'Countdown habis = ulang level. Energy dipakai per percobaan.',
+                    selected: challengeSelected,
                     onTap: widget.energy > 0
-                        ? () {
-                            final callback = widget.onChallengeSelected;
-                            if (callback != null) {
-                              callback(startFromLevelOne);
-                            } else {
-                              widget.onChallenge();
-                            }
-                          }
+                        ? () => setState(() => challengeSelected = true)
                         : null,
                   ),
                   const SizedBox(height: 20),
@@ -186,18 +189,18 @@ class _ProgressChoice extends StatelessWidget {
   const _ProgressChoice({
     required this.label,
     required this.icon,
-    required this.selected,
     required this.onTap,
+    this.emphasized = false,
   });
 
   final String label;
   final IconData icon;
-  final bool selected;
   final VoidCallback onTap;
+  final bool emphasized;
 
   @override
   Widget build(BuildContext context) => Material(
-    color: selected
+    color: emphasized
         ? const Color(0xff6f35a8)
         : Colors.white.withValues(alpha: .035),
     borderRadius: BorderRadius.circular(11),
@@ -210,7 +213,7 @@ class _ProgressChoice extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(11),
           border: Border.all(
-            color: selected ? const Color(0xffc084fc) : Colors.white12,
+            color: emphasized ? const Color(0xffc084fc) : Colors.white24,
           ),
         ),
         child: Row(

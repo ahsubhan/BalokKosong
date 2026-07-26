@@ -32,7 +32,7 @@ void main() {
       expect(find.text('CARA BERMAIN · ${page + 1}/4'), findsOneWidget);
     }
 
-    await tester.tap(find.text('Mulai bermain'));
+    await tester.tap(find.text('Lanjut bermain'));
     await tester.pumpAndSettle();
 
     expect(find.text('PILIH MODE'), findsOneWidget);
@@ -52,5 +52,31 @@ void main() {
     await tester.tap(find.text('Kembali'));
     await tester.pumpAndSettle();
     expect(find.text('CARA BERMAIN · 1/4'), findsOneWidget);
+  });
+
+  testWidgets('progress buttons start the selected mode and level', (
+    tester,
+  ) async {
+    bool? relaxedFromLevelOne;
+    bool? challengeFromLevelOne;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ModeSelectionScreen(
+          onRelaxed: () {},
+          onChallenge: () {},
+          onCancel: () {},
+          onRelaxedSelected: (value) => relaxedFromLevelOne = value,
+          onChallengeSelected: (value) => challengeFromLevelOne = value,
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Lanjutkan'));
+    expect(relaxedFromLevelOne, isFalse);
+
+    await tester.tap(find.text('Tantangan · 1 ⚡'));
+    await tester.pump();
+    await tester.tap(find.text('Dari Level 1'));
+    expect(challengeFromLevelOne, isTrue);
   });
 }

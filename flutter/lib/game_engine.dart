@@ -116,6 +116,19 @@ List<GridCell> pieceCells(PuzzlePiece piece, {int dx = 0, int dy = 0}) {
   }).toList();
 }
 
+bool hasSquareFootprint(PuzzlePiece piece) {
+  final cells = pieceCells(piece);
+  final width =
+      cells.map((cell) => cell.x).reduce(math.max) -
+      cells.map((cell) => cell.x).reduce(math.min) +
+      1;
+  final height =
+      cells.map((cell) => cell.y).reduce(math.max) -
+      cells.map((cell) => cell.y).reduce(math.min) +
+      1;
+  return width == height;
+}
+
 class _Lcg {
   _Lcg(this.seed);
   int seed;
@@ -165,11 +178,24 @@ List<PieceShape> shapesForLevel(int levelNumber) {
 }
 
 int _lengthForShape(PieceShape shape, int index, int levelNumber) {
-  return switch (shape) {
+  var length = switch (shape) {
     PieceShape.i => 2 + ((index + levelNumber) % 6),
     PieceShape.l || PieceShape.j => 3 + ((index * 3 + levelNumber) % 4),
     _ => 3 + ((index + levelNumber) % 2),
   };
+  final shapeCheck = PuzzlePiece(
+    id: 'shape-check',
+    x: 0,
+    y: 0,
+    direction: 0,
+    shape: shape,
+    length: length,
+    colorIndex: 0,
+  );
+  if (hasSquareFootprint(shapeCheck)) {
+    length = shape == PieceShape.g ? length + 1 : math.max(2, length - 1);
+  }
+  return length;
 }
 
 PuzzlePiece? _enterFromEdge({
@@ -281,33 +307,42 @@ List<PuzzlePiece> generateLevel(int levelNumber, int requestedCount) {
     final pieces = <PuzzlePiece>[];
     final used = <String>{};
     for (var index = 0; index < requestedCount; index++) {
-      final shape = shapeOrder[(index + safeLevel) % shapeOrder.length];
-      final length = _lengthForShape(shape, index, safeLevel);
+      final preferredShape =
+          shapeOrder[(index + safeLevel) % shapeOrder.length];
       var placed = false;
-      for (var attempt = 0; attempt < 700 && !placed; attempt++) {
-        final probe = _enterFromEdge(
-          id: '$safeLevel-$index',
-          shape: shape,
-          length: length,
-          colorIndex: (index + safeLevel) % 7,
-          occupied: used,
-          random: random,
-        );
-        if (probe == null) continue;
-        final own = pieceCells(probe);
-        if (own.any(
-          (cell) =>
-              cell.x < 0 ||
-              cell.x >= boardCols ||
-              cell.y < 0 ||
-              cell.y >= boardRows ||
-              used.contains(cell.key),
-        )) {
-          continue;
+      final candidates = preferredShape == PieceShape.i
+          ? const [PieceShape.i]
+          : [preferredShape, PieceShape.i];
+      for (final shape in candidates) {
+        final length = shape == preferredShape
+            ? _lengthForShape(shape, index, safeLevel)
+            : 2 + ((index + safeLevel) % 3);
+        for (var attempt = 0; attempt < 700 && !placed; attempt++) {
+          final probe = _enterFromEdge(
+            id: '$safeLevel-$index',
+            shape: shape,
+            length: length,
+            colorIndex: (index + safeLevel) % 7,
+            occupied: used,
+            random: random,
+          );
+          if (probe == null) continue;
+          final own = pieceCells(probe);
+          if (own.any(
+            (cell) =>
+                cell.x < 0 ||
+                cell.x >= boardCols ||
+                cell.y < 0 ||
+                cell.y >= boardRows ||
+                used.contains(cell.key),
+          )) {
+            continue;
+          }
+          used.addAll(own.map((cell) => cell.key));
+          pieces.add(probe);
+          placed = true;
         }
-        used.addAll(own.map((cell) => cell.key));
-        pieces.add(probe);
-        placed = true;
+        if (placed) break;
       }
       if (!placed) break;
     }

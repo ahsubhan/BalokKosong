@@ -1,10 +1,14 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:app_settings/app_settings.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'audio_service.dart';
@@ -27,12 +31,25 @@ const _pieceColors = [
   Color(0xffdf6892),
 ];
 
-const _testingLevelNavigation = true;
 const _maximumAllowedMistakes = 10;
+const _developerGoogleEmail = 'ah.subhan@gmail.com';
+
+bool developerLevelNavigationEnabled({
+  required String? email,
+  required Iterable<String> providerIds,
+}) =>
+    email?.trim().toLowerCase() == _developerGoogleEmail &&
+    providerIds.contains('google.com');
+
+bool canNavigateToNextLevel({
+  required bool developer,
+  required int levelIndex,
+  required int highestUnlockedLevel,
+}) =>
+    developer ||
+    (levelIndex < totalLevels - 1 && levelIndex + 1 < highestUnlockedLevel);
 
 enum _HintDialogAction { back, continueHint, watchAd }
-
-enum _NotificationKind { promos, inactivity, energyFull }
 
 const _themes = {
   'Gelap': (Color(0xff170b2d), Color(0xff35215e)),
@@ -42,6 +59,7 @@ const _themes = {
   'Sand': (Color(0xff3b3025), Color(0xff695845)),
   'Neon': (Color(0xff070113), Color(0xff1b0750)),
   'Ocean': (Color(0xff021623), Color(0xff073d5d)),
+  'Custom': (Color(0xff130522), Color(0xcc2b1645)),
 };
 
 class NativeGameScreen extends StatefulWidget {
@@ -62,6 +80,7 @@ class NativeGameScreen extends StatefulWidget {
 
 class _NativeGameScreenState extends State<NativeGameScreen> {
   int levelIndex = 0;
+  int highestUnlockedLevel = 1;
   int score = 0;
   int moves = 0;
   int mistakes = 0;
@@ -75,13 +94,12 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
   bool timeoutDialogOpen = false;
   bool gridVisible = true;
   bool musicEnabled = true;
-  bool promoNotifications = false;
-  bool inactivityNotifications = false;
-  bool energyFullNotifications = false;
   int tokens = 0;
   bool themePack = false;
+  bool customThemeUnlocked = false;
   Set<int> gridUnlockedLevels = {};
   String? hintedPieceId;
+  String? customBackgroundPath;
   String themeName = 'Midnight';
   late PuzzleEngine engine;
   Timer? timer;
@@ -119,20 +137,21 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
       levelIndex = widget.startFromLevelOne
           ? 0
           : (preferences.getInt('balok_level') ?? 1).clamp(1, totalLevels) - 1;
+      highestUnlockedLevel = (preferences.getInt('balok_level') ?? 1).clamp(
+        1,
+        totalLevels,
+      );
       score = preferences.getInt('balok_score') ?? 0;
       gridVisible = preferences.getBool('balok_grid_visible') ?? true;
       musicEnabled = preferences.getBool('balok_music_enabled') ?? true;
-      promoNotifications =
-          preferences.getBool(NotificationService.promoPreference) ?? false;
-      inactivityNotifications =
-          preferences.getBool(NotificationService.inactivityPreference) ??
-          false;
-      energyFullNotifications =
-          preferences.getBool(NotificationService.energyFullPreference) ??
-          false;
       tokens = preferences.getInt('balok_tokens') ?? 0;
       freeHintsUsed = preferences.getInt('balok_free_hints_used') ?? 0;
       themePack = preferences.getBool('balok_theme_pack') ?? false;
+      customThemeUnlocked =
+          preferences.getBool('balok_custom_theme_unlocked') ?? false;
+      customBackgroundPath = preferences.getString(
+        'balok_custom_background_path',
+      );
       gridUnlockedLevels =
           (preferences.getStringList('balok_grid_unlocked_levels') ?? const [])
               .map(int.tryParse)
@@ -143,12 +162,27 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
       if (!themePack && (themeName == 'Neon' || themeName == 'Ocean')) {
         themeName = 'Midnight';
       }
+      if (themeName == 'Custom' &&
+          (customBackgroundPath == null ||
+              !File(customBackgroundPath!).existsSync())) {
+        themeName = 'Midnight';
+      }
       _loadLevel(levelIndex);
     });
   }
 
   bool get _gridAvailable =>
       levelIndex < 3 || gridUnlockedLevels.contains(levelIndex + 1);
+
+  bool get _developerLevelNavigation {
+    final user = FirebaseService.instance.user;
+    return developerLevelNavigationEnabled(
+      email: user?.email,
+      providerIds:
+          user?.providerData.map((provider) => provider.providerId) ??
+          const <String>[],
+    );
+  }
 
   @override
   void dispose() {
@@ -229,6 +263,9 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
       if (hintedPieceId == piece.id) hintedPieceId = null;
       moves++;
       score += math.max(25, 120 - elapsedSeconds ~/ 5);
+      if (engine.pieces.isEmpty && levelIndex < totalLevels - 1) {
+        highestUnlockedLevel = math.max(highestUnlockedLevel, levelIndex + 2);
+      }
     });
     if (engine.pieces.isEmpty) {
       Future<void>.delayed(const Duration(milliseconds: 260), _showComplete);
@@ -518,7 +555,14 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
       body: SafeArea(
         child: Stack(
           children: [
-            Positioned.fill(child: _ThemeBackdrop(themeName: themeName)),
+            Positioned.fill(
+              child:
+                  themeName == 'Custom' &&
+                      customBackgroundPath != null &&
+                      File(customBackgroundPath!).existsSync()
+                  ? _CustomThemeBackdrop(path: customBackgroundPath!)
+                  : _ThemeBackdrop(themeName: themeName),
+            ),
             Column(
               children: [
                 Expanded(
@@ -548,15 +592,18 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
             if (paused)
               _PauseOverlay(
                 level: levelIndex + 1,
-                canPrevious: _testingLevelNavigation || levelIndex > 0,
-                canNext:
-                    _testingLevelNavigation || levelIndex < totalLevels - 1,
+                canPrevious: _developerLevelNavigation || levelIndex > 0,
+                canNext: canNavigateToNextLevel(
+                  developer: _developerLevelNavigation,
+                  levelIndex: levelIndex,
+                  highestUnlockedLevel: highestUnlockedLevel,
+                ),
                 onContinue: () => setState(() => paused = false),
                 onRestart: _restart,
                 onMode: _showMode,
                 onPrevious: () => setState(
                   () => _loadLevel(
-                    _testingLevelNavigation
+                    _developerLevelNavigation
                         ? (levelIndex - 1 + totalLevels) % totalLevels
                         : levelIndex - 1,
                     keepPaused: true,
@@ -564,7 +611,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                 ),
                 onNext: () => setState(
                   () => _loadLevel(
-                    _testingLevelNavigation
+                    _developerLevelNavigation
                         ? (levelIndex + 1) % totalLevels
                         : levelIndex + 1,
                     keepPaused: true,
@@ -582,7 +629,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
   void _showRules() => Navigator.of(context).push(
     MaterialPageRoute(
       builder: (guideContext) => HowToPlayScreen(
-        finalLabel: 'Kembali bermain',
+        finalLabel: 'Lanjut bermain',
         onFinished: () => Navigator.pop(guideContext),
       ),
     ),
@@ -647,78 +694,6 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
               .toSet();
     });
   }
-
-  Future<void> _setNotification(
-    _NotificationKind kind,
-    bool requested,
-    StateSetter updateSheet,
-  ) async {
-    final enabled = switch (kind) {
-      _NotificationKind.promos => await NotificationService.instance.setPromos(
-        requested,
-      ),
-      _NotificationKind.inactivity =>
-        await NotificationService.instance.setInactivityReminder(requested),
-      _NotificationKind.energyFull =>
-        await NotificationService.instance.setEnergyFullReminder(requested),
-    };
-    if (!mounted) return;
-    setState(() {
-      switch (kind) {
-        case _NotificationKind.promos:
-          promoNotifications = enabled;
-        case _NotificationKind.inactivity:
-          inactivityNotifications = enabled;
-        case _NotificationKind.energyFull:
-          energyFullNotifications = enabled;
-      }
-    });
-    updateSheet(() {});
-    await FirebaseService.instance.saveSettings(
-      promoNotifications: kind == _NotificationKind.promos ? enabled : null,
-      inactivityNotifications: kind == _NotificationKind.inactivity
-          ? enabled
-          : null,
-      energyFullNotifications: kind == _NotificationKind.energyFull
-          ? enabled
-          : null,
-    );
-    if (requested && !enabled && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Izin notifikasi belum diberikan. Anda dapat mengaktifkannya di pengaturan perangkat.',
-          ),
-        ),
-      );
-    }
-  }
-
-  Widget _notificationTile({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) => Container(
-    decoration: BoxDecoration(
-      color: Colors.white.withValues(alpha: .045),
-      borderRadius: BorderRadius.circular(15),
-      border: Border.all(color: Colors.white12),
-    ),
-    child: SwitchListTile(
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
-      subtitle: Text(
-        subtitle,
-        style: const TextStyle(color: Colors.white54, fontSize: 11),
-      ),
-      secondary: Icon(icon, color: const Color(0xffd8a5ff)),
-      value: value,
-      activeThumbColor: Colors.white,
-      activeTrackColor: const Color(0xff8d4fe0),
-      onChanged: onChanged,
-    ),
-  );
 
   void _showSettings() => showModalBottomSheet<void>(
     context: context,
@@ -935,54 +910,17 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                       },
                     ),
                   ),
-                  const SizedBox(height: 18),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'NOTIFIKASI',
-                      style: GoogleFonts.fredoka(
-                        color: const Color(0xffd4a9ff),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.5,
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: 10),
-                  _notificationTile(
-                    icon: Icons.local_offer_outlined,
-                    title: 'Promo & hadiah',
-                    subtitle: 'Info pilihan, maksimal 1 kali per minggu',
-                    value: promoNotifications,
-                    onChanged: (value) => _setNotification(
-                      _NotificationKind.promos,
-                      value,
-                      updateSheet,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  _notificationTile(
-                    icon: Icons.history_toggle_off_rounded,
-                    title: 'Ingatkan setelah 7 hari',
-                    subtitle: 'Dikirim satu kali jika lama tidak bermain',
-                    value: inactivityNotifications,
-                    onChanged: (value) => _setNotification(
-                      _NotificationKind.inactivity,
-                      value,
-                      updateSheet,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  _notificationTile(
-                    icon: Icons.bolt_rounded,
-                    title: 'Energy Tantangan penuh',
-                    subtitle: 'Hanya ketika energy kembali menjadi 5/5',
-                    value: energyFullNotifications,
-                    onChanged: (value) => _setNotification(
-                      _NotificationKind.energyFull,
-                      value,
-                      updateSheet,
-                    ),
+                  _SettingsActionCard(
+                    icon: Icons.notifications_active_rounded,
+                    title: 'Notifikasi',
+                    subtitle: 'Promo, pengingat 7 hari, dan energy penuh aktif',
+                    onTap: () async {
+                      await NotificationService.instance.requestPermission();
+                      await AppSettings.openAppSettings(
+                        type: AppSettingsType.notification,
+                      );
+                    },
                   ),
                   const SizedBox(height: 18),
                   Align(
@@ -1044,6 +982,14 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                         onTap: themePack
                             ? () => _selectTheme('Ocean', updateSheet)
                             : _showPremiumThemeInfo,
+                      ),
+                      _ThemeOption(
+                        name: customThemeUnlocked ? 'Custom' : 'Custom · 15◆',
+                        color: const Color(0xff4f2879),
+                        imagePath: customBackgroundPath,
+                        selected: themeName == 'Custom',
+                        locked: !customThemeUnlocked,
+                        onTap: () => _chooseCustomTheme(updateSheet),
                       ),
                     ],
                   ),
@@ -1115,6 +1061,8 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
     setState(() {
       tokens = preferences.getInt('balok_tokens') ?? 0;
       themePack = preferences.getBool('balok_theme_pack') ?? false;
+      customThemeUnlocked =
+          preferences.getBool('balok_custom_theme_unlocked') ?? false;
     });
   }
 
@@ -1124,6 +1072,151 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
     final preferences = await SharedPreferences.getInstance();
     await preferences.setString('balok_theme_name', name);
     await FirebaseService.instance.saveSettings(themeName: name);
+  }
+
+  Future<void> _chooseCustomTheme(StateSetter updateSheet) async {
+    const unlockCost = 15;
+    if (!customThemeUnlocked && tokens < unlockCost) {
+      final openStore = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: const Color(0xff24103c),
+          icon: const Icon(
+            Icons.photo_library_rounded,
+            color: Color(0xffd8a5ff),
+            size: 46,
+          ),
+          title: const Text(
+            'Latar Custom',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontWeight: FontWeight.w900),
+          ),
+          content: Text(
+            'Fitur ini membutuhkan $unlockCost token dan tidak dapat dibuka '
+            'langsung dengan menonton iklan.\n\nToken Anda: $tokens',
+            textAlign: TextAlign.center,
+          ),
+          actionsAlignment: MainAxisAlignment.center,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Nanti'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('BUKA TOKO'),
+            ),
+          ],
+        ),
+      );
+      if (openStore == true && mounted) {
+        Navigator.pop(context);
+        await Future<void>.delayed(const Duration(milliseconds: 180));
+        if (mounted) await _showStore();
+      }
+      return;
+    }
+
+    if (!customThemeUnlocked) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: const Color(0xff24103c),
+          icon: const Icon(
+            Icons.workspace_premium_rounded,
+            color: Color(0xffffcf5a),
+            size: 46,
+          ),
+          title: const Text(
+            'Buka Latar Custom?',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontWeight: FontWeight.w900),
+          ),
+          content: Text(
+            'Gunakan $unlockCost token satu kali. Setelah terbuka, Anda bebas '
+            'mengganti gambar dari album kapan saja tanpa iklan.\n\n'
+            'Token tersedia: $tokens',
+            textAlign: TextAlign.center,
+          ),
+          actionsAlignment: MainAxisAlignment.center,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('GUNAKAN 15 TOKEN'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+    }
+
+    try {
+      final selected = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 88,
+        maxWidth: 2048,
+        maxHeight: 2048,
+        requestFullMetadata: false,
+      );
+      if (selected == null || !mounted) return;
+      final directory = await getApplicationDocumentsDirectory();
+      final suffix = selected.path.toLowerCase().endsWith('.png')
+          ? '.png'
+          : '.jpg';
+      final destination =
+          '${directory.path}${Platform.pathSeparator}'
+          'balokkosong_custom_background$suffix';
+      await File(selected.path).copy(destination);
+
+      final preferences = await SharedPreferences.getInstance();
+      final firstUnlock = !customThemeUnlocked;
+      final purchaseHistory =
+          preferences.getStringList('balok_purchase_history') ?? <String>[];
+      if (firstUnlock) {
+        final now = DateTime.now();
+        final date =
+            '${now.day.toString().padLeft(2, '0')}/'
+            '${now.month.toString().padLeft(2, '0')}/${now.year}';
+        purchaseHistory.insert(0, 'Latar Custom · $date');
+      }
+      setState(() {
+        if (firstUnlock) tokens -= unlockCost;
+        customThemeUnlocked = true;
+        customBackgroundPath = destination;
+        themeName = 'Custom';
+      });
+      updateSheet(() {});
+      await Future.wait([
+        preferences.setInt('balok_tokens', tokens),
+        preferences.setBool('balok_custom_theme_unlocked', true),
+        preferences.setString('balok_custom_background_path', destination),
+        preferences.setString('balok_theme_name', 'Custom'),
+        preferences.setStringList('balok_purchase_history', purchaseHistory),
+      ]);
+      await FirebaseService.instance.saveSettings(themeName: 'Custom');
+      await FirebaseService.instance.saveInventory(
+        tokens: tokens,
+        energy: preferences.getInt('balok_energy') ?? 5,
+        unlimited: preferences.getBool('balok_unlimited') ?? false,
+        themePack: preferences.getBool('balok_theme_pack') ?? false,
+        noAds: preferences.getBool('balok_no_ads') ?? false,
+        gridUnlockedLevels: gridUnlockedLevels.toList()..sort(),
+        freeHintsUsed: freeHintsUsed,
+        purchaseHistory: purchaseHistory,
+        customThemeUnlocked: true,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Gambar belum dapat dibuka. Silakan coba kembali.'),
+        ),
+      );
+    }
   }
 
   Future<void> _showPremiumThemeInfo() async {
@@ -1430,6 +1523,26 @@ class _ThemeBackdrop extends StatelessWidget {
       ),
     );
   }
+}
+
+class _CustomThemeBackdrop extends StatelessWidget {
+  const _CustomThemeBackdrop({required this.path});
+
+  final String path;
+
+  @override
+  Widget build(BuildContext context) => Stack(
+    fit: StackFit.expand,
+    children: [
+      Image.file(
+        File(path),
+        fit: BoxFit.cover,
+        filterQuality: FilterQuality.medium,
+        errorBuilder: (_, _, _) => const ColoredBox(color: Color(0xff130522)),
+      ),
+      const ColoredBox(color: Color(0x730b0313)),
+    ],
+  );
 }
 
 class _ThemeBackdropPainter extends CustomPainter {
@@ -2314,6 +2427,7 @@ class _ThemeOption extends StatelessWidget {
     required this.color,
     this.selected = false,
     this.locked = false,
+    this.imagePath,
     this.onTap,
   });
 
@@ -2321,6 +2435,7 @@ class _ThemeOption extends StatelessWidget {
   final Color color;
   final bool selected;
   final bool locked;
+  final String? imagePath;
   final VoidCallback? onTap;
 
   @override
@@ -2340,13 +2455,24 @@ class _ThemeOption extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10),
         child: Row(
           children: [
-            Container(
-              width: 32,
-              height: 28,
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.white24),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                width: 32,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: color,
+                  border: Border.all(color: Colors.white24),
+                ),
+                child: imagePath != null && File(imagePath!).existsSync()
+                    ? Image.file(File(imagePath!), fit: BoxFit.cover)
+                    : name.startsWith('Custom')
+                    ? const Icon(
+                        Icons.add_photo_alternate_outlined,
+                        size: 17,
+                        color: Colors.white70,
+                      )
+                    : null,
               ),
             ),
             const SizedBox(width: 9),

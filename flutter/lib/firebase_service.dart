@@ -236,6 +236,7 @@ class FirebaseService {
     List<int>? gridUnlockedLevels,
     int? freeHintsUsed,
     List<String>? purchaseHistory,
+    bool? customThemeUnlocked,
   }) async {
     final currentUser = user;
     if (!_ready || currentUser == null) return;
@@ -252,6 +253,7 @@ class FirebaseService {
             'gridUnlockedLevels': ?gridUnlockedLevels,
             'freeHintsUsed': ?freeHintsUsed,
             'purchaseHistory': ?purchaseHistory,
+            'customThemeUnlocked': ?customThemeUnlocked,
             'updatedAt': FieldValue.serverTimestamp(),
           },
         }, SetOptions(merge: true));
@@ -383,6 +385,12 @@ class FirebaseService {
     }
     if (inventory['themePack'] is bool) {
       await prefs.setBool('balok_theme_pack', inventory['themePack'] as bool);
+    }
+    if (inventory['customThemeUnlocked'] is bool) {
+      await prefs.setBool(
+        'balok_custom_theme_unlocked',
+        inventory['customThemeUnlocked'] as bool,
+      );
     }
     if (inventory['noAds'] is bool) {
       await prefs.setBool('balok_no_ads', inventory['noAds'] as bool);

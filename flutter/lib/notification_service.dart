@@ -42,8 +42,7 @@ class NotificationService with WidgetsBindingObserver {
     await _local.initialize(settings: settings);
     WidgetsBinding.instance.addObserver(this);
     _initialized = true;
-    await resetInactivityReminder();
-    await refreshEnergyReminder();
+    await activateAll();
   }
 
   @override
@@ -55,7 +54,7 @@ class NotificationService with WidgetsBindingObserver {
   }
 
   Future<bool> setPromos(bool enabled) async {
-    if (enabled && !await _requestPermission()) return false;
+    if (enabled && !await requestPermission()) return false;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(promoPreference, enabled);
     await syncPromoSubscription();
@@ -63,7 +62,7 @@ class NotificationService with WidgetsBindingObserver {
   }
 
   Future<bool> setInactivityReminder(bool enabled) async {
-    if (enabled && !await _requestPermission()) return false;
+    if (enabled && !await requestPermission()) return false;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(inactivityPreference, enabled);
     if (enabled) {
@@ -75,7 +74,7 @@ class NotificationService with WidgetsBindingObserver {
   }
 
   Future<bool> setEnergyFullReminder(bool enabled) async {
-    if (enabled && !await _requestPermission()) return false;
+    if (enabled && !await requestPermission()) return false;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(energyFullPreference, enabled);
     await refreshEnergyReminder();
@@ -105,10 +104,22 @@ class NotificationService with WidgetsBindingObserver {
     }
   }
 
+  Future<void> activateAll() async {
+    final prefs = await SharedPreferences.getInstance();
+    await Future.wait([
+      prefs.setBool(promoPreference, true),
+      prefs.setBool(inactivityPreference, true),
+      prefs.setBool(energyFullPreference, true),
+    ]);
+    await resetInactivityReminder();
+    await refreshEnergyReminder();
+    await syncPromoSubscription();
+  }
+
   Future<void> resetInactivityReminder() async {
     if (!_initialized) return;
     final prefs = await SharedPreferences.getInstance();
-    final enabled = prefs.getBool(inactivityPreference) ?? false;
+    final enabled = prefs.getBool(inactivityPreference) ?? true;
     await _local.cancel(id: _inactivityId);
     if (!enabled) return;
     await _schedule(
@@ -123,7 +134,7 @@ class NotificationService with WidgetsBindingObserver {
   Future<void> refreshEnergyReminder() async {
     if (!_initialized) return;
     final prefs = await SharedPreferences.getInstance();
-    final enabled = prefs.getBool(energyFullPreference) ?? false;
+    final enabled = prefs.getBool(energyFullPreference) ?? true;
     final unlimited = prefs.getBool('balok_unlimited') ?? false;
     final energy = (prefs.getInt('balok_energy') ?? 5).clamp(0, 5);
     await _local.cancel(id: _energyFullId);
@@ -164,7 +175,7 @@ class NotificationService with WidgetsBindingObserver {
     );
   }
 
-  Future<bool> _requestPermission() async {
+  Future<bool> requestPermission() async {
     if (!_isMobile) return true;
     if (!_initialized) await initialize();
     if (defaultTargetPlatform == TargetPlatform.android) {

@@ -38,4 +38,26 @@ void main() {
 
     expect(find.byTooltip('Kembali ke permainan'), findsOneWidget);
   });
+
+  testWidgets('disables sign-in actions when an account is already active', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: HomeScreen(accountSignedIn: true)),
+    );
+
+    for (final label in [
+      'MASUK DENGAN EMAIL',
+      'MASUK DENGAN GOOGLE',
+      'MAIN SEBAGAI TAMU',
+    ]) {
+      final button = tester.widget<ElevatedButton>(
+        find.ancestor(
+          of: find.text(label),
+          matching: find.byType(ElevatedButton),
+        ),
+      );
+      expect(button.onPressed, isNull);
+    }
+  });
 }
