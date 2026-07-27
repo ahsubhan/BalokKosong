@@ -50,6 +50,12 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
+            // WorkManager/Room is initialized by Android before Flutter starts.
+            // R8 obfuscation removed runtime database classes in Build 1 and
+            // caused an immediate startup crash. Keep release bytecode intact;
+            // Play App Bundles still deliver ABI- and density-optimized APKs.
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }

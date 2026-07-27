@@ -6,7 +6,30 @@ Format versi aplikasi adalah `MAJOR.MINOR.PATCH+BUILD`.
 
 ## [Unreleased]
 
-Belum ada perubahan setelah kandidat Build 1.
+Belum ada perubahan setelah kandidat Build 2.
+
+## [1.0.1+2] - 2026-07-27
+
+### Changed
+
+- Setiap level memiliki 5 kesempatan salah yang kembali penuh saat level
+  dimulai atau diulang.
+- Pemain Tamu mendapat 3 token awal satu kali, sedangkan akun Email atau Google
+  mendapat bonus 10 token satu kali.
+- Area sentuh dan sensitivitas geret Android ditingkatkan.
+
+### Fixed
+
+- Startup Android tetap membuka aplikasi jika inisialisasi audio atau notifikasi
+  gagal pada perangkat tertentu.
+- Build release Android tidak lagi menghapus kelas database WorkManager yang
+  dibutuhkan sebelum Flutter dimulai.
+- Musik permainan dilanjutkan dengan konsisten setelah efek geret dan saat naik
+  level.
+- Pemilihan latar Custom mendukung gambar dari Google Photos dan penyedia album
+  Android.
+- Alur Main sebagai Tamu langsung membuka Pilih Mode tanpa kembali sesaat ke
+  halaman login.
 
 ## [1.0.0+1] - 2026-07-27
 

@@ -18,10 +18,28 @@ import 'player_progress.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await GameAudio.instance.initialize();
-  await NotificationService.instance.initialize();
+  try {
+    await GameAudio.instance.initialize();
+  } catch (error, stackTrace) {
+    debugPrint('Audio startup failed: $error');
+    debugPrintStack(stackTrace: stackTrace);
+  }
+  try {
+    await NotificationService.instance.initialize();
+  } catch (error, stackTrace) {
+    debugPrint('Notification startup failed: $error');
+    debugPrintStack(stackTrace: stackTrace);
+  }
   runApp(const BalokKosongApp());
-  unawaited(_initializeOnlineServices());
+  unawaited(
+    _initializeOnlineServices().catchError((
+      Object error,
+      StackTrace stackTrace,
+    ) {
+      debugPrint('Online service startup failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }),
+  );
 }
 
 Future<void> _initializeOnlineServices() async {
