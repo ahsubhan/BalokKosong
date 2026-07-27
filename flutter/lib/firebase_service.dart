@@ -13,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'player_progress.dart';
 
 const int welcomeTokenBonus = 10;
+const int guestStarterTokenBonus = 3;
 
 const _localAccountDataKeys = <String>[
   'balok_level',
@@ -163,10 +164,14 @@ class FirebaseService {
     final current = FirebaseAuth.instance.currentUser;
     if (current != null) {
       await _saveUser(current);
+      await _grantGuestStarterTokenBonus(current);
+      await syncRemoteToLocal();
       return current;
     }
     final result = await FirebaseAuth.instance.signInAnonymously();
     await _saveUser(result.user!);
+    await _grantGuestStarterTokenBonus(result.user!);
+    await syncRemoteToLocal();
     return result.user!;
   }
 
@@ -246,7 +251,9 @@ class FirebaseService {
       await registeredUser.updateDisplayName(name.trim());
       await registeredUser.sendEmailVerification();
       await registeredUser.reload();
-      await _saveUser(FirebaseAuth.instance.currentUser ?? registeredUser);
+      final refreshedUser = FirebaseAuth.instance.currentUser ?? registeredUser;
+      await _saveUser(refreshedUser);
+      await _grantWelcomeTokenBonus(refreshedUser);
     } finally {
       await auth.signOut();
     }
@@ -292,23 +299,44 @@ class FirebaseService {
 
   Future<bool> _grantWelcomeTokenBonus(User user) async {
     if (!_ready || user.isAnonymous) return false;
+    return _grantOneTimeTokenBonus(
+      user,
+      bonusKey: 'welcomeTokenBonus',
+      amount: welcomeTokenBonus,
+    );
+  }
+
+  Future<bool> _grantGuestStarterTokenBonus(User user) async {
+    if (!_ready || !user.isAnonymous) return false;
+    return _grantOneTimeTokenBonus(
+      user,
+      bonusKey: 'guestStarterTokenBonus',
+      amount: guestStarterTokenBonus,
+    );
+  }
+
+  Future<bool> _grantOneTimeTokenBonus(
+    User user, {
+    required String bonusKey,
+    required int amount,
+  }) async {
     final firestore = FirebaseFirestore.instance;
     final userRef = firestore.collection('users').doc(user.uid);
     return firestore.runTransaction<bool>((transaction) async {
       final snapshot = await transaction.get(userRef);
       final data = snapshot.data() ?? const <String, dynamic>{};
-      if (data['welcomeTokenBonusClaimed'] == true) return false;
+      final claimedKey = '${bonusKey}Claimed';
+      if (data[claimedKey] == true) return false;
 
       final inventory = Map<String, dynamic>.from(
         data['inventory'] as Map? ?? const {},
       );
-      final nextTokens =
-          ((inventory['tokens'] as num?)?.toInt() ?? 0) + welcomeTokenBonus;
+      final nextTokens = ((inventory['tokens'] as num?)?.toInt() ?? 0) + amount;
       transaction.set(userRef, {
         'uid': user.uid,
-        'welcomeTokenBonusClaimed': true,
-        'welcomeTokenBonusAmount': welcomeTokenBonus,
-        'welcomeTokenBonusClaimedAt': FieldValue.serverTimestamp(),
+        claimedKey: true,
+        '${bonusKey}Amount': amount,
+        '${bonusKey}ClaimedAt': FieldValue.serverTimestamp(),
         'inventory': {
           'tokens': nextTokens,
           'energy': (inventory['energy'] as num?)?.toInt() ?? 5,

@@ -34,15 +34,21 @@ class GameAudio with WidgetsBindingObserver {
   Future<void> initialize() => _ready;
 
   Future<void> _configureAudio() async {
-    final context = AudioContextConfig(
+    final musicContext = AudioContextConfig(
       focus: AudioContextConfigFocus.gain,
       respectSilence: false,
     ).build();
-    await AudioPlayer.global.setAudioContext(context);
+    // Short in-game effects must not request their own Android audio focus.
+    // Otherwise MediaPlayer pauses the background track after the first drag.
+    final effectContext = AudioContextConfig(
+      focus: AudioContextConfigFocus.mixWithOthers,
+      respectSilence: false,
+    ).build();
+    await AudioPlayer.global.setAudioContext(musicContext);
     await Future.wait([
-      _music.setAudioContext(context),
-      _jingle.setAudioContext(context),
-      _slide.setAudioContext(context),
+      _music.setAudioContext(musicContext),
+      _jingle.setAudioContext(effectContext),
+      _slide.setAudioContext(effectContext),
       _music.setPlayerMode(PlayerMode.mediaPlayer),
       _jingle.setPlayerMode(PlayerMode.mediaPlayer),
       _slide.setPlayerMode(PlayerMode.mediaPlayer),
@@ -75,9 +81,10 @@ class GameAudio with WidgetsBindingObserver {
     }
   }
 
-  Future<void> playGameplay() => _selectTrack(_MusicTrack.gameplay);
+  Future<void> playGameplay({bool restart = false}) =>
+      _selectTrack(_MusicTrack.gameplay, restart: restart);
 
-  Future<void> _selectTrack(_MusicTrack track) async {
+  Future<void> _selectTrack(_MusicTrack track, {bool restart = false}) async {
     _desiredTrack = track;
     if (!await _isEnabled()) return;
     if (track == _MusicTrack.gameplay && _gamePaused) return;
@@ -89,7 +96,11 @@ class GameAudio with WidgetsBindingObserver {
           ? _openingVolume
           : _gameplayVolume;
       await _music.setVolume(targetVolume);
-      if (_activeTrack == track && _music.state == PlayerState.playing) return;
+      if (!restart &&
+          _activeTrack == track &&
+          _music.state == PlayerState.playing) {
+        return;
+      }
       await _music.stop();
       await _music.setReleaseMode(ReleaseMode.loop);
       await _music.setVolume(targetVolume);
@@ -159,6 +170,13 @@ class GameAudio with WidgetsBindingObserver {
             !_jinglePlaying &&
             _activeTrack == _MusicTrack.gameplay) {
           await _music.setVolume(_gameplayVolume);
+          if (_music.state == PlayerState.paused) {
+            await _music.resume();
+          } else if (_music.state == PlayerState.stopped ||
+              _music.state == PlayerState.completed) {
+            await _music.setReleaseMode(ReleaseMode.loop);
+            await _music.play(AssetSource('audio/gameplay_theme.wav'));
+          }
         }
       });
     } catch (_) {

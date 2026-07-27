@@ -12,6 +12,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('BELI 30 TOKEN'), findsOneWidget);
+    expect(
+      find.textContaining('Main sebagai Tamu: +3 token awal'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Daftar/Login Email atau Google: +10 token'),
+      findsOneWidget,
+    );
     expect(find.text('+3 Token Petunjuk'), findsOneWidget);
     expect(find.text('Tonton iklan berhadiah'), findsOneWidget);
 

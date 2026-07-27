@@ -75,7 +75,7 @@ class _HelpFeedbackScreenState extends State<HelpFeedbackScreen> {
           const _FaqTile(
             question: 'Bagaimana cara kerja dan membeli Token?',
             answer:
-                'Token adalah saldo virtual untuk memakai petunjuk setelah 10 kali gratis, membuka grid Level 4 ke atas, membuka tema premium, dan menambah Energy Tantangan. Token bisa diperoleh dari iklan berhadiah (+3), kupon, atau membeli paket sekali bayar di Toko & Hadiah melalui App Store atau Google Play. Token bukan langganan, tidak kedaluwarsa, dan dapat disinkronkan ke perangkat lain setelah login.',
+                'Tamu mendapat 3 token awal satu kali. Akun Email atau Google mendapat bonus 10 token satu kali. Semua pemain juga mendapat 10 petunjuk gratis, 5 energy awal, grid Level 1–3, dan tema dasar. Token dipakai untuk petunjuk tambahan, grid Level 4 ke atas, tema premium, dan Energy Tantangan. Token juga bisa diperoleh dari iklan berhadiah (+3), kupon, atau membeli paket sekali bayar. Token bukan langganan dan tidak kedaluwarsa.',
           ),
           const _FaqTile(
             question: 'Apa perbedaan Santai dan Tantangan?',
@@ -85,7 +85,10 @@ class _HelpFeedbackScreenState extends State<HelpFeedbackScreen> {
           const _FaqTile(
             question: 'Berapa batas kesalahan menabrak balok?',
             answer:
-                'Maksimal 10 kesalahan atau benturan diperbolehkan dalam satu level. Jika terjadi kesalahan ke-11, level dianggap gagal dan akan dimulai kembali dari awal.',
+                'Setiap level memiliki 5 kesempatan salah atau menabrak balok. '
+                'Kesempatan kembali menjadi 5/5 setelah naik level atau mengulang '
+                'level. Benturan ke-6 membuat level gagal dan dimulai kembali '
+                'dari awal.',
           ),
           const SizedBox(height: 18),
           Text(

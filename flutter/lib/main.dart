@@ -683,102 +683,150 @@ class HomeScreen extends StatelessWidget {
   static Widget _settingsHome(BuildContext _) => const HomeScreen();
 
   static Future<void> _confirmGuestPlay(BuildContext context) async {
-    final continueAsGuest = await showDialog<bool>(
+    var busy = false;
+    final messenger = ScaffoldMessenger.of(context);
+    await showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xff24103c),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-          side: const BorderSide(color: Color(0xff8247bd)),
-        ),
-        icon: Container(
-          width: 58,
-          height: 58,
-          decoration: const BoxDecoration(
-            color: Color(0xff7032ad),
-            shape: BoxShape.circle,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, updateDialog) => AlertDialog(
+          backgroundColor: const Color(0xff24103c),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: const BorderSide(color: Color(0xff8247bd)),
           ),
-          child: const Icon(
-            Icons.person_outline_rounded,
-            color: Colors.white,
-            size: 32,
-          ),
-        ),
-        title: const Text(
-          'MAIN SEBAGAI TAMU?',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontWeight: FontWeight.w900),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Data permainan tamu tidak disinkronkan. Saat keluar dari '
-              'permainan, progres dan level akan hilang dan permainan '
-              'berikutnya dimulai lagi dari Level 1.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white70, height: 1.45),
+          icon: Container(
+            width: 58,
+            height: 58,
+            decoration: const BoxDecoration(
+              color: Color(0xff7032ad),
+              shape: BoxShape.circle,
             ),
-            const SizedBox(height: 18),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xff7b38d1), Color(0xffb44df5)],
-                ),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xffdba8ff)),
-              ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.diamond_rounded,
-                    color: Color(0xffffe08a),
-                    size: 27,
+            child: busy
+                ? const Padding(
+                    padding: EdgeInsets.all(17),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 3,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(
+                    Icons.person_outline_rounded,
+                    color: Colors.white,
+                    size: 32,
                   ),
-                  SizedBox(width: 10),
-                  Flexible(
-                    child: Text(
-                      'LOGIN & DAPATKAN +$welcomeTokenBonus TOKEN',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 14,
+          ),
+          title: Text(
+            busy ? 'MENYIAPKAN PERMAINAN…' : 'MAIN SEBAGAI TAMU?',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontWeight: FontWeight.w900),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Data permainan tamu tidak disinkronkan. Saat keluar dari '
+                'permainan, progres dan level akan hilang dan permainan '
+                'berikutnya dimulai lagi dari Level 1.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white70, height: 1.45),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Paket gratis Tamu: +$guestStarterTokenBonus token awal, '
+                '10 petunjuk gratis, 5 energy, grid Level 1–3, dan tema dasar.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Color(0xffffe5a0),
+                  fontSize: 12,
+                  height: 1.4,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 13,
+                ),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xff7b38d1), Color(0xffb44df5)],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xffdba8ff)),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.diamond_rounded,
+                      color: Color(0xffffe08a),
+                      size: 27,
+                    ),
+                    SizedBox(width: 10),
+                    Flexible(
+                      child: Text(
+                        'LOGIN & DAPATKAN +$welcomeTokenBonus TOKEN',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(height: 8),
+              const Text(
+                'Bonus Selamat Datang diberikan satu kali dan tersimpan '
+                'di semua perangkat.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Color(0xffd9b8ff), fontSize: 12),
+              ),
+            ],
+          ),
+          actionsAlignment: MainAxisAlignment.spaceBetween,
+          actions: [
+            OutlinedButton(
+              onPressed: busy ? null : () => Navigator.pop(dialogContext),
+              child: const Text('KEMBALI'),
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'Bonus Selamat Datang diberikan satu kali dan tersimpan '
-              'di semua perangkat.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Color(0xffd9b8ff), fontSize: 12),
+            FilledButton(
+              onPressed: busy
+                  ? null
+                  : () async {
+                      updateDialog(() => busy = true);
+                      await GameAudio.instance.stopOpening();
+                      try {
+                        await FirebaseService.instance.signInAsGuest();
+                        if (!dialogContext.mounted) return;
+                        await _enterGame(dialogContext, replaceCurrent: true);
+                      } catch (error) {
+                        if (!dialogContext.mounted) return;
+                        updateDialog(() => busy = false);
+                        unawaited(
+                          GameAudio.instance.playOpening(restart: true),
+                        );
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Masuk sebagai Tamu belum berhasil. '
+                              '${_friendlyError(error)}',
+                            ),
+                          ),
+                        );
+                      }
+                    },
+              child: const Text('LANJUT'),
             ),
           ],
         ),
-        actionsAlignment: MainAxisAlignment.spaceBetween,
-        actions: [
-          OutlinedButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('KEMBALI'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('LANJUT'),
-          ),
-        ],
       ),
     );
-    if (continueAsGuest != true || !context.mounted) return;
-    await GameAudio.instance.stopOpening();
-    if (!context.mounted) return;
-    await _signIn(context, 'Tamu');
   }
 
   static Future<void> _signIn(BuildContext context, String provider) async {

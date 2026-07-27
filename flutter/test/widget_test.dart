@@ -42,6 +42,7 @@ void main() {
 
     expect(find.text('MAIN SEBAGAI TAMU?'), findsOneWidget);
     expect(find.textContaining('dimulai lagi dari Level 1'), findsOneWidget);
+    expect(find.textContaining('+3 token awal'), findsOneWidget);
     expect(find.text('LOGIN & DAPATKAN +10 TOKEN'), findsOneWidget);
     expect(find.text('LANJUT'), findsOneWidget);
     expect(find.text('KEMBALI'), findsOneWidget);

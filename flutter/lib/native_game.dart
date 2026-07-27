@@ -35,7 +35,7 @@ const _pieceColors = [
   Color(0xffdf6892),
 ];
 
-const _maximumAllowedMistakes = 10;
+const _maximumAllowedMistakes = 5;
 Future<void> openNativeGameSettings(
   BuildContext context,
   WidgetBuilder homeBuilder,
@@ -1330,13 +1330,19 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
       );
       if (selected == null || !mounted) return;
       final directory = await getApplicationDocumentsDirectory();
-      final suffix = selected.path.toLowerCase().endsWith('.png')
-          ? '.png'
-          : '.jpg';
+      final selectedName = selected.name.toLowerCase();
+      final suffix = selectedName.endsWith('.png') ? '.png' : '.jpg';
       final destination =
           '${directory.path}${Platform.pathSeparator}'
           'balokkosong_custom_background$suffix';
-      await File(selected.path).copy(destination);
+      // Gallery providers such as Google Photos can return a temporary content
+      // URI instead of a normal file path. Reading through XFile keeps that
+      // temporary permission valid while the image is copied into app storage.
+      final imageBytes = await selected.readAsBytes();
+      if (imageBytes.isEmpty) {
+        throw const FileSystemException('Selected image is empty');
+      }
+      await File(destination).writeAsBytes(imageBytes, flush: true);
 
       final preferences = await SharedPreferences.getInstance();
       final firstUnlock = !customThemeUnlocked;
@@ -1375,11 +1381,16 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
         purchaseHistory: purchaseHistory,
         customThemeUnlocked: true,
       );
-    } catch (_) {
+    } catch (error, stackTrace) {
+      debugPrint('Unable to save custom background: $error');
+      debugPrintStack(stackTrace: stackTrace);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Gambar belum dapat dibuka. Silakan coba kembali.'),
+          content: Text(
+            'Gambar belum dapat disimpan. Pastikan foto sudah selesai '
+            'diunduh, lalu coba kembali.',
+          ),
         ),
       );
     }
@@ -1645,7 +1656,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                   child: FilledButton(
                     onPressed: () {
                       Navigator.pop(dialogContext);
-                      unawaited(GameAudio.instance.playGameplay());
+                      unawaited(GameAudio.instance.playGameplay(restart: true));
                       setState(
                         () => _loadLevel(
                           levelIndex == totalLevels - 1 ? 0 : levelIndex + 1,
@@ -1890,7 +1901,7 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
   void _start(Offset point, double cellSize) {
     final touchX = point.dx / cellSize;
     final touchY = point.dy / cellSize;
-    const hitPadding = .40;
+    final hitPadding = Platform.isAndroid ? .56 : .40;
     for (final piece in widget.engine.pieces.reversed) {
       if (pieceCells(piece).any(
         (cell) =>
@@ -1915,17 +1926,19 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
     final piece = active;
     if (piece == null) return;
     final rawDelta = piece.horizontal ? delta.dx : delta.dy;
-    if (rawDelta.abs() > .20) {
+    final dragThreshold = Platform.isAndroid ? .08 : .20;
+    if (rawDelta.abs() > dragThreshold) {
       dragAttempted = true;
       if (!slideSoundPlaying) {
         slideSoundPlaying = true;
         slideSoundSession = GameAudio.instance.beginBlockSlide();
       }
     }
-    if (piece.id == widget.hintedPieceId && rawDelta.abs() > .20) {
+    if (piece.id == widget.hintedPieceId && rawDelta.abs() > dragThreshold) {
       widget.onHintConsumed();
     }
-    final proposed = dragCells + (rawDelta / cellSize) * 1.36;
+    final dragGain = Platform.isAndroid ? 1.52 : 1.36;
+    final proposed = dragCells + (rawDelta / cellSize) * dragGain;
     if (proposed < -maxNegative - .03 || proposed > maxPositive + .03) {
       _triggerBump(rawDelta.sign);
     }
@@ -1947,7 +1960,8 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
     if (piece == null) return;
     var moved = false;
     var snapped = dragCells.round();
-    if (snapped == 0 && dragCells.abs() >= .18) {
+    final snapThreshold = Platform.isAndroid ? .12 : .18;
+    if (snapped == 0 && dragCells.abs() >= snapThreshold) {
       snapped = dragCells.isNegative ? -1 : 1;
     }
     if (widget.engine.isOutside(piece, snapped)) {

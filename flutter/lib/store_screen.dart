@@ -643,6 +643,20 @@ class _TokenMechanismCard extends StatelessWidget {
         ),
         SizedBox(height: 10),
         Text(
+          'PAKET GRATIS',
+          style: TextStyle(
+            color: Color(0xffd8a5ff),
+            fontSize: 11,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        SizedBox(height: 5),
+        Text('• Main sebagai Tamu: +3 token awal satu kali.'),
+        Text('• Daftar/Login Email atau Google: +10 token satu kali.'),
+        Text('• Semua pemain: 10 petunjuk gratis dan 5/5 energy awal.'),
+        Text('• Grid Level 1–3 dan tema dasar selalu gratis.'),
+        SizedBox(height: 11),
+        Text(
           'DIGUNAKAN UNTUK',
           style: TextStyle(
             color: Color(0xffd8a5ff),
@@ -651,7 +665,6 @@ class _TokenMechanismCard extends StatelessWidget {
           ),
         ),
         SizedBox(height: 5),
-        Text('• 10 petunjuk pertama gratis (total akun).'),
         Text('• Setelah itu, 1 token = 1 petunjuk.'),
         Text('• 1 token = buka grid untuk level 4 ke atas.'),
         Text('• 1 token = buka tema Neon & Ocean.'),
