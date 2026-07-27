@@ -194,7 +194,7 @@ void main() {
     expect(find.byTooltip('Kembali'), findsOneWidget);
   });
 
-  testWidgets('game footer shows Aturan outside the pause menu', (
+  testWidgets('game header shows metrics and footer shows controls', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
@@ -206,6 +206,14 @@ void main() {
     await tester.pump();
 
     expect(find.byTooltip('Aturan'), findsOneWidget);
+    expect(find.text('SCORE'), findsOneWidget);
+    expect(find.text('LEVEL'), findsOneWidget);
+    expect(find.text('WAKTU'), findsOneWidget);
+    expect(find.text('SISA SALAH'), findsOneWidget);
+    expect(
+      tester.getCenter(find.text('SCORE')).dy,
+      lessThan(tester.getCenter(find.byTooltip('Pause')).dy),
+    );
     await tester.tap(find.byTooltip('Pause'));
     await tester.pump();
     expect(find.text('Aturan'), findsNothing);

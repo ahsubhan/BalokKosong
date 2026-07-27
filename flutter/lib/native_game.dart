@@ -679,6 +679,16 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
               ),
               Column(
                 children: [
+                  _GameHeader(
+                    level: levelIndex + 1,
+                    score: score,
+                    time: _clock,
+                    timeLabel: challengeMode ? 'TANTANGAN' : 'WAKTU',
+                    remainingMistakes: math.max(
+                      0,
+                      _maximumAllowedMistakes - mistakes,
+                    ),
+                  ),
                   Expanded(
                     child: PuzzleCanvas(
                       engine: engine,
@@ -694,15 +704,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                       onWrong: _onWrongMove,
                     ),
                   ),
-                  _GameHud(
-                    level: levelIndex + 1,
-                    score: score,
-                    time: _clock,
-                    timeLabel: challengeMode ? 'TANTANGAN' : 'WAKTU',
-                    remainingMistakes: math.max(
-                      0,
-                      _maximumAllowedMistakes - mistakes,
-                    ),
+                  _GameControls(
                     onPause: () {
                       setState(() => paused = true);
                       unawaited(GameAudio.instance.pauseGameplay());
@@ -2216,108 +2218,124 @@ class _PuzzlePainter extends CustomPainter {
   }
 }
 
-class _GameHud extends StatelessWidget {
-  const _GameHud({
+class _GameHeader extends StatelessWidget {
+  const _GameHeader({
     required this.level,
     required this.score,
     required this.time,
     required this.timeLabel,
     required this.remainingMistakes,
-    required this.onPause,
-    required this.onHint,
-    required this.onSettings,
   });
+
   final int level;
   final int score;
   final String time;
   final String timeLabel;
   final int remainingMistakes;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: 62,
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xff12051f).withValues(alpha: .9),
+        border: const Border(bottom: BorderSide(color: Colors.white12)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: Center(
+                child: _HudValue(label: 'SCORE', value: '$score'),
+              ),
+            ),
+            Expanded(
+              child: Center(
+                child: _HudValue(
+                  label: 'LEVEL',
+                  value: level.toString().padLeft(2, '0'),
+                ),
+              ),
+            ),
+            Expanded(
+              child: Center(
+                child: _HudValue(label: timeLabel, value: time),
+              ),
+            ),
+            Expanded(
+              child: Center(
+                child: _HudValue(
+                  label: 'SISA SALAH',
+                  value: '$remainingMistakes/$_maximumAllowedMistakes',
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _GameControls extends StatelessWidget {
+  const _GameControls({
+    required this.onPause,
+    required this.onHint,
+    required this.onSettings,
+  });
+
   final VoidCallback onPause;
   final VoidCallback onHint;
   final VoidCallback onSettings;
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    height: 78,
+    height: 68,
     child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Expanded(
-            child: Center(
-              child: IconButton.filled(
-                tooltip: 'Pause',
-                onPressed: onPause,
-                style: IconButton.styleFrom(
-                  minimumSize: const Size.square(44),
-                  maximumSize: const Size.square(44),
-                  foregroundColor: Colors.white,
-                  backgroundColor: const Color(0xff9d4edd),
-                  side: const BorderSide(color: Color(0xffd8b4fe), width: 1.3),
-                  shadowColor: const Color(0xffb66aff),
-                  elevation: 5,
-                ),
-                icon: const Icon(Icons.pause, size: 24),
-              ),
+          IconButton.filled(
+            tooltip: 'Pause',
+            onPressed: onPause,
+            style: IconButton.styleFrom(
+              minimumSize: const Size.square(46),
+              maximumSize: const Size.square(46),
+              foregroundColor: Colors.white,
+              backgroundColor: const Color(0xff9d4edd),
+              side: const BorderSide(color: Color(0xffd8b4fe), width: 1.3),
+              shadowColor: const Color(0xffb66aff),
+              elevation: 5,
             ),
+            icon: const Icon(Icons.pause, size: 24),
           ),
-          Expanded(
-            child: Center(
-              child: IconButton.filled(
-                tooltip: 'Aturan',
-                onPressed: onSettings,
-                style: IconButton.styleFrom(
-                  minimumSize: const Size.square(44),
-                  maximumSize: const Size.square(44),
-                  foregroundColor: Colors.white,
-                  backgroundColor: const Color(0xff4b246f),
-                  side: const BorderSide(color: Color(0xff9e6bc2), width: 1.2),
-                ),
-                icon: const Icon(Icons.settings_rounded, size: 22),
-              ),
+          const SizedBox(width: 24),
+          IconButton.filled(
+            tooltip: 'Petunjuk',
+            onPressed: onHint,
+            style: IconButton.styleFrom(
+              minimumSize: const Size.square(46),
+              maximumSize: const Size.square(46),
+              foregroundColor: const Color(0xffffefad),
+              backgroundColor: const Color(0xff5d2d91),
+              side: const BorderSide(color: Color(0xffb985e8), width: 1.2),
             ),
+            icon: const Icon(Icons.lightbulb_rounded, size: 22),
           ),
-          Expanded(
-            child: Center(
-              child: IconButton.filled(
-                tooltip: 'Petunjuk',
-                onPressed: onHint,
-                style: IconButton.styleFrom(
-                  minimumSize: const Size.square(44),
-                  maximumSize: const Size.square(44),
-                  foregroundColor: const Color(0xffffefad),
-                  backgroundColor: const Color(0xff5d2d91),
-                  side: const BorderSide(color: Color(0xffb985e8), width: 1.2),
-                ),
-                icon: const Icon(Icons.lightbulb_rounded, size: 22),
-              ),
+          const SizedBox(width: 24),
+          IconButton.filled(
+            tooltip: 'Aturan',
+            onPressed: onSettings,
+            style: IconButton.styleFrom(
+              minimumSize: const Size.square(46),
+              maximumSize: const Size.square(46),
+              foregroundColor: Colors.white,
+              backgroundColor: const Color(0xff4b246f),
+              side: const BorderSide(color: Color(0xff9e6bc2), width: 1.2),
             ),
-          ),
-          Expanded(
-            child: Center(
-              child: _HudValue(label: 'SCORE', value: '$score'),
-            ),
-          ),
-          Expanded(
-            child: Center(
-              child: _HudValue(
-                label: 'LEVEL',
-                value: level.toString().padLeft(2, '0'),
-              ),
-            ),
-          ),
-          Expanded(
-            child: Center(
-              child: _HudValue(label: timeLabel, value: time),
-            ),
-          ),
-          Expanded(
-            child: Center(
-              child: _HudValue(
-                label: 'SISA SALAH',
-                value: '$remainingMistakes/$_maximumAllowedMistakes',
-              ),
-            ),
+            icon: const Icon(Icons.settings_rounded, size: 22),
           ),
         ],
       ),
