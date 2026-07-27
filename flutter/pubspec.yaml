@@ -50,7 +50,8 @@ dependencies:
   path_provider: ^2.1.6
   in_app_purchase: ^3.3.0
   google_mobile_ads: ^9.0.0
-
+  firebase_storage: ^13.4.5
+  file_selector: ^1.1.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

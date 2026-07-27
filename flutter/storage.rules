@@ -1,0 +1,22 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isDeveloper() {
+      return request.auth != null
+        && request.auth.token.email == 'ah.subhan@gmail.com';
+    }
+
+    match /feedback/{userId}/{feedbackId}/{fileName} {
+      allow create:
+        if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.size > 0
+        && request.resource.size <= 10 * 1024 * 1024;
+      allow read:
+        if isDeveloper()
+        || (request.auth != null && request.auth.uid == userId);
+      allow update, delete: if false;
+    }
+  }
+}
