@@ -708,6 +708,11 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                       unawaited(GameAudio.instance.pauseGameplay());
                     },
                     onHint: _showHint,
+                    onSettings: () {
+                      setState(() => paused = true);
+                      unawaited(GameAudio.instance.pauseGameplay());
+                      unawaited(_showSettings());
+                    },
                   ),
                 ],
               ),
@@ -740,7 +745,6 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                   onGridChanged: (value) => unawaited(_setGridVisible(value)),
                   onGridUnlock: () => unawaited(_unlockGridForCurrentLevel()),
                   onMusicChanged: (value) => unawaited(_setMusicEnabled(value)),
-                  onSettings: _showSettings,
                 ),
             ],
           ),
@@ -2221,6 +2225,7 @@ class _GameHud extends StatelessWidget {
     required this.remainingMistakes,
     required this.onPause,
     required this.onHint,
+    required this.onSettings,
   });
   final int level;
   final int score;
@@ -2229,6 +2234,7 @@ class _GameHud extends StatelessWidget {
   final int remainingMistakes;
   final VoidCallback onPause;
   final VoidCallback onHint;
+  final VoidCallback onSettings;
 
   @override
   Widget build(BuildContext context) => SizedBox(
@@ -2252,6 +2258,22 @@ class _GameHud extends StatelessWidget {
                   elevation: 5,
                 ),
                 icon: const Icon(Icons.pause, size: 24),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Center(
+              child: IconButton.filled(
+                tooltip: 'Aturan',
+                onPressed: onSettings,
+                style: IconButton.styleFrom(
+                  minimumSize: const Size.square(44),
+                  maximumSize: const Size.square(44),
+                  foregroundColor: Colors.white,
+                  backgroundColor: const Color(0xff4b246f),
+                  side: const BorderSide(color: Color(0xff9e6bc2), width: 1.2),
+                ),
+                icon: const Icon(Icons.settings_rounded, size: 22),
               ),
             ),
           ),
@@ -2355,7 +2377,6 @@ class _PauseOverlay extends StatelessWidget {
     required this.onGridChanged,
     required this.onGridUnlock,
     required this.onMusicChanged,
-    required this.onSettings,
   });
   final int level;
   final bool canPrevious;
@@ -2372,7 +2393,6 @@ class _PauseOverlay extends StatelessWidget {
   final ValueChanged<bool> onGridChanged;
   final VoidCallback onGridUnlock;
   final ValueChanged<bool> onMusicChanged;
-  final VoidCallback onSettings;
 
   @override
   Widget build(BuildContext context) => ColoredBox(
@@ -2433,11 +2453,6 @@ class _PauseOverlay extends StatelessWidget {
                     icon: Icons.timer_outlined,
                     label: 'Mode',
                     onTap: onMode,
-                  ),
-                  _PauseAction(
-                    icon: Icons.settings_rounded,
-                    label: 'Aturan',
-                    onTap: onSettings,
                   ),
                   _PauseAction(
                     icon: Icons.auto_awesome_rounded,

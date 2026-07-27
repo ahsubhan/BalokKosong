@@ -194,6 +194,24 @@ void main() {
     expect(find.byTooltip('Kembali'), findsOneWidget);
   });
 
+  testWidgets('game footer shows Aturan outside the pause menu', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NativeGameScreen(homeBuilder: (_) => const HomeScreen()),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byTooltip('Aturan'), findsOneWidget);
+    await tester.tap(find.byTooltip('Pause'));
+    await tester.pump();
+    expect(find.text('Aturan'), findsNothing);
+    expect(find.text('Toko &\nHadiah'), findsOneWidget);
+  });
+
   testWidgets('logout replaces all routes with a fresh sign-in home', (
     tester,
   ) async {
