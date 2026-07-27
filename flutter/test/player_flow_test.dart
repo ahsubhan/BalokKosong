@@ -115,7 +115,6 @@ void main() {
           onRelaxed: () => relaxedStarted = true,
           onChallenge: () => challengeStarted = true,
           onCancel: () {},
-          onSettings: () {},
           onRelaxedSelected: (value) => relaxedFromLevelOne = value,
           onChallengeSelected: (value) => challengeFromLevelOne = value,
         ),
@@ -133,7 +132,7 @@ void main() {
     );
     expect(continueChoice.onTap, isNull);
     expect(levelOneChoice.onTap, isNull);
-    expect(find.byTooltip('Pengaturan'), findsOneWidget);
+    expect(find.byTooltip('Pengaturan'), findsNothing);
 
     await tester.tap(find.text('Santai'));
     expect(relaxedStarted, isFalse);

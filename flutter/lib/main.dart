@@ -692,7 +692,6 @@ class HomeScreen extends StatelessWidget {
         );
       }
     },
-    onSettings: () => openNativeGameSettings(modeContext, _settingsHome),
   );
 
   static Future<void> _startSelectedGame(

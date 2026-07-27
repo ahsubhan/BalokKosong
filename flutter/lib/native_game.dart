@@ -600,13 +600,6 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
         },
         onCancel: () => Navigator.pop(modeContext),
         hasProgress: true,
-        onSettings: () {
-          Navigator.pop(modeContext);
-          Future<void>.delayed(
-            const Duration(milliseconds: 180),
-            _showSettings,
-          );
-        },
       ),
     ),
   );
