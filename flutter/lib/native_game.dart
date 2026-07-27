@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -45,10 +46,16 @@ Future<void> openNativeGameSettings(
   ),
 );
 
+void replaceWithSignedOutHome(BuildContext context, WidgetBuilder homeBuilder) {
+  Navigator.of(
+    context,
+  ).pushAndRemoveUntil(MaterialPageRoute(builder: homeBuilder), (_) => false);
+}
+
 bool developerLevelNavigationEnabled({
   required String? email,
   required Iterable<String> providerIds,
-}) => isDeveloperGoogleAccount(email: email, providerIds: providerIds);
+}) => developerFullAccessEnabled(email: email, providerIds: providerIds);
 
 bool canNavigateToNextLevel({
   required bool developer,
@@ -118,6 +125,8 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
   late PuzzleEngine engine;
   Timer? timer;
   bool settingsRouteReplaced = false;
+  String appVersion = '1.0.0';
+  String appBuildNumber = '1';
 
   @override
   void initState() {
@@ -129,6 +138,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
       unawaited(_openSettingsOnly());
       return;
     }
+    unawaited(_loadAppInfo());
     unawaited(GameAudio.instance.playGameplay());
     _loadSettings();
     timer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -154,12 +164,25 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
   }
 
   Future<void> _openSettingsOnly() async {
-    await _loadSettings();
+    await Future.wait([_loadSettings(), _loadAppInfo()]);
     if (!mounted) return;
     await Future<void>.delayed(Duration.zero);
     if (!mounted) return;
     await _showSettings();
     if (mounted && !settingsRouteReplaced) Navigator.pop(context);
+  }
+
+  Future<void> _loadAppInfo() async {
+    try {
+      final package = await PackageInfo.fromPlatform();
+      if (!mounted) return;
+      setState(() {
+        appVersion = package.version;
+        appBuildNumber = package.buildNumber;
+      });
+    } catch (_) {
+      // Defaults match pubspec and keep settings available in test environments.
+    }
   }
 
   Future<void> _loadSettings() async {
@@ -203,9 +226,12 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
       musicEnabled = preferences.getBool('balok_music_enabled') ?? true;
       tokens = preferences.getInt('balok_tokens') ?? 0;
       freeHintsUsed = preferences.getInt('balok_free_hints_used') ?? 0;
-      themePack = preferences.getBool('balok_theme_pack') ?? false;
+      themePack =
+          (preferences.getBool('balok_theme_pack') ?? false) ||
+          _developerFullAccess;
       customThemeUnlocked =
-          preferences.getBool('balok_custom_theme_unlocked') ?? false;
+          (preferences.getBool('balok_custom_theme_unlocked') ?? false) ||
+          _developerFullAccess;
       customBackgroundPath = preferences.getString(
         'balok_custom_background_path',
       );
@@ -229,17 +255,21 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
   }
 
   bool get _gridAvailable =>
-      levelIndex < 3 || gridUnlockedLevels.contains(levelIndex + 1);
+      _developerFullAccess ||
+      levelIndex < 3 ||
+      gridUnlockedLevels.contains(levelIndex + 1);
 
-  bool get _developerLevelNavigation {
+  bool get _developerFullAccess {
     final user = FirebaseService.instance.user;
-    return developerLevelNavigationEnabled(
+    return developerFullAccessEnabled(
       email: user?.email,
       providerIds:
           user?.providerData.map((provider) => provider.providerId) ??
           const <String>[],
     );
   }
+
+  bool get _developerLevelNavigation => _developerFullAccess;
 
   @override
   void dispose() {
@@ -390,8 +420,9 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
   Future<void> _showHint() async {
     setState(() => paused = true);
     unawaited(GameAudio.instance.pauseGameplay());
-    final freeRemaining = math.max(0, 10 - freeHintsUsed);
-    final needsToken = freeRemaining == 0;
+    final developer = _developerFullAccess;
+    final freeRemaining = developer ? 10 : math.max(0, 10 - freeHintsUsed);
+    final needsToken = !developer && freeRemaining == 0;
     final action = await showDialog<_HintDialogAction>(
       context: context,
       barrierDismissible: false,
@@ -408,7 +439,10 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
           style: TextStyle(fontWeight: FontWeight.w900),
         ),
         content: Text(
-          needsToken
+          developer
+              ? 'Akses developer aktif. Petunjuk dapat digunakan tanpa '
+                    'mengurangi kuota atau token.'
+              : needsToken
               ? tokens > 0
                     ? 'Batas 10 petunjuk gratis sudah habis. Lanjut akan '
                           'memakai 1 token.\n\nToken tersedia: $tokens\n'
@@ -493,7 +527,9 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
       return;
     }
     setState(() {
-      if (needsToken) {
+      if (developer) {
+        // Developer hints do not consume account inventory.
+      } else if (needsToken) {
         tokens--;
       } else {
         freeHintsUsed++;
@@ -737,19 +773,21 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
         'Changelog',
         style: TextStyle(fontWeight: FontWeight.w900),
       ),
-      content: const Column(
+      content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Versi 1.0.0 · Build 1',
-            style: TextStyle(color: Color(0xffd8a5ff)),
+            'Versi $appVersion · Build $appBuildNumber',
+            style: const TextStyle(color: Color(0xffd8a5ff)),
           ),
-          SizedBox(height: 14),
-          Text('• Mesin puzzle native 28×42'),
-          Text('• Mode Santai dan Tantangan'),
-          Text('• Tutorial, Petunjuk, Toko & Hadiah'),
-          Text('• Tema ungu dan pengaturan aksesibilitas'),
+          const SizedBox(height: 14),
+          const Text(
+            '• 10 level puzzle dengan balok I, L, T, dan bentuk kompleks',
+          ),
+          const Text('• Mode Santai dan Tantangan dengan progres tersimpan'),
+          const Text('• Login, Firebase sync, token, toko, dan feedback'),
+          const Text('• Perbaikan startup, navigasi level, audio, dan logout'),
         ],
       ),
       actions: [
@@ -762,9 +800,16 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
   );
 
   Future<void> _showProfile() async {
-    await Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const ProfileScreen()));
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ProfileScreen(
+          onLoggedOut: () {
+            if (!mounted) return;
+            replaceWithSignedOutHome(context, widget.homeBuilder);
+          },
+        ),
+      ),
+    );
     final preferences = await SharedPreferences.getInstance();
     if (!mounted) return;
     setState(() {
@@ -1132,9 +1177,9 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                     onTap: _showChangelog,
                   ),
                   const SizedBox(height: 12),
-                  const Text(
-                    'BALOK KOSONG · Versi 1.0.0 · Build 1',
-                    style: TextStyle(
+                  Text(
+                    'BALOK KOSONG · Versi $appVersion · Build $appBuildNumber',
+                    style: const TextStyle(
                       color: Colors.white38,
                       fontSize: 10,
                       letterSpacing: .5,
@@ -1178,9 +1223,12 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
     if (!mounted) return;
     setState(() {
       tokens = preferences.getInt('balok_tokens') ?? 0;
-      themePack = preferences.getBool('balok_theme_pack') ?? false;
+      themePack =
+          (preferences.getBool('balok_theme_pack') ?? false) ||
+          _developerFullAccess;
       customThemeUnlocked =
-          preferences.getBool('balok_custom_theme_unlocked') ?? false;
+          (preferences.getBool('balok_custom_theme_unlocked') ?? false) ||
+          _developerFullAccess;
     });
   }
 

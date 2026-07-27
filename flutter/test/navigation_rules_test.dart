@@ -1,3 +1,4 @@
+import 'package:balok_kosong/developer_access.dart';
 import 'package:balok_kosong/game_engine.dart';
 import 'package:balok_kosong/native_game.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -22,6 +23,23 @@ void main() {
       developerLevelNavigationEnabled(
         email: 'pemain@example.com',
         providerIds: const ['google.com'],
+      ),
+      isFalse,
+    );
+  });
+
+  test('developer full access requires the owner Google provider', () {
+    expect(
+      developerFullAccessEnabled(
+        email: 'AH.SUBHAN@gmail.com',
+        providerIds: const ['google.com'],
+      ),
+      isTrue,
+    );
+    expect(
+      developerFullAccessEnabled(
+        email: 'ah.subhan@gmail.com',
+        providerIds: const ['password'],
       ),
       isFalse,
     );

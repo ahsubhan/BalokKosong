@@ -683,8 +683,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  static Widget _settingsHome(BuildContext _) =>
-      const HomeScreen(showBackButton: true);
+  static Widget _settingsHome(BuildContext _) => const HomeScreen();
 
   static Future<void> _signIn(BuildContext context, String provider) async {
     final messenger = ScaffoldMessenger.of(context);

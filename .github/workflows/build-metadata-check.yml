@@ -1,0 +1,52 @@
+name: Build metadata check
+
+on:
+  pull_request:
+    paths:
+      - "flutter/pubspec.yaml"
+      - "CHANGELOG.md"
+      - "docs/BUILD_HISTORY.md"
+  push:
+    branches:
+      - main
+    paths:
+      - "flutter/pubspec.yaml"
+      - "CHANGELOG.md"
+      - "docs/BUILD_HISTORY.md"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify version is documented
+        shell: bash
+        run: |
+          python - <<'PY'
+          import pathlib
+          import re
+
+          pubspec = pathlib.Path("flutter/pubspec.yaml").read_text()
+          changelog = pathlib.Path("CHANGELOG.md").read_text()
+          history = pathlib.Path("docs/BUILD_HISTORY.md").read_text()
+
+          match = re.search(
+              r"^version:\s*(\d+\.\d+\.\d+)\+(\d+)\s*$",
+              pubspec,
+              re.MULTILINE,
+          )
+          if not match:
+              raise SystemExit("Format version pada pubspec tidak valid")
+
+          version, build = match.groups()
+          if f"## [{version}+{build}]" not in changelog:
+              raise SystemExit(
+                  f"CHANGELOG belum memiliki bagian [{version}+{build}]"
+              )
+          if f"| {version} | {build} |" not in history:
+              raise SystemExit(
+                  f"BUILD_HISTORY belum mencatat versi {version} build {build}"
+              )
+
+          print(f"Metadata versi {version} build {build} lengkap.")
+          PY
