@@ -474,10 +474,7 @@ class HomeScreen extends StatelessWidget {
                     tone: const Color(0xffa855f7),
                     onTap: signedIn
                         ? null
-                        : () {
-                            unawaited(GameAudio.instance.stopOpening());
-                            unawaited(_signIn(context, 'Tamu'));
-                          },
+                        : () => unawaited(_confirmGuestPlay(context)),
                   ),
                   const SizedBox(height: 13),
                   const Text(
@@ -684,6 +681,105 @@ class HomeScreen extends StatelessWidget {
   }
 
   static Widget _settingsHome(BuildContext _) => const HomeScreen();
+
+  static Future<void> _confirmGuestPlay(BuildContext context) async {
+    final continueAsGuest = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xff24103c),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: const BorderSide(color: Color(0xff8247bd)),
+        ),
+        icon: Container(
+          width: 58,
+          height: 58,
+          decoration: const BoxDecoration(
+            color: Color(0xff7032ad),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.person_outline_rounded,
+            color: Colors.white,
+            size: 32,
+          ),
+        ),
+        title: const Text(
+          'MAIN SEBAGAI TAMU?',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Data permainan tamu tidak disinkronkan. Saat keluar dari '
+              'permainan, progres dan level akan hilang dan permainan '
+              'berikutnya dimulai lagi dari Level 1.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white70, height: 1.45),
+            ),
+            const SizedBox(height: 18),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xff7b38d1), Color(0xffb44df5)],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xffdba8ff)),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.diamond_rounded,
+                    color: Color(0xffffe08a),
+                    size: 27,
+                  ),
+                  SizedBox(width: 10),
+                  Flexible(
+                    child: Text(
+                      'LOGIN & DAPATKAN +$welcomeTokenBonus TOKEN',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Bonus Selamat Datang diberikan satu kali dan tersimpan '
+              'di semua perangkat.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Color(0xffd9b8ff), fontSize: 12),
+            ),
+          ],
+        ),
+        actionsAlignment: MainAxisAlignment.spaceBetween,
+        actions: [
+          OutlinedButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('KEMBALI'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('LANJUT'),
+          ),
+        ],
+      ),
+    );
+    if (continueAsGuest != true || !context.mounted) return;
+    await GameAudio.instance.stopOpening();
+    if (!context.mounted) return;
+    await _signIn(context, 'Tamu');
+  }
 
   static Future<void> _signIn(BuildContext context, String provider) async {
     final messenger = ScaffoldMessenger.of(context);
