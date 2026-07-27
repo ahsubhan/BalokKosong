@@ -412,6 +412,21 @@ class HomeScreen extends StatelessWidget {
               ),
             )
           : null,
+      floatingActionButton: FloatingActionButton.small(
+        key: const Key('homeHowToPlayButton'),
+        tooltip: 'Cara bermain',
+        onPressed: () => _openHowToPlay(context),
+        backgroundColor: const Color(0xff7436ad),
+        foregroundColor: Colors.white,
+        shape: const CircleBorder(
+          side: BorderSide(color: Color(0xffc67cff), width: 1.5),
+        ),
+        child: const Text(
+          '?',
+          style: TextStyle(fontSize: 23, fontWeight: FontWeight.w900),
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: SafeArea(
         child: Stack(
           children: [
@@ -546,6 +561,17 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  static void _openHowToPlay(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (guideContext) => HowToPlayScreen(
+          finalLabel: 'Kembali',
+          onFinished: () => Navigator.pop(guideContext),
         ),
       ),
     );

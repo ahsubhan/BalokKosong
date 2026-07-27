@@ -16,6 +16,18 @@ void main() {
     expect(find.text('Mendaftar'), findsOneWidget);
     expect(find.textContaining('APPLE'), findsNothing);
     expect(find.textContaining('FACEBOOK'), findsNothing);
+    expect(find.byTooltip('Cara bermain'), findsOneWidget);
+  });
+
+  testWidgets('home help button opens the four-page guide', (tester) async {
+    await tester.pumpWidget(const BalokKosongApp(showSplash: false));
+
+    await tester.tap(find.byTooltip('Cara bermain'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('CARA BERMAIN · 1/4'), findsOneWidget);
+    expect(find.text('Kosongkan papan'), findsOneWidget);
+    expect(find.text('Kembali'), findsOneWidget);
   });
 
   testWidgets('opens email registration form', (tester) async {

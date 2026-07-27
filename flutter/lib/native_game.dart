@@ -902,19 +902,6 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  _SettingsActionCard(
-                    icon: Icons.play_arrow_rounded,
-                    title: 'Lihat cara bermain',
-                    subtitle: 'Panduan singkat 4 halaman',
-                    onTap: () {
-                      Navigator.pop(sheetContext);
-                      Future<void>.delayed(
-                        const Duration(milliseconds: 180),
-                        _showRules,
-                      );
-                    },
-                  ),
                   const SizedBox(height: 10),
                   _SettingsActionCard(
                     icon: Icons.home_rounded,
