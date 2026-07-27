@@ -219,6 +219,26 @@ void main() {
     expect(find.text('Toko &\nHadiah'), findsOneWidget);
   });
 
+  testWidgets('hint dialog uses Batal and Lanjut actions', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NativeGameScreen(homeBuilder: (_) => const HomeScreen()),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byTooltip('Petunjuk'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Gunakan Petunjuk?'), findsOneWidget);
+    expect(find.text('Batal'), findsOneWidget);
+    expect(find.text('Lanjut'), findsOneWidget);
+    await tester.tap(find.text('Batal'));
+    await tester.pumpAndSettle();
+    expect(find.text('Gunakan Petunjuk?'), findsNothing);
+  });
+
   testWidgets('logout replaces all routes with a fresh sign-in home', (
     tester,
   ) async {

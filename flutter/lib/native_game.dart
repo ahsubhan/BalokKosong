@@ -462,7 +462,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
           TextButton(
             onPressed: () =>
                 Navigator.pop(dialogContext, _HintDialogAction.back),
-            child: const Text('Kembali'),
+            child: const Text('Batal'),
           ),
           if (needsToken && tokens <= 0)
             FilledButton.icon(
