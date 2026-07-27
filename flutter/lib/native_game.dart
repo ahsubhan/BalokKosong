@@ -2235,33 +2235,26 @@ class _GameHeader extends StatelessWidget {
         border: const Border(bottom: BorderSide(color: Colors.white12)),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
-              child: Center(
-                child: _HudValue(label: 'SCORE', value: '$score'),
+              child: _HudValue(label: 'SCORE', value: '$score'),
+            ),
+            Expanded(
+              child: _HudValue(
+                label: 'LEVEL',
+                value: level.toString().padLeft(2, '0'),
               ),
             ),
             Expanded(
-              child: Center(
-                child: _HudValue(
-                  label: 'LEVEL',
-                  value: level.toString().padLeft(2, '0'),
-                ),
-              ),
+              child: _HudValue(label: timeLabel, value: time),
             ),
             Expanded(
-              child: Center(
-                child: _HudValue(label: timeLabel, value: time),
-              ),
-            ),
-            Expanded(
-              child: Center(
-                child: _HudValue(
-                  label: 'SISA SALAH',
-                  value: '$remainingMistakes/$_maximumAllowedMistakes',
-                ),
+              child: _HudValue(
+                label: 'SISA SALAH',
+                value: '$remainingMistakes/$_maximumAllowedMistakes',
               ),
             ),
           ],
@@ -2286,49 +2279,58 @@ class _GameControls extends StatelessWidget {
   Widget build(BuildContext context) => SizedBox(
     height: 68,
     child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          IconButton.filled(
-            tooltip: 'Pause',
-            onPressed: onPause,
-            style: IconButton.styleFrom(
-              minimumSize: const Size.square(46),
-              maximumSize: const Size.square(46),
-              foregroundColor: Colors.white,
-              backgroundColor: const Color(0xff9d4edd),
-              side: const BorderSide(color: Color(0xffd8b4fe), width: 1.3),
-              shadowColor: const Color(0xffb66aff),
-              elevation: 5,
+          Expanded(
+            child: Center(
+              child: IconButton.filled(
+                tooltip: 'Pause',
+                onPressed: onPause,
+                style: IconButton.styleFrom(
+                  minimumSize: const Size.square(46),
+                  maximumSize: const Size.square(46),
+                  foregroundColor: Colors.white,
+                  backgroundColor: const Color(0xff9d4edd),
+                  side: const BorderSide(color: Color(0xffd8b4fe), width: 1.3),
+                  shadowColor: const Color(0xffb66aff),
+                  elevation: 5,
+                ),
+                icon: const Icon(Icons.pause, size: 24),
+              ),
             ),
-            icon: const Icon(Icons.pause, size: 24),
           ),
-          const SizedBox(width: 24),
-          IconButton.filled(
-            tooltip: 'Petunjuk',
-            onPressed: onHint,
-            style: IconButton.styleFrom(
-              minimumSize: const Size.square(46),
-              maximumSize: const Size.square(46),
-              foregroundColor: const Color(0xffffefad),
-              backgroundColor: const Color(0xff5d2d91),
-              side: const BorderSide(color: Color(0xffb985e8), width: 1.2),
+          Expanded(
+            child: Center(
+              child: IconButton.filled(
+                tooltip: 'Petunjuk',
+                onPressed: onHint,
+                style: IconButton.styleFrom(
+                  minimumSize: const Size.square(46),
+                  maximumSize: const Size.square(46),
+                  foregroundColor: const Color(0xffffefad),
+                  backgroundColor: const Color(0xff5d2d91),
+                  side: const BorderSide(color: Color(0xffb985e8), width: 1.2),
+                ),
+                icon: const Icon(Icons.lightbulb_rounded, size: 22),
+              ),
             ),
-            icon: const Icon(Icons.lightbulb_rounded, size: 22),
           ),
-          const SizedBox(width: 24),
-          IconButton.filled(
-            tooltip: 'Aturan',
-            onPressed: onSettings,
-            style: IconButton.styleFrom(
-              minimumSize: const Size.square(46),
-              maximumSize: const Size.square(46),
-              foregroundColor: Colors.white,
-              backgroundColor: const Color(0xff4b246f),
-              side: const BorderSide(color: Color(0xff9e6bc2), width: 1.2),
+          Expanded(
+            child: Center(
+              child: IconButton.filled(
+                tooltip: 'Aturan',
+                onPressed: onSettings,
+                style: IconButton.styleFrom(
+                  minimumSize: const Size.square(46),
+                  maximumSize: const Size.square(46),
+                  foregroundColor: Colors.white,
+                  backgroundColor: const Color(0xff4b246f),
+                  side: const BorderSide(color: Color(0xff9e6bc2), width: 1.2),
+                ),
+                icon: const Icon(Icons.settings_rounded, size: 22),
+              ),
             ),
-            icon: const Icon(Icons.settings_rounded, size: 22),
           ),
         ],
       ),
@@ -2363,9 +2365,17 @@ class _HudValue extends StatelessWidget {
         ),
       ),
       const SizedBox(height: 4),
-      Text(
-        value,
-        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+      SizedBox(
+        height: 22,
+        width: double.infinity,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            value,
+            maxLines: 1,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+          ),
+        ),
       ),
     ],
   );

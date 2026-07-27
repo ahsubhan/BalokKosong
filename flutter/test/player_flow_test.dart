@@ -213,6 +213,29 @@ void main() {
       tester.getCenter(find.text('SCORE')).dy,
       lessThan(tester.getCenter(find.byTooltip('Pause')).dy),
     );
+    final headerCenters = [
+      tester.getCenter(find.text('SCORE')).dx,
+      tester.getCenter(find.text('LEVEL')).dx,
+      tester.getCenter(find.text('WAKTU')).dx,
+      tester.getCenter(find.text('SISA SALAH')).dx,
+    ];
+    expect(
+      headerCenters[1] - headerCenters[0],
+      closeTo(headerCenters[2] - headerCenters[1], 1),
+    );
+    expect(
+      headerCenters[2] - headerCenters[1],
+      closeTo(headerCenters[3] - headerCenters[2], 1),
+    );
+    final footerCenters = [
+      tester.getCenter(find.byTooltip('Pause')).dx,
+      tester.getCenter(find.byTooltip('Petunjuk')).dx,
+      tester.getCenter(find.byTooltip('Aturan')).dx,
+    ];
+    expect(
+      footerCenters[1] - footerCenters[0],
+      closeTo(footerCenters[2] - footerCenters[1], 1),
+    );
     await tester.tap(find.byTooltip('Pause'));
     await tester.pump();
     expect(find.text('Aturan'), findsNothing);
