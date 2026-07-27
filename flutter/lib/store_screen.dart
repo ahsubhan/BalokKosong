@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'developer_access.dart';
 import 'firebase_service.dart';
 import 'notification_service.dart';
 
@@ -70,6 +71,16 @@ class _StoreScreenState extends State<StoreScreen> {
   }
 
   bool get _isMobile => Platform.isAndroid || Platform.isIOS;
+
+  bool get _developerFullAccess {
+    final user = FirebaseService.instance.user;
+    return developerFullAccessEnabled(
+      email: user?.email,
+      providerIds:
+          user?.providerData.map((provider) => provider.providerId) ??
+          const <String>[],
+    );
+  }
 
   String? get _rewardedAdUnitId {
     if (!_isMobile) return null;
@@ -250,12 +261,13 @@ class _StoreScreenState extends State<StoreScreen> {
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
+    final developer = _developerFullAccess;
     setState(() {
       tokens = prefs.getInt('balok_tokens') ?? 0;
-      energy = prefs.getInt('balok_energy') ?? 5;
-      unlimited = prefs.getBool('balok_unlimited') ?? false;
-      themePack = prefs.getBool('balok_theme_pack') ?? false;
-      noAds = prefs.getBool('balok_no_ads') ?? false;
+      energy = developer ? 5 : prefs.getInt('balok_energy') ?? 5;
+      unlimited = developer || (prefs.getBool('balok_unlimited') ?? false);
+      themePack = developer || (prefs.getBool('balok_theme_pack') ?? false);
+      noAds = developer || (prefs.getBool('balok_no_ads') ?? false);
       loading = false;
     });
   }

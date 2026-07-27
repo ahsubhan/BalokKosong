@@ -5,7 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_service.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  const ProfileScreen({super.key, this.onLoggedOut});
+
+  final VoidCallback? onLoggedOut;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -230,7 +232,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       await FirebaseService.instance.signOut();
       if (!mounted) return;
-      Navigator.of(context).popUntil((route) => route.isFirst);
+      final onLoggedOut = widget.onLoggedOut;
+      if (onLoggedOut != null) {
+        onLoggedOut();
+      } else {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
     } catch (_) {
       if (!mounted) return;
       setState(() => loggingOut = false);

@@ -4,11 +4,22 @@ import 'package:balok_kosong/mode_selection.dart';
 import 'package:balok_kosong/native_game.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Widget _testHomeBuilder(BuildContext context) => const SizedBox.shrink();
 
 void main() {
+  setUp(() {
+    PackageInfo.setMockInitialValues(
+      appName: 'BalokKosong',
+      packageName: 'id.ahmadss.balokkosong',
+      version: '1.0.0',
+      buildNumber: '1',
+      buildSignature: '',
+    );
+  });
+
   test('new game screen defaults to Level 1 instead of saved progress', () {
     const screen = NativeGameScreen(homeBuilder: _testHomeBuilder);
     expect(screen.startFromLevelOne, isTrue);
@@ -175,10 +186,47 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(find.textContaining('Versi 1.0.0 · Build 1'), findsOneWidget);
     await tester.tap(find.text('Kembali ke halaman utama'));
     await tester.pump(const Duration(milliseconds: 250));
     await tester.pumpAndSettle();
 
     expect(find.byTooltip('Kembali'), findsOneWidget);
+  });
+
+  testWidgets('logout replaces all routes with a fresh sign-in home', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (rootContext) => FilledButton(
+            onPressed: () => Navigator.of(rootContext).push(
+              MaterialPageRoute(
+                builder: (routeContext) => Scaffold(
+                  body: FilledButton(
+                    onPressed: () => replaceWithSignedOutHome(
+                      routeContext,
+                      (_) => const HomeScreen(),
+                    ),
+                    child: const Text('Selesaikan logout'),
+                  ),
+                ),
+              ),
+            ),
+            child: const Text('Buka sesi akun'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Buka sesi akun'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Selesaikan logout'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('MASUK DENGAN GOOGLE'), findsOneWidget);
+    expect(find.text('MAIN SEBAGAI TAMU'), findsOneWidget);
+    expect(find.byTooltip('Kembali'), findsNothing);
   });
 }
