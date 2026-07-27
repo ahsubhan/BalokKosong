@@ -288,6 +288,12 @@ function renderFeedback(feedback) {
   feedback.forEach((item) => {
     const name = item.senderName || item.displayName || "Tanpa nama";
     const status = feedbackStatus(item.status);
+    const attachment = item.attachment || null;
+    const attachmentMarkup = attachment?.url
+      ? `<a class="feedback-attachment" href="${escapeHtml(attachment.url)}" target="_blank" rel="noopener noreferrer">
+          📎 ${escapeHtml(attachment.name || "Buka lampiran")}
+        </a>`
+      : "";
     const card = document.createElement("article");
     card.className = "feedback-card";
     card.innerHTML = `
@@ -299,6 +305,7 @@ function renderFeedback(feedback) {
       </div>
       <div class="feedback-email">${escapeHtml(item.email || "Email tidak tersedia")}</div>
       <p class="feedback-message">${escapeHtml(item.message || "Tidak ada isi pesan")}</p>
+      ${attachmentMarkup}
       <div class="feedback-meta">
         ${escapeHtml(item.platform || "perangkat tidak diketahui")} ·
         v${escapeHtml(item.appVersion || "-")} (${escapeHtml(item.buildNumber || "-")})
