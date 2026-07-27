@@ -12,6 +12,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'player_progress.dart';
 
+const int welcomeTokenBonus = 10;
+
 const _localAccountDataKeys = <String>[
   'balok_level',
   'balok_score',
@@ -132,6 +134,7 @@ class FirebaseService {
   Future<void> _restoreSignedInSession(User currentUser) async {
     try {
       await _saveUser(currentUser);
+      await _grantWelcomeTokenBonus(currentUser);
     } catch (_) {
       // Continue restoring progress even if updating last-login data fails.
     }
@@ -178,6 +181,7 @@ class FirebaseService {
     );
     if (result.user != null) {
       await _saveUser(result.user!);
+      await _grantWelcomeTokenBonus(result.user!);
       await syncRemoteToLocal();
     }
     return result;
@@ -203,6 +207,7 @@ class FirebaseService {
       );
     }
     await _saveUser(currentUser);
+    await _grantWelcomeTokenBonus(currentUser);
     await syncRemoteToLocal();
     return result;
   }
@@ -283,6 +288,50 @@ class FirebaseService {
       'lastLoginAt': FieldValue.serverTimestamp(),
       if (!existing.exists) 'createdAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+  }
+
+  Future<bool> _grantWelcomeTokenBonus(User user) async {
+    if (!_ready || user.isAnonymous) return false;
+    final firestore = FirebaseFirestore.instance;
+    final userRef = firestore.collection('users').doc(user.uid);
+    return firestore.runTransaction<bool>((transaction) async {
+      final snapshot = await transaction.get(userRef);
+      final data = snapshot.data() ?? const <String, dynamic>{};
+      if (data['welcomeTokenBonusClaimed'] == true) return false;
+
+      final inventory = Map<String, dynamic>.from(
+        data['inventory'] as Map? ?? const {},
+      );
+      final nextTokens =
+          ((inventory['tokens'] as num?)?.toInt() ?? 0) + welcomeTokenBonus;
+      transaction.set(userRef, {
+        'uid': user.uid,
+        'welcomeTokenBonusClaimed': true,
+        'welcomeTokenBonusAmount': welcomeTokenBonus,
+        'welcomeTokenBonusClaimedAt': FieldValue.serverTimestamp(),
+        'inventory': {
+          'tokens': nextTokens,
+          'energy': (inventory['energy'] as num?)?.toInt() ?? 5,
+          'unlimited': inventory['unlimited'] == true,
+          'themePack': inventory['themePack'] == true,
+          'customThemeUnlocked': inventory['customThemeUnlocked'] == true,
+          'noAds': inventory['noAds'] == true,
+          'gridUnlockedLevels': List<int>.from(
+            (inventory['gridUnlockedLevels'] as List? ?? const [])
+                .whereType<num>()
+                .map((level) => level.toInt()),
+          ),
+          'freeHintsUsed':
+              (inventory['freeHintsUsed'] as num?)?.toInt().clamp(0, 10) ?? 0,
+          'purchaseHistory': List<String>.from(
+            (inventory['purchaseHistory'] as List? ?? const [])
+                .whereType<String>(),
+          ),
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+      }, SetOptions(merge: true));
+      return true;
+    });
   }
 
   Future<void> saveProgress({

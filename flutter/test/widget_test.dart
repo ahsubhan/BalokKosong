@@ -32,6 +32,26 @@ void main() {
     expect(find.textContaining('folder Junk/Spam'), findsOneWidget);
   });
 
+  testWidgets('guest play warns about temporary progress and login bonus', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const BalokKosongApp(showSplash: false));
+
+    await tester.tap(find.text('MAIN SEBAGAI TAMU'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('MAIN SEBAGAI TAMU?'), findsOneWidget);
+    expect(find.textContaining('dimulai lagi dari Level 1'), findsOneWidget);
+    expect(find.text('LOGIN & DAPATKAN +10 TOKEN'), findsOneWidget);
+    expect(find.text('LANJUT'), findsOneWidget);
+    expect(find.text('KEMBALI'), findsOneWidget);
+
+    await tester.tap(find.text('KEMBALI'));
+    await tester.pumpAndSettle();
+    expect(find.text('MAIN SEBAGAI TAMU?'), findsNothing);
+    expect(find.text('MAIN SEBAGAI TAMU'), findsOneWidget);
+  });
+
   testWidgets('shows opening animation before the home screen', (tester) async {
     await tester.pumpWidget(
       const BalokKosongApp(startupInitializer: _initializeForTest),
