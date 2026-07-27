@@ -223,7 +223,7 @@ class _OpeningSplashScreenState extends State<OpeningSplashScreen>
           child: ClipRRect(
             borderRadius: BorderRadius.circular(34),
             child: Image.asset(
-              'assets/icon/app_icon.png',
+              'assets/icon/app_icon.webp',
               width: 220,
               height: 220,
               fit: BoxFit.cover,
