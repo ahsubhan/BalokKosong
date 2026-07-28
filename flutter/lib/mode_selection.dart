@@ -7,7 +7,6 @@ class ModeSelectionScreen extends StatefulWidget {
     required this.onRelaxed,
     required this.onChallenge,
     required this.onCancel,
-    this.onSettings,
     this.onRelaxedSelected,
     this.onChallengeSelected,
     this.hasProgress = false,
@@ -17,7 +16,6 @@ class ModeSelectionScreen extends StatefulWidget {
   final VoidCallback onRelaxed;
   final VoidCallback onChallenge;
   final VoidCallback onCancel;
-  final VoidCallback? onSettings;
   final ValueChanged<bool>? onRelaxedSelected;
   final ValueChanged<bool>? onChallengeSelected;
   final bool hasProgress;
@@ -203,27 +201,11 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                   const SizedBox(height: 14),
                   SizedBox(
                     height: 48,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        TextButton(
-                          onPressed: widget.onCancel,
-                          child: const Text('Batal'),
-                        ),
-                        if (widget.onSettings != null)
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: IconButton(
-                              tooltip: 'Pengaturan',
-                              onPressed: widget.onSettings,
-                              style: IconButton.styleFrom(
-                                backgroundColor: const Color(0xff4f2879),
-                                foregroundColor: Colors.white,
-                              ),
-                              icon: const Icon(Icons.settings_rounded),
-                            ),
-                          ),
-                      ],
+                    child: Center(
+                      child: TextButton(
+                        onPressed: widget.onCancel,
+                        child: const Text('Batal'),
+                      ),
                     ),
                   ),
                 ],

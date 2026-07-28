@@ -16,6 +16,8 @@ class FeedbackItem {
     required this.buildNumber,
     required this.status,
     required this.category,
+    this.attachmentName,
+    this.attachmentUrl,
     this.createdAt,
   });
 
@@ -24,6 +26,10 @@ class FeedbackItem {
   ) {
     final data = document.data();
     final createdAt = data['createdAt'];
+    final attachment = data['attachment'];
+    final attachmentData = attachment is Map
+        ? Map<String, dynamic>.from(attachment)
+        : const <String, dynamic>{};
     return FeedbackItem(
       id: document.id,
       senderName: _firstText([
@@ -38,6 +44,8 @@ class FeedbackItem {
       buildNumber: _firstText([data['buildNumber'], '-']),
       status: _firstText([data['status'], 'new']),
       category: _firstText([data['category'], 'feedback']),
+      attachmentName: _firstText([attachmentData['name']]),
+      attachmentUrl: _firstText([attachmentData['url']]),
       createdAt: createdAt is Timestamp ? createdAt.toDate() : null,
     );
   }
@@ -51,9 +59,16 @@ class FeedbackItem {
   final String buildNumber;
   final String status;
   final String category;
+  final String? attachmentName;
+  final String? attachmentUrl;
   final DateTime? createdAt;
 
   bool get isDeletionRequest => category == 'account_deletion';
+  bool get hasAttachment =>
+      attachmentName != null &&
+      attachmentName!.isNotEmpty &&
+      attachmentUrl != null &&
+      attachmentUrl!.isNotEmpty;
 }
 
 String _firstText(List<Object?> values) {
@@ -270,6 +285,46 @@ class FeedbackInboxCard extends StatelessWidget {
               height: 1.45,
             ),
           ),
+          if (item.hasAttachment) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(11),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: .05),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.attach_file_rounded,
+                    color: Color(0xffd5a7ff),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.attachmentName!,
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 3),
+                        SelectableText(
+                          item.attachmentUrl!,
+                          style: const TextStyle(
+                            color: Color(0xffcdbbd8),
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 14),
           Wrap(
             spacing: 12,

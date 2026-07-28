@@ -462,7 +462,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
           TextButton(
             onPressed: () =>
                 Navigator.pop(dialogContext, _HintDialogAction.back),
-            child: const Text('Kembali'),
+            child: const Text('Batal'),
           ),
           if (needsToken && tokens <= 0)
             FilledButton.icon(
@@ -600,13 +600,6 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
         },
         onCancel: () => Navigator.pop(modeContext),
         hasProgress: true,
-        onSettings: () {
-          Navigator.pop(modeContext);
-          Future<void>.delayed(
-            const Duration(milliseconds: 180),
-            _showSettings,
-          );
-        },
       ),
     ),
   );
@@ -679,6 +672,16 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
               ),
               Column(
                 children: [
+                  _GameHeader(
+                    level: levelIndex + 1,
+                    score: score,
+                    time: _clock,
+                    timeLabel: challengeMode ? 'TANTANGAN' : 'WAKTU',
+                    remainingMistakes: math.max(
+                      0,
+                      _maximumAllowedMistakes - mistakes,
+                    ),
+                  ),
                   Expanded(
                     child: PuzzleCanvas(
                       engine: engine,
@@ -694,20 +697,17 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                       onWrong: _onWrongMove,
                     ),
                   ),
-                  _GameHud(
-                    level: levelIndex + 1,
-                    score: score,
-                    time: _clock,
-                    timeLabel: challengeMode ? 'TANTANGAN' : 'WAKTU',
-                    remainingMistakes: math.max(
-                      0,
-                      _maximumAllowedMistakes - mistakes,
-                    ),
+                  _GameControls(
                     onPause: () {
                       setState(() => paused = true);
                       unawaited(GameAudio.instance.pauseGameplay());
                     },
                     onHint: _showHint,
+                    onSettings: () {
+                      setState(() => paused = true);
+                      unawaited(GameAudio.instance.pauseGameplay());
+                      unawaited(_showSettings());
+                    },
                   ),
                 ],
               ),
@@ -733,7 +733,13 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                   onNext: () => setState(
                     () => _loadLevel(levelIndex + 1, keepPaused: true),
                   ),
-                  onSettings: _showSettings,
+                  gridAvailable: _gridAvailable,
+                  gridVisible: gridVisible,
+                  musicEnabled: musicEnabled,
+                  onStore: _showStore,
+                  onGridChanged: (value) => unawaited(_setGridVisible(value)),
+                  onGridUnlock: () => unawaited(_unlockGridForCurrentLevel()),
+                  onMusicChanged: (value) => unawaited(_setMusicEnabled(value)),
                 ),
             ],
           ),
@@ -895,19 +901,6 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  _SettingsActionCard(
-                    icon: Icons.play_arrow_rounded,
-                    title: 'Lihat cara bermain',
-                    subtitle: 'Panduan singkat 4 halaman',
-                    onTap: () {
-                      Navigator.pop(sheetContext);
-                      Future<void>.delayed(
-                        const Duration(milliseconds: 180),
-                        _showRules,
-                      );
-                    },
-                  ),
                   const SizedBox(height: 10),
                   _SettingsActionCard(
                     icon: Icons.home_rounded,
@@ -939,118 +932,6 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                         },
                       );
                     },
-                  ),
-                  const SizedBox(height: 10),
-                  _SettingsActionCard(
-                    icon: Icons.auto_awesome_rounded,
-                    title: 'Toko & hadiah',
-                    subtitle: 'Token petunjuk, energy, tema, dan bebas iklan',
-                    onTap: () {
-                      Navigator.pop(sheetContext);
-                      Future<void>.delayed(
-                        const Duration(milliseconds: 180),
-                        _showStore,
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: _gridAvailable
-                        ? null
-                        : () => _unlockGridForCurrentLevel(updateSheet),
-                    child: Opacity(
-                      opacity: _gridAvailable ? 1 : .48,
-                      child: Material(
-                        color: Colors.white.withValues(alpha: .045),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                          side: const BorderSide(color: Colors.white12),
-                        ),
-                        child: SwitchListTile(
-                          title: const Text(
-                            'Tampilkan grid',
-                            style: TextStyle(fontWeight: FontWeight.w800),
-                          ),
-                          subtitle: Text(
-                            _gridAvailable
-                                ? 'Gratis di Level 1–3'
-                                : 'Level ${levelIndex + 1} membutuhkan 1 token',
-                            style: const TextStyle(
-                              color: Colors.white54,
-                              fontSize: 11,
-                            ),
-                          ),
-                          secondary: Icon(
-                            _gridAvailable
-                                ? Icons.grid_on_rounded
-                                : Icons.lock_rounded,
-                            color: const Color(0xffd8a5ff),
-                          ),
-                          value: _gridAvailable && gridVisible,
-                          activeThumbColor: Colors.white,
-                          activeTrackColor: const Color(0xff8d4fe0),
-                          onChanged: !_gridAvailable
-                              ? null
-                              : (value) async {
-                                  setState(() => gridVisible = value);
-                                  updateSheet(() {});
-                                  final preferences =
-                                      await SharedPreferences.getInstance();
-                                  await preferences.setBool(
-                                    'balok_grid_visible',
-                                    value,
-                                  );
-                                  await FirebaseService.instance.saveSettings(
-                                    gridVisible: value,
-                                  );
-                                },
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Material(
-                    color: Colors.white.withValues(alpha: .045),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                      side: const BorderSide(color: Colors.white12),
-                    ),
-                    child: SwitchListTile(
-                      title: const Text(
-                        'Musik',
-                        style: TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                      subtitle: Text(
-                        musicEnabled
-                            ? 'Musik latar aktif'
-                            : 'Musik latar dimatikan',
-                        style: const TextStyle(
-                          color: Colors.white54,
-                          fontSize: 11,
-                        ),
-                      ),
-                      secondary: Icon(
-                        musicEnabled
-                            ? Icons.music_note_rounded
-                            : Icons.music_off_rounded,
-                        color: const Color(0xffd8a5ff),
-                      ),
-                      value: musicEnabled,
-                      activeThumbColor: Colors.white,
-                      activeTrackColor: const Color(0xff8d4fe0),
-                      onChanged: (value) async {
-                        setState(() => musicEnabled = value);
-                        updateSheet(() {});
-                        await GameAudio.instance.setEnabled(value);
-                        final preferences =
-                            await SharedPreferences.getInstance();
-                        await preferences.setBool('balok_music_enabled', value);
-                        await FirebaseService.instance.saveSettings(
-                          musicEnabled: value,
-                        );
-                      },
-                    ),
                   ),
                   const SizedBox(height: 10),
                   _SettingsActionCard(
@@ -1435,7 +1316,23 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
     if (mounted) await _showStore();
   }
 
-  Future<void> _unlockGridForCurrentLevel(StateSetter updateSheet) async {
+  Future<void> _setGridVisible(bool value) async {
+    if (!_gridAvailable) return;
+    setState(() => gridVisible = value);
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setBool('balok_grid_visible', value);
+    await FirebaseService.instance.saveSettings(gridVisible: value);
+  }
+
+  Future<void> _setMusicEnabled(bool value) async {
+    setState(() => musicEnabled = value);
+    await GameAudio.instance.setEnabled(value);
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setBool('balok_music_enabled', value);
+    await FirebaseService.instance.saveSettings(musicEnabled: value);
+  }
+
+  Future<void> _unlockGridForCurrentLevel() async {
     if (tokens <= 0) {
       final openStore = await showDialog<bool>(
         context: context,
@@ -1470,9 +1367,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
         ),
       );
       if (openStore == true && mounted) {
-        Navigator.pop(context);
-        await Future<void>.delayed(const Duration(milliseconds: 180));
-        if (mounted) await _showStore();
+        await _showStore();
       }
       return;
     }
@@ -1514,7 +1409,6 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
       gridUnlockedLevels.add(unlockedLevel);
       gridVisible = true;
     });
-    updateSheet(() {});
     await Future.wait([
       preferences.setInt('balok_tokens', tokens),
       preferences.setBool('balok_grid_visible', true),
@@ -2317,29 +2211,75 @@ class _PuzzlePainter extends CustomPainter {
   }
 }
 
-class _GameHud extends StatelessWidget {
-  const _GameHud({
+class _GameHeader extends StatelessWidget {
+  const _GameHeader({
     required this.level,
     required this.score,
     required this.time,
     required this.timeLabel,
     required this.remainingMistakes,
-    required this.onPause,
-    required this.onHint,
   });
+
   final int level;
   final int score;
   final String time;
   final String timeLabel;
   final int remainingMistakes;
-  final VoidCallback onPause;
-  final VoidCallback onHint;
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    height: 78,
+    height: 62,
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xff12051f).withValues(alpha: .9),
+        border: const Border(bottom: BorderSide(color: Colors.white12)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: _HudValue(label: 'SCORE', value: '$score'),
+            ),
+            Expanded(
+              child: _HudValue(
+                label: 'LEVEL',
+                value: level.toString().padLeft(2, '0'),
+              ),
+            ),
+            Expanded(
+              child: _HudValue(label: timeLabel, value: time),
+            ),
+            Expanded(
+              child: _HudValue(
+                label: 'SISA SALAH',
+                value: '$remainingMistakes/$_maximumAllowedMistakes',
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _GameControls extends StatelessWidget {
+  const _GameControls({
+    required this.onPause,
+    required this.onHint,
+    required this.onSettings,
+  });
+
+  final VoidCallback onPause;
+  final VoidCallback onHint;
+  final VoidCallback onSettings;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: 68,
     child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
       child: Row(
         children: [
           Expanded(
@@ -2348,8 +2288,8 @@ class _GameHud extends StatelessWidget {
                 tooltip: 'Pause',
                 onPressed: onPause,
                 style: IconButton.styleFrom(
-                  minimumSize: const Size.square(44),
-                  maximumSize: const Size.square(44),
+                  minimumSize: const Size.square(46),
+                  maximumSize: const Size.square(46),
                   foregroundColor: Colors.white,
                   backgroundColor: const Color(0xff9d4edd),
                   side: const BorderSide(color: Color(0xffd8b4fe), width: 1.3),
@@ -2366,8 +2306,8 @@ class _GameHud extends StatelessWidget {
                 tooltip: 'Petunjuk',
                 onPressed: onHint,
                 style: IconButton.styleFrom(
-                  minimumSize: const Size.square(44),
-                  maximumSize: const Size.square(44),
+                  minimumSize: const Size.square(46),
+                  maximumSize: const Size.square(46),
                   foregroundColor: const Color(0xffffefad),
                   backgroundColor: const Color(0xff5d2d91),
                   side: const BorderSide(color: Color(0xffb985e8), width: 1.2),
@@ -2378,27 +2318,17 @@ class _GameHud extends StatelessWidget {
           ),
           Expanded(
             child: Center(
-              child: _HudValue(label: 'SCORE', value: '$score'),
-            ),
-          ),
-          Expanded(
-            child: Center(
-              child: _HudValue(
-                label: 'LEVEL',
-                value: level.toString().padLeft(2, '0'),
-              ),
-            ),
-          ),
-          Expanded(
-            child: Center(
-              child: _HudValue(label: timeLabel, value: time),
-            ),
-          ),
-          Expanded(
-            child: Center(
-              child: _HudValue(
-                label: 'SISA SALAH',
-                value: '$remainingMistakes/$_maximumAllowedMistakes',
+              child: IconButton.filled(
+                tooltip: 'Aturan',
+                onPressed: onSettings,
+                style: IconButton.styleFrom(
+                  minimumSize: const Size.square(46),
+                  maximumSize: const Size.square(46),
+                  foregroundColor: Colors.white,
+                  backgroundColor: const Color(0xff4b246f),
+                  side: const BorderSide(color: Color(0xff9e6bc2), width: 1.2),
+                ),
+                icon: const Icon(Icons.settings_rounded, size: 22),
               ),
             ),
           ),
@@ -2435,9 +2365,17 @@ class _HudValue extends StatelessWidget {
         ),
       ),
       const SizedBox(height: 4),
-      Text(
-        value,
-        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+      SizedBox(
+        height: 22,
+        width: double.infinity,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            value,
+            maxLines: 1,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+          ),
+        ),
       ),
     ],
   );
@@ -2453,7 +2391,13 @@ class _PauseOverlay extends StatelessWidget {
     required this.onMode,
     required this.onPrevious,
     required this.onNext,
-    required this.onSettings,
+    required this.gridAvailable,
+    required this.gridVisible,
+    required this.musicEnabled,
+    required this.onStore,
+    required this.onGridChanged,
+    required this.onGridUnlock,
+    required this.onMusicChanged,
   });
   final int level;
   final bool canPrevious;
@@ -2463,13 +2407,19 @@ class _PauseOverlay extends StatelessWidget {
   final VoidCallback onMode;
   final VoidCallback onPrevious;
   final VoidCallback onNext;
-  final VoidCallback onSettings;
+  final bool gridAvailable;
+  final bool gridVisible;
+  final bool musicEnabled;
+  final VoidCallback onStore;
+  final ValueChanged<bool> onGridChanged;
+  final VoidCallback onGridUnlock;
+  final ValueChanged<bool> onMusicChanged;
 
   @override
   Widget build(BuildContext context) => ColoredBox(
     color: const Color(0xee100522),
     child: Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(28),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -2526,12 +2476,41 @@ class _PauseOverlay extends StatelessWidget {
                     onTap: onMode,
                   ),
                   _PauseAction(
-                    icon: Icons.settings_rounded,
-                    label: 'Aturan',
-                    onTap: onSettings,
+                    icon: Icons.auto_awesome_rounded,
+                    label: 'Toko &\nHadiah',
+                    onTap: onStore,
                   ),
                 ],
               ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: _PauseToggle(
+                    icon: gridAvailable
+                        ? Icons.grid_on_rounded
+                        : Icons.lock_rounded,
+                    label: 'Grid',
+                    value: gridAvailable && gridVisible,
+                    enabled: gridAvailable,
+                    onChanged: onGridChanged,
+                    onLockedTap: onGridUnlock,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _PauseToggle(
+                    icon: musicEnabled
+                        ? Icons.music_note_rounded
+                        : Icons.music_off_rounded,
+                    label: 'Musik',
+                    value: musicEnabled,
+                    enabled: true,
+                    onChanged: onMusicChanged,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 17),
             SizedBox(
@@ -2549,6 +2528,66 @@ class _PauseOverlay extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _PauseToggle extends StatelessWidget {
+  const _PauseToggle({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.enabled,
+    required this.onChanged,
+    this.onLockedTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool value;
+  final bool enabled;
+  final ValueChanged<bool> onChanged;
+  final VoidCallback? onLockedTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: Colors.white.withValues(alpha: .06),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(15),
+      side: const BorderSide(color: Colors.white12),
+    ),
+    child: InkWell(
+      onTap: enabled ? () => onChanged(!value) : onLockedTap,
+      borderRadius: BorderRadius.circular(15),
+      child: Opacity(
+        opacity: enabled ? 1 : .5,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 7, 5, 7),
+          child: Row(
+            children: [
+              Icon(icon, size: 20, color: const Color(0xffd8a5ff)),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              IgnorePointer(
+                child: Switch(
+                  value: value,
+                  onChanged: enabled ? onChanged : null,
+                  activeThumbColor: Colors.white,
+                  activeTrackColor: const Color(0xff8d4fe0),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     ),
@@ -2576,6 +2615,7 @@ class _PauseAction extends StatelessWidget {
           const SizedBox(height: 5),
           Text(
             label,
+            textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w800),
           ),
         ],

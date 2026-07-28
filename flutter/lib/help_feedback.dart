@@ -1,5 +1,7 @@
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'firebase_service.dart';
 
@@ -20,11 +22,7 @@ class HelpFeedbackScreen extends StatefulWidget {
 class _HelpFeedbackScreenState extends State<HelpFeedbackScreen> {
   final controller = TextEditingController();
   bool sending = false;
-
-  bool get _canSendFeedback {
-    final user = FirebaseService.instance.user;
-    return user != null && !user.isAnonymous;
-  }
+  FeedbackAttachment? attachment;
 
   @override
   void dispose() {
@@ -100,56 +98,8 @@ class _HelpFeedbackScreenState extends State<HelpFeedbackScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          if (!_canSendFeedback) ...[
-            Material(
-              key: const Key('feedbackLoginPrompt'),
-              color: const Color(0xff32154d),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-                side: const BorderSide(color: Color(0xff70419b)),
-              ),
-              child: InkWell(
-                onTap: widget.onLoginRequired == null ? null : _openLogin,
-                borderRadius: BorderRadius.circular(14),
-                child: const Padding(
-                  padding: EdgeInsets.all(13),
-                  child: Row(
-                    children: [
-                      Icon(Icons.lock_open_rounded, color: Color(0xffd8a5ff)),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Masuk dengan Email atau Google',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            SizedBox(height: 3),
-                            Text(
-                              'Ketuk untuk masuk atau mendaftar, lalu kirim feedback.',
-                              style: TextStyle(
-                                color: Colors.white70,
-                                height: 1.35,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Icon(Icons.chevron_right_rounded, color: Colors.white70),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-          ],
           TextField(
             controller: controller,
-            enabled: _canSendFeedback,
             minLines: 4,
             maxLines: 7,
             decoration: InputDecoration(
@@ -162,34 +112,33 @@ class _HelpFeedbackScreenState extends State<HelpFeedbackScreen> {
               ),
             ),
           ),
+          const SizedBox(height: 10),
+          if (attachment == null)
+            OutlinedButton.icon(
+              key: const Key('addFeedbackAttachment'),
+              onPressed: sending ? null : _chooseAttachment,
+              icon: const Icon(Icons.attach_file_rounded),
+              label: const Text('Tambah file atau gambar'),
+            )
+          else
+            _AttachmentCard(
+              attachment: attachment!,
+              onRemove: sending
+                  ? null
+                  : () => setState(() => attachment = null),
+            ),
           const SizedBox(height: 12),
           SizedBox(
             height: 52,
             child: FilledButton.icon(
-              onPressed: sending
-                  ? null
-                  : _canSendFeedback
-                  ? _submit
-                  : widget.onLoginRequired == null
-                  ? null
-                  : _openLogin,
+              onPressed: sending ? null : _submit,
               icon: sending
                   ? const SizedBox.square(
                       dimension: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : Icon(
-                      _canSendFeedback
-                          ? Icons.send_rounded
-                          : Icons.login_rounded,
-                    ),
-              label: Text(
-                sending
-                    ? 'Mengirim…'
-                    : _canSendFeedback
-                    ? 'Kirim feedback'
-                    : 'Masuk untuk mengirim',
-              ),
+                  : const Icon(Icons.send_rounded),
+              label: Text(sending ? 'Mengirim…' : 'Kirim feedback'),
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xff9147df),
               ),
@@ -200,22 +149,7 @@ class _HelpFeedbackScreenState extends State<HelpFeedbackScreen> {
     ),
   );
 
-  Future<void> _openLogin() async {
-    await widget.onLoginRequired?.call();
-    if (mounted) setState(() {});
-  }
-
   Future<void> _submit() async {
-    if (!_canSendFeedback) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Masuk dengan Email atau Google untuk mengirim feedback.',
-          ),
-        ),
-      );
-      return;
-    }
     final feedback = controller.text.trim();
     if (feedback.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -225,9 +159,13 @@ class _HelpFeedbackScreenState extends State<HelpFeedbackScreen> {
     }
     setState(() => sending = true);
     try {
-      await FirebaseService.instance.submitFeedback(message: feedback);
+      await FirebaseService.instance.submitFeedback(
+        message: feedback,
+        attachment: attachment,
+      );
       if (!mounted) return;
       controller.clear();
+      setState(() => attachment = null);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Terima kasih. Feedback sudah terkirim.')),
       );
@@ -244,6 +182,138 @@ class _HelpFeedbackScreenState extends State<HelpFeedbackScreen> {
       if (mounted) setState(() => sending = false);
     }
   }
+
+  Future<void> _chooseAttachment() async {
+    final source = await showModalBottomSheet<_AttachmentSource>(
+      context: context,
+      backgroundColor: const Color(0xff28113f),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library_rounded),
+                title: const Text('Pilih gambar dari album'),
+                onTap: () => Navigator.pop(context, _AttachmentSource.gallery),
+              ),
+              ListTile(
+                leading: const Icon(Icons.insert_drive_file_rounded),
+                title: const Text('Pilih file'),
+                onTap: () => Navigator.pop(context, _AttachmentSource.file),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (source == null || !mounted) return;
+    try {
+      FeedbackAttachment? selected;
+      if (source == _AttachmentSource.gallery) {
+        final image = await ImagePicker().pickImage(
+          source: ImageSource.gallery,
+          imageQuality: 85,
+          maxWidth: 2048,
+        );
+        if (image != null) {
+          selected = FeedbackAttachment(
+            fileName: image.name,
+            contentType: _contentTypeFor(image.name, fallback: 'image/jpeg'),
+            bytes: await image.readAsBytes(),
+          );
+        }
+      } else {
+        final file = await openFile();
+        if (file != null) {
+          selected = FeedbackAttachment(
+            fileName: file.name,
+            contentType: _contentTypeFor(file.name),
+            bytes: await file.readAsBytes(),
+          );
+        }
+      }
+      if (selected == null || !mounted) return;
+      if (selected.bytes.length > 10 * 1024 * 1024) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Ukuran lampiran maksimal 10 MB.')),
+        );
+        return;
+      }
+      setState(() => attachment = selected);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Lampiran belum dapat dipilih.')),
+      );
+    }
+  }
+}
+
+enum _AttachmentSource { gallery, file }
+
+String _contentTypeFor(
+  String fileName, {
+  String fallback = 'application/octet-stream',
+}) {
+  final extension = fileName.split('.').last.toLowerCase();
+  return switch (extension) {
+    'jpg' || 'jpeg' => 'image/jpeg',
+    'png' => 'image/png',
+    'webp' => 'image/webp',
+    'gif' => 'image/gif',
+    'pdf' => 'application/pdf',
+    'txt' || 'log' => 'text/plain',
+    'zip' => 'application/zip',
+    _ => fallback,
+  };
+}
+
+class _AttachmentCard extends StatelessWidget {
+  const _AttachmentCard({required this.attachment, required this.onRemove});
+
+  final FeedbackAttachment attachment;
+  final VoidCallback? onRemove;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: const Key('feedbackAttachmentPreview'),
+    padding: const EdgeInsets.fromLTRB(13, 9, 6, 9),
+    decoration: BoxDecoration(
+      color: const Color(0xff32154d),
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: const Color(0xff70419b)),
+    ),
+    child: Row(
+      children: [
+        const Icon(Icons.attach_file_rounded, color: Color(0xffd8a5ff)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                attachment.fileName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              Text(
+                '${(attachment.bytes.length / 1024).ceil()} KB',
+                style: const TextStyle(color: Colors.white60, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+        IconButton(
+          tooltip: 'Hapus lampiran',
+          onPressed: onRemove,
+          icon: const Icon(Icons.close_rounded),
+        ),
+      ],
+    ),
+  );
 }
 
 class _HelpCard extends StatelessWidget {

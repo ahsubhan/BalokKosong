@@ -198,7 +198,6 @@ service cloud.firestore {
     match /feedback/{feedbackId} {
       allow create:
         if request.auth != null
-        && request.auth.token.firebase.sign_in_provider != 'anonymous'
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.message is string
         && request.resource.data.message.size() > 0
@@ -207,7 +206,12 @@ service cloud.firestore {
           || (request.resource.data.senderName is string
             && request.resource.data.senderName.size() > 0
             && request.resource.data.senderName.size() <= 100))
-        && request.resource.data.provider == 'account'
+        && (
+          (request.resource.data.provider == 'account'
+            && request.auth.token.firebase.sign_in_provider != 'anonymous')
+          || (request.resource.data.provider == 'guest'
+            && request.auth.token.firebase.sign_in_provider == 'anonymous')
+        )
         && request.resource.data.platform is string
         && request.resource.data.appVersion is string
         && request.resource.data.buildNumber is string
@@ -216,7 +220,26 @@ service cloud.firestore {
         && (!('category' in request.resource.data)
           || request.resource.data.category == 'account_deletion')
         && (!('reviewWithinHours' in request.resource.data)
-          || request.resource.data.reviewWithinHours == 24);
+          || request.resource.data.reviewWithinHours == 24)
+        && (!('attachment' in request.resource.data)
+          || (
+            request.resource.data.attachment is map
+            && request.resource.data.attachment.keys().hasOnly(
+              ['name', 'path', 'url', 'contentType', 'size']
+            )
+            && request.resource.data.attachment.name is string
+            && request.resource.data.attachment.name.size() > 0
+            && request.resource.data.attachment.name.size() <= 255
+            && request.resource.data.attachment.path is string
+            && request.resource.data.attachment.path.matches(
+              '^feedback/' + request.auth.uid + '/' + feedbackId + '/.*$'
+            )
+            && request.resource.data.attachment.url is string
+            && request.resource.data.attachment.contentType is string
+            && request.resource.data.attachment.size is int
+            && request.resource.data.attachment.size > 0
+            && request.resource.data.attachment.size <= 10 * 1024 * 1024
+          ));
       allow read: if isDeveloper();
       allow update:
         if isDeveloper()

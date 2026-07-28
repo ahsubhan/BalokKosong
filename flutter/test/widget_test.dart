@@ -16,6 +16,18 @@ void main() {
     expect(find.text('Mendaftar'), findsOneWidget);
     expect(find.textContaining('APPLE'), findsNothing);
     expect(find.textContaining('FACEBOOK'), findsNothing);
+    expect(find.byTooltip('Cara bermain'), findsOneWidget);
+  });
+
+  testWidgets('home help button opens the four-page guide', (tester) async {
+    await tester.pumpWidget(const BalokKosongApp(showSplash: false));
+
+    await tester.tap(find.byTooltip('Cara bermain'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('CARA BERMAIN · 1/4'), findsOneWidget);
+    expect(find.text('Kosongkan papan'), findsOneWidget);
+    expect(find.text('Kembali'), findsOneWidget);
   });
 
   testWidgets('opens email registration form', (tester) async {
@@ -30,6 +42,33 @@ void main() {
     expect(find.text('Password (minimal 6 karakter)'), findsOneWidget);
     expect(find.text('KIRIM VERIFIKASI'), findsOneWidget);
     expect(find.textContaining('folder Junk/Spam'), findsOneWidget);
+  });
+
+  testWidgets('email sign-in button opens login immediately', (tester) async {
+    await tester.pumpWidget(const BalokKosongApp(showSplash: false));
+
+    await tester.tap(find.byKey(const Key('emailSignInButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('MASUK DENGAN EMAIL'), findsOneWidget);
+    expect(find.text('Alamat email'), findsOneWidget);
+    expect(find.text('Password'), findsOneWidget);
+    expect(find.text('MASUK'), findsOneWidget);
+    expect(find.text('Belum punya akun? MENDAFTAR'), findsOneWidget);
+  });
+
+  testWidgets('email login offers a working registration path', (tester) async {
+    await tester.pumpWidget(const BalokKosongApp(showSplash: false));
+
+    await tester.tap(find.byKey(const Key('emailSignInButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('registerFromEmailLoginButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('MENDAFTAR'), findsOneWidget);
+    expect(find.text('Nama'), findsOneWidget);
+    expect(find.text('Password (minimal 6 karakter)'), findsOneWidget);
+    expect(find.text('KIRIM VERIFIKASI'), findsOneWidget);
   });
 
   testWidgets('guest play warns about temporary progress and login bonus', (

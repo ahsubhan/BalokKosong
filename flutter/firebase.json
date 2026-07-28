@@ -4,6 +4,9 @@
     "location": "asia-southeast2",
     "rules": "firestore.rules"
   },
+  "storage": {
+    "rules": "storage.rules"
+  },
   "hosting": {
     "public": "hosting",
     "ignore": [

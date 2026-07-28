@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
@@ -14,6 +16,26 @@ import 'player_progress.dart';
 
 const int welcomeTokenBonus = 10;
 const int guestStarterTokenBonus = 3;
+
+class FeedbackAttachment {
+  const FeedbackAttachment({
+    required this.fileName,
+    required this.contentType,
+    required this.bytes,
+  });
+
+  final String fileName;
+  final String contentType;
+  final Uint8List bytes;
+}
+
+String _safeFeedbackFileName(String value) {
+  final sanitized = value
+      .trim()
+      .replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_')
+      .replaceAll(RegExp(r'_+'), '_');
+  return sanitized.isEmpty ? 'lampiran' : sanitized;
+}
 
 const _localAccountDataKeys = <String>[
   'balok_level',
@@ -461,14 +483,16 @@ class FirebaseService {
         }, SetOptions(merge: true));
   }
 
-  Future<void> submitFeedback({required String message}) async {
+  Future<void> submitFeedback({
+    required String message,
+    FeedbackAttachment? attachment,
+  }) async {
     await initialize();
     _requireReady();
-    final currentUser = user;
-    if (currentUser == null || currentUser.isAnonymous) {
-      throw StateError(
-        'Masuk dengan Email atau Google untuk mengirim feedback.',
-      );
+    var currentUser = user;
+    currentUser ??= (await FirebaseAuth.instance.signInAnonymously()).user;
+    if (currentUser == null) {
+      throw StateError('Sesi tamu belum dapat dibuat.');
     }
     final profileName = currentUser.displayName?.trim();
     final email = currentUser.email?.trim();
@@ -476,18 +500,40 @@ class FirebaseService {
         ? profileName
         : email != null && email.contains('@')
         ? email.substring(0, email.indexOf('@'))
-        : 'Pengguna';
+        : 'Tamu';
     final package = await PackageInfo.fromPlatform();
-    await FirebaseFirestore.instance.collection('feedback').add({
+    final feedbackDocument = FirebaseFirestore.instance
+        .collection('feedback')
+        .doc();
+    Map<String, Object?>? attachmentData;
+    if (attachment != null) {
+      final safeName = _safeFeedbackFileName(attachment.fileName);
+      final storagePath =
+          'feedback/${currentUser.uid}/${feedbackDocument.id}/$safeName';
+      final storageReference = FirebaseStorage.instance.ref(storagePath);
+      await storageReference.putData(
+        attachment.bytes,
+        SettableMetadata(contentType: attachment.contentType),
+      );
+      attachmentData = {
+        'name': attachment.fileName,
+        'path': storagePath,
+        'url': await storageReference.getDownloadURL(),
+        'contentType': attachment.contentType,
+        'size': attachment.bytes.length,
+      };
+    }
+    await feedbackDocument.set({
       'uid': currentUser.uid,
       'email': currentUser.email,
       'displayName': currentUser.displayName,
       'senderName': senderName,
-      'provider': 'account',
+      'provider': currentUser.isAnonymous ? 'guest' : 'account',
       'message': message,
       'platform': Platform.operatingSystem,
       'appVersion': package.version,
       'buildNumber': package.buildNumber,
+      'attachment': ?attachmentData,
       'status': 'new',
       'createdAt': FieldValue.serverTimestamp(),
     });

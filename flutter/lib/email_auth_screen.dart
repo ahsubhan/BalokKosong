@@ -60,6 +60,24 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
         loading: loading,
         onPressed: _login,
       ),
+      const SizedBox(height: 10),
+      TextButton(
+        key: const Key('registerFromEmailLoginButton'),
+        onPressed: loading
+            ? null
+            : () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const EmailRegistrationScreen(),
+                ),
+              ),
+        child: const Text(
+          'Belum punya akun? MENDAFTAR',
+          style: TextStyle(
+            color: Color(0xffd8a5ff),
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
     ],
   );
 

@@ -303,6 +303,14 @@ fieldset {
   white-space: pre-wrap;
 }
 
+.feedback-attachment {
+  display: inline-block;
+  margin: 0 0 12px;
+  color: #ddb5ff;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
 .feedback-actions {
   justify-content: flex-end;
   margin-top: 12px;

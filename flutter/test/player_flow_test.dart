@@ -115,7 +115,6 @@ void main() {
           onRelaxed: () => relaxedStarted = true,
           onChallenge: () => challengeStarted = true,
           onCancel: () {},
-          onSettings: () {},
           onRelaxedSelected: (value) => relaxedFromLevelOne = value,
           onChallengeSelected: (value) => challengeFromLevelOne = value,
         ),
@@ -133,7 +132,7 @@ void main() {
     );
     expect(continueChoice.onTap, isNull);
     expect(levelOneChoice.onTap, isNull);
-    expect(find.byTooltip('Pengaturan'), findsOneWidget);
+    expect(find.byTooltip('Pengaturan'), findsNothing);
 
     await tester.tap(find.text('Santai'));
     expect(relaxedStarted, isFalse);
@@ -192,6 +191,75 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byTooltip('Kembali'), findsOneWidget);
+  });
+
+  testWidgets('game header shows metrics and footer shows controls', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NativeGameScreen(homeBuilder: (_) => const HomeScreen()),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byTooltip('Aturan'), findsOneWidget);
+    expect(find.text('SCORE'), findsOneWidget);
+    expect(find.text('LEVEL'), findsOneWidget);
+    expect(find.text('WAKTU'), findsOneWidget);
+    expect(find.text('SISA SALAH'), findsOneWidget);
+    expect(
+      tester.getCenter(find.text('SCORE')).dy,
+      lessThan(tester.getCenter(find.byTooltip('Pause')).dy),
+    );
+    final headerCenters = [
+      tester.getCenter(find.text('SCORE')).dx,
+      tester.getCenter(find.text('LEVEL')).dx,
+      tester.getCenter(find.text('WAKTU')).dx,
+      tester.getCenter(find.text('SISA SALAH')).dx,
+    ];
+    expect(
+      headerCenters[1] - headerCenters[0],
+      closeTo(headerCenters[2] - headerCenters[1], 1),
+    );
+    expect(
+      headerCenters[2] - headerCenters[1],
+      closeTo(headerCenters[3] - headerCenters[2], 1),
+    );
+    final footerCenters = [
+      tester.getCenter(find.byTooltip('Pause')).dx,
+      tester.getCenter(find.byTooltip('Petunjuk')).dx,
+      tester.getCenter(find.byTooltip('Aturan')).dx,
+    ];
+    expect(
+      footerCenters[1] - footerCenters[0],
+      closeTo(footerCenters[2] - footerCenters[1], 1),
+    );
+    await tester.tap(find.byTooltip('Pause'));
+    await tester.pump();
+    expect(find.text('Aturan'), findsNothing);
+    expect(find.text('Toko &\nHadiah'), findsOneWidget);
+  });
+
+  testWidgets('hint dialog uses Batal and Lanjut actions', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NativeGameScreen(homeBuilder: (_) => const HomeScreen()),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byTooltip('Petunjuk'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Gunakan Petunjuk?'), findsOneWidget);
+    expect(find.text('Batal'), findsOneWidget);
+    expect(find.text('Lanjut'), findsOneWidget);
+    await tester.tap(find.text('Batal'));
+    await tester.pumpAndSettle();
+    expect(find.text('Gunakan Petunjuk?'), findsNothing);
   });
 
   testWidgets('logout replaces all routes with a fresh sign-in home', (

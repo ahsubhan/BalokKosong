@@ -223,7 +223,7 @@ class _OpeningSplashScreenState extends State<OpeningSplashScreen>
           child: ClipRRect(
             borderRadius: BorderRadius.circular(34),
             child: Image.asset(
-              'assets/icon/app_icon.png',
+              'assets/icon/app_icon.webp',
               width: 220,
               height: 220,
               fit: BoxFit.cover,
@@ -412,6 +412,21 @@ class HomeScreen extends StatelessWidget {
               ),
             )
           : null,
+      floatingActionButton: FloatingActionButton.small(
+        key: const Key('homeHowToPlayButton'),
+        tooltip: 'Cara bermain',
+        onPressed: () => _openHowToPlay(context),
+        backgroundColor: const Color(0xff7436ad),
+        foregroundColor: Colors.white,
+        shape: const CircleBorder(
+          side: BorderSide(color: Color(0xffc67cff), width: 1.5),
+        ),
+        child: const Text(
+          '?',
+          style: TextStyle(fontSize: 23, fontWeight: FontWeight.w900),
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: SafeArea(
         child: Stack(
           children: [
@@ -433,15 +448,13 @@ class HomeScreen extends StatelessWidget {
                   ),
                   const Spacer(flex: 2),
                   _AuthButton(
+                    key: const Key('emailSignInButton'),
                     label: 'MASUK DENGAN EMAIL',
                     symbol: Icons.email_outlined,
                     tone: const Color(0xff7340be),
                     onTap: signedIn
                         ? null
-                        : () {
-                            unawaited(GameAudio.instance.stopOpening());
-                            unawaited(_openEmailLogin(context));
-                          },
+                        : () => unawaited(_openEmailLogin(context)),
                   ),
                   const SizedBox(height: 7),
                   Wrap(
@@ -546,6 +559,17 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  static void _openHowToPlay(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (guideContext) => HowToPlayScreen(
+          finalLabel: 'Kembali',
+          onFinished: () => Navigator.pop(guideContext),
         ),
       ),
     );
@@ -666,7 +690,6 @@ class HomeScreen extends StatelessWidget {
         );
       }
     },
-    onSettings: () => openNativeGameSettings(modeContext, _settingsHome),
   );
 
   static Future<void> _startSelectedGame(
@@ -871,9 +894,13 @@ class HomeScreen extends StatelessWidget {
   }
 
   static Future<void> _openEmailLogin(BuildContext context) async {
-    final signedIn = await Navigator.of(
+    // Start navigation before touching the audio player. On slower Android
+    // devices, the native audio stop must never delay or swallow the tap.
+    final loginResult = Navigator.of(
       context,
     ).push<bool>(MaterialPageRoute(builder: (_) => const EmailLoginScreen()));
+    unawaited(GameAudio.instance.stopOpening());
+    final signedIn = await loginResult;
     if (signedIn == true && context.mounted) {
       await _enterGame(context);
     } else {
@@ -909,6 +936,7 @@ class HomeScreen extends StatelessWidget {
 
 class _AuthButton extends StatelessWidget {
   const _AuthButton({
+    super.key,
     required this.label,
     required this.symbol,
     required this.tone,
