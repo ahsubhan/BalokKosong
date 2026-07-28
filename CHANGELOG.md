@@ -6,7 +6,15 @@ Format versi aplikasi adalah `MAJOR.MINOR.PATCH+BUILD`.
 
 ## [Unreleased]
 
-Belum ada perubahan setelah kandidat Build 2.
+Belum ada perubahan setelah kandidat Build 3.
+
+## [1.0.2+3] - 2026-07-28
+
+### Fixed
+
+- Tombol Masuk dengan Email membuka halaman login secara konsisten pada
+  perangkat Android closed testing.
+- Halaman login Email menyediakan jalur langsung menuju pendaftaran akun baru.
 
 ## [1.0.1+2] - 2026-07-27
 
