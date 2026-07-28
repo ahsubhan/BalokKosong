@@ -1,0 +1,65 @@
+name: Laporan Bug
+description: Laporkan masalah yang dapat direproduksi
+title: "[BUG] "
+labels:
+  - "type: bug"
+  - "priority: p2-medium"
+body:
+  - type: input
+    id: build
+    attributes:
+      label: Versi dan build
+      placeholder: "Contoh: 1.0.1 Build 2"
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      options:
+        - Dev
+        - Staging / Closed Testing
+        - Production
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Perangkat dan OS
+      placeholder: "Contoh: Redmi Note 9 Pro, Android 12"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Masalah yang terjadi
+      description: Jelaskan secara singkat dan jelas.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Langkah memunculkan masalah
+      placeholder: "1. Buka...\n2. Ketuk...\n3. Masalah muncul"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Hasil yang diharapkan
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshot, video, atau log
+      description: Seret file ke kotak ini jika tersedia. Jangan sertakan password atau data sensitif.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pemeriksaan
+      options:
+        - label: Saya sudah memastikan laporan serupa belum ada.
+          required: true
+        - label: Masalah masih terjadi setelah aplikasi dibuka ulang.
+          required: false
