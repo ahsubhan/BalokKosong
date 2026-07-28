@@ -448,15 +448,13 @@ class HomeScreen extends StatelessWidget {
                   ),
                   const Spacer(flex: 2),
                   _AuthButton(
+                    key: const Key('emailSignInButton'),
                     label: 'MASUK DENGAN EMAIL',
                     symbol: Icons.email_outlined,
                     tone: const Color(0xff7340be),
                     onTap: signedIn
                         ? null
-                        : () {
-                            unawaited(GameAudio.instance.stopOpening());
-                            unawaited(_openEmailLogin(context));
-                          },
+                        : () => unawaited(_openEmailLogin(context)),
                   ),
                   const SizedBox(height: 7),
                   Wrap(
@@ -896,9 +894,13 @@ class HomeScreen extends StatelessWidget {
   }
 
   static Future<void> _openEmailLogin(BuildContext context) async {
-    final signedIn = await Navigator.of(
+    // Start navigation before touching the audio player. On slower Android
+    // devices, the native audio stop must never delay or swallow the tap.
+    final loginResult = Navigator.of(
       context,
     ).push<bool>(MaterialPageRoute(builder: (_) => const EmailLoginScreen()));
+    unawaited(GameAudio.instance.stopOpening());
+    final signedIn = await loginResult;
     if (signedIn == true && context.mounted) {
       await _enterGame(context);
     } else {
@@ -934,6 +936,7 @@ class HomeScreen extends StatelessWidget {
 
 class _AuthButton extends StatelessWidget {
   const _AuthButton({
+    super.key,
     required this.label,
     required this.symbol,
     required this.tone,

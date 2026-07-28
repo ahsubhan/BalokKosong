@@ -44,6 +44,33 @@ void main() {
     expect(find.textContaining('folder Junk/Spam'), findsOneWidget);
   });
 
+  testWidgets('email sign-in button opens login immediately', (tester) async {
+    await tester.pumpWidget(const BalokKosongApp(showSplash: false));
+
+    await tester.tap(find.byKey(const Key('emailSignInButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('MASUK DENGAN EMAIL'), findsOneWidget);
+    expect(find.text('Alamat email'), findsOneWidget);
+    expect(find.text('Password'), findsOneWidget);
+    expect(find.text('MASUK'), findsOneWidget);
+    expect(find.text('Belum punya akun? MENDAFTAR'), findsOneWidget);
+  });
+
+  testWidgets('email login offers a working registration path', (tester) async {
+    await tester.pumpWidget(const BalokKosongApp(showSplash: false));
+
+    await tester.tap(find.byKey(const Key('emailSignInButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('registerFromEmailLoginButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('MENDAFTAR'), findsOneWidget);
+    expect(find.text('Nama'), findsOneWidget);
+    expect(find.text('Password (minimal 6 karakter)'), findsOneWidget);
+    expect(find.text('KIRIM VERIFIKASI'), findsOneWidget);
+  });
+
   testWidgets('guest play warns about temporary progress and login bonus', (
     tester,
   ) async {
