@@ -789,12 +789,15 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
             style: const TextStyle(color: Color(0xffd8a5ff)),
           ),
           const SizedBox(height: 14),
+          const Text('• Kontrol geret lebih responsif di Android dan iPhone'),
           const Text(
-            '• 10 level puzzle dengan balok I, L, T, dan bentuk kompleks',
+            '• Cara Bermain tersedia setelah pembuka dan dari permainan',
           ),
-          const Text('• Mode Santai dan Tantangan dengan progres tersimpan'),
-          const Text('• Login, Firebase sync, token, toko, dan feedback'),
-          const Text('• Perbaikan startup, navigasi level, audio, dan logout'),
+          const Text(
+            '• Footer baru: Pause, Petunjuk, Cara Bermain, dan Pengaturan',
+          ),
+          const Text('• Penyempurnaan volume musik dan suara kemenangan'),
+          const Text('• Tampilan Help & Feedback dirapikan'),
         ],
       ),
       actions: [
