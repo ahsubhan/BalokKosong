@@ -1,0 +1,43 @@
+name: Permintaan Fitur
+description: Usulkan fitur atau peningkatan baru
+title: "[FITUR] "
+labels:
+  - "type: feature"
+  - "priority: p2-medium"
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Masalah atau kebutuhan pengguna
+      description: Jelaskan alasan fitur ini diperlukan.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Solusi yang diusulkan
+    validations:
+      required: true
+  - type: textarea
+    id: benefit
+    attributes:
+      label: Manfaat bagi pengguna
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Kriteria selesai
+      placeholder: "Fitur dianggap selesai jika..."
+    validations:
+      required: true
+  - type: dropdown
+    id: target
+    attributes:
+      label: Target awal
+      options:
+        - Dev
+        - Staging
+        - Production / Hotfix
+    validations:
+      required: true
