@@ -204,7 +204,8 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.byTooltip('Aturan'), findsOneWidget);
+    expect(find.byTooltip('Cara bermain'), findsOneWidget);
+    expect(find.byTooltip('Pengaturan'), findsOneWidget);
     expect(find.text('SCORE'), findsOneWidget);
     expect(find.text('LEVEL'), findsOneWidget);
     expect(find.text('WAKTU'), findsOneWidget);
@@ -230,11 +231,16 @@ void main() {
     final footerCenters = [
       tester.getCenter(find.byTooltip('Pause')).dx,
       tester.getCenter(find.byTooltip('Petunjuk')).dx,
-      tester.getCenter(find.byTooltip('Aturan')).dx,
+      tester.getCenter(find.byTooltip('Cara bermain')).dx,
+      tester.getCenter(find.byTooltip('Pengaturan')).dx,
     ];
     expect(
       footerCenters[1] - footerCenters[0],
       closeTo(footerCenters[2] - footerCenters[1], 1),
+    );
+    expect(
+      footerCenters[2] - footerCenters[1],
+      closeTo(footerCenters[3] - footerCenters[2], 1),
     );
     await tester.tap(find.byTooltip('Pause'));
     await tester.pump();

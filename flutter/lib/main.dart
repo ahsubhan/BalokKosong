@@ -128,14 +128,19 @@ class _OpeningSplashScreenState extends State<OpeningSplashScreen>
     Navigator.of(context).pushReplacement(
       PageRouteBuilder<void>(
         transitionDuration: const Duration(milliseconds: 480),
-        pageBuilder: (_, _, _) => returningAccount
+        pageBuilder: (routeContext, _, _) => returningAccount
             ? ReturningPlayerWelcomeScreen(
                 playerName: returningPlayerName(
                   displayName: user.displayName,
                   email: user.email,
                 ),
               )
-            : const HomeScreen(),
+            : HowToPlayScreen(
+                finalLabel: 'Lanjut',
+                onFinished: () => Navigator.of(routeContext).pushReplacement(
+                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                ),
+              ),
         transitionsBuilder: (_, animation, _, child) => FadeTransition(
           opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
           child: child,

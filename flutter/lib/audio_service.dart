@@ -13,7 +13,7 @@ class GameAudio with WidgetsBindingObserver {
 
   static final GameAudio instance = GameAudio._();
   static const double _openingVolume = .40;
-  static const double _gameplayVolume = .24;
+  static const double _gameplayVolume = .60;
   static const double _gameplayDuckedVolume = .07;
   static const double _slideVolume = 1;
 
@@ -200,7 +200,7 @@ class GameAudio with WidgetsBindingObserver {
       await Future.wait([_music.pause(), stopBlockSlide()]);
       await _jingle.stop();
       await _jingle.setReleaseMode(ReleaseMode.stop);
-      await _jingle.setVolume(.78);
+      await _jingle.setVolume(.90);
       await _jingle.play(AssetSource('audio/victory_jingle.wav'));
       _jinglePlaying = true;
     } catch (error) {

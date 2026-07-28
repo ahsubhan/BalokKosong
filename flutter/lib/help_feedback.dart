@@ -6,13 +6,8 @@ import 'package:image_picker/image_picker.dart';
 import 'firebase_service.dart';
 
 class HelpFeedbackScreen extends StatefulWidget {
-  const HelpFeedbackScreen({
-    super.key,
-    required this.onOpenGuide,
-    this.onLoginRequired,
-  });
+  const HelpFeedbackScreen({super.key, this.onLoginRequired});
 
-  final VoidCallback onOpenGuide;
   final Future<void> Function()? onLoginRequired;
 
   @override
@@ -44,13 +39,6 @@ class _HelpFeedbackScreenState extends State<HelpFeedbackScreen> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
         children: [
-          _HelpCard(
-            icon: Icons.play_arrow_rounded,
-            title: 'Lihat cara bermain',
-            subtitle: 'Buka kembali panduan singkat 4 halaman',
-            onTap: widget.onOpenGuide,
-          ),
-          const SizedBox(height: 12),
           Text(
             'PERTANYAAN UMUM',
             style: GoogleFonts.fredoka(
@@ -312,35 +300,6 @@ class _AttachmentCard extends StatelessWidget {
           icon: const Icon(Icons.close_rounded),
         ),
       ],
-    ),
-  );
-}
-
-class _HelpCard extends StatelessWidget {
-  const _HelpCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Card(
-    color: const Color(0xff28113f),
-    child: ListTile(
-      onTap: onTap,
-      leading: CircleAvatar(
-        backgroundColor: const Color(0xff9147df),
-        child: Icon(icon, color: Colors.white),
-      ),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
-      subtitle: Text(subtitle),
-      trailing: const Icon(Icons.chevron_right_rounded),
     ),
   );
 }
