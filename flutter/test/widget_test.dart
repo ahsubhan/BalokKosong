@@ -92,7 +92,9 @@ void main() {
     expect(find.text('MAIN SEBAGAI TAMU'), findsOneWidget);
   });
 
-  testWidgets('shows opening animation before the home screen', (tester) async {
+  testWidgets('shows opening animation and guide before the home screen', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       const BalokKosongApp(startupInitializer: _initializeForTest),
     );
@@ -105,6 +107,18 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(OpeningSplashScreen), findsNothing);
+    expect(find.text('CARA BERMAIN · 1/4'), findsOneWidget);
+    expect(find.text('MASUK DENGAN EMAIL'), findsNothing);
+
+    for (var page = 1; page < 4; page++) {
+      await tester.ensureVisible(find.text('Berikutnya'));
+      await tester.tap(find.text('Berikutnya'));
+      await tester.pumpAndSettle();
+    }
+    await tester.ensureVisible(find.text('Lanjut'));
+    await tester.tap(find.text('Lanjut'));
+    await tester.pumpAndSettle();
+
     expect(find.text('MASUK DENGAN EMAIL'), findsOneWidget);
   });
 

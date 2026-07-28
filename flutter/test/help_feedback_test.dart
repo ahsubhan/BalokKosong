@@ -4,9 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   testWidgets('guest can fill feedback and add an attachment', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(home: HelpFeedbackScreen(onOpenGuide: () {})),
-    );
+    await tester.pumpWidget(const MaterialApp(home: HelpFeedbackScreen()));
 
     await tester.scrollUntilVisible(
       find.text('Kirim feedback'),

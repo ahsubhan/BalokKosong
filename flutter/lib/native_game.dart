@@ -703,6 +703,11 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
                       unawaited(GameAudio.instance.pauseGameplay());
                     },
                     onHint: _showHint,
+                    onHowToPlay: () {
+                      setState(() => paused = true);
+                      unawaited(GameAudio.instance.pauseGameplay());
+                      _showRules();
+                    },
                     onSettings: () {
                       setState(() => paused = true);
                       unawaited(GameAudio.instance.pauseGameplay());
@@ -760,10 +765,6 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
   void _showHelp() => Navigator.of(context).push(
     MaterialPageRoute(
       builder: (helpContext) => HelpFeedbackScreen(
-        onOpenGuide: () {
-          Navigator.pop(helpContext);
-          Future<void>.delayed(const Duration(milliseconds: 180), _showRules);
-        },
         onLoginRequired: () => Navigator.of(
           helpContext,
         ).push(MaterialPageRoute(builder: widget.homeBuilder)),
@@ -1725,6 +1726,8 @@ class PuzzleCanvas extends StatefulWidget {
 
 class _PuzzleCanvasState extends State<PuzzleCanvas>
     with SingleTickerProviderStateMixin {
+  bool get _useSensitiveTouchInput => Platform.isAndroid || Platform.isIOS;
+
   PuzzlePiece? active;
   double dragCells = 0;
   double maxNegative = 0;
@@ -1732,6 +1735,7 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
   bool dragAttempted = false;
   bool slideSoundPlaying = false;
   int? slideSoundSession;
+  int? activePointer;
   double collisionDirection = 0;
   late final AnimationController bumpController;
 
@@ -1760,34 +1764,68 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
       );
       final width = cell * boardCols;
       final height = cell * boardRows;
-      return Center(
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          dragStartBehavior: DragStartBehavior.down,
-          onPanDown: widget.disabled
-              ? null
-              : (details) => _start(details.localPosition, cell),
-          onPanUpdate: widget.disabled
-              ? null
-              : (details) => _update(details.delta, cell),
-          onPanEnd: widget.disabled ? null : (_) => _end(),
-          onPanCancel: widget.disabled ? null : _cancelDrag,
-          child: CustomPaint(
-            size: Size(width, height),
-            painter: _PuzzlePainter(
-              pieces: widget.engine.pieces,
-              boardColor: widget.boardColor,
-              themeName: widget.themeName,
-              active: active,
-              activeOffset: dragCells,
-              showGrid: widget.showGrid,
-              hintedPieceId: widget.hintedPieceId,
-              cell: cell,
-              bumpAnimation: bumpController,
-              collisionDirection: collisionDirection,
-            ),
-          ),
+      final board = CustomPaint(
+        size: Size(width, height),
+        painter: _PuzzlePainter(
+          pieces: widget.engine.pieces,
+          boardColor: widget.boardColor,
+          themeName: widget.themeName,
+          active: active,
+          activeOffset: dragCells,
+          showGrid: widget.showGrid,
+          hintedPieceId: widget.hintedPieceId,
+          cell: cell,
+          bumpAnimation: bumpController,
+          collisionDirection: collisionDirection,
         ),
+      );
+      return Center(
+        child: _useSensitiveTouchInput
+            ? Listener(
+                behavior: HitTestBehavior.opaque,
+                onPointerDown: widget.disabled
+                    ? null
+                    : (event) {
+                        if (activePointer != null) return;
+                        activePointer = event.pointer;
+                        _start(event.localPosition, cell);
+                      },
+                onPointerMove: widget.disabled
+                    ? null
+                    : (event) {
+                        if (event.pointer == activePointer) {
+                          _update(event.delta, cell);
+                        }
+                      },
+                onPointerUp: widget.disabled
+                    ? null
+                    : (event) {
+                        if (event.pointer != activePointer) return;
+                        activePointer = null;
+                        _end();
+                      },
+                onPointerCancel: widget.disabled
+                    ? null
+                    : (event) {
+                        if (event.pointer != activePointer) return;
+                        activePointer = null;
+                        _cancelDrag();
+                      },
+                child: board,
+              )
+            : GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                dragStartBehavior: DragStartBehavior.down,
+                onPanDown: widget.disabled
+                    ? null
+                    : (details) => _start(details.localPosition, cell),
+                onPanUpdate: widget.disabled
+                    ? null
+                    : (details) => _update(details.delta, cell),
+                onPanEnd: widget.disabled ? null : (_) => _end(),
+                onPanCancel: widget.disabled ? null : _cancelDrag,
+                child: board,
+              ),
       );
     },
   );
@@ -1795,7 +1833,7 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
   void _start(Offset point, double cellSize) {
     final touchX = point.dx / cellSize;
     final touchY = point.dy / cellSize;
-    final hitPadding = Platform.isAndroid ? .56 : .40;
+    final hitPadding = _useSensitiveTouchInput ? .66 : .40;
     for (final piece in widget.engine.pieces.reversed) {
       if (pieceCells(piece).any(
         (cell) =>
@@ -1820,7 +1858,7 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
     final piece = active;
     if (piece == null) return;
     final rawDelta = piece.horizontal ? delta.dx : delta.dy;
-    final dragThreshold = Platform.isAndroid ? .08 : .20;
+    final dragThreshold = _useSensitiveTouchInput ? .02 : .20;
     if (rawDelta.abs() > dragThreshold) {
       dragAttempted = true;
       if (!slideSoundPlaying) {
@@ -1831,7 +1869,7 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
     if (piece.id == widget.hintedPieceId && rawDelta.abs() > dragThreshold) {
       widget.onHintConsumed();
     }
-    final dragGain = Platform.isAndroid ? 1.52 : 1.36;
+    final dragGain = _useSensitiveTouchInput ? 1.62 : 1.36;
     final proposed = dragCells + (rawDelta / cellSize) * dragGain;
     if (proposed < -maxNegative - .03 || proposed > maxPositive + .03) {
       _triggerBump(rawDelta.sign);
@@ -1854,7 +1892,7 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
     if (piece == null) return;
     var moved = false;
     var snapped = dragCells.round();
-    final snapThreshold = Platform.isAndroid ? .12 : .18;
+    final snapThreshold = _useSensitiveTouchInput ? .08 : .18;
     if (snapped == 0 && dragCells.abs() >= snapThreshold) {
       snapped = dragCells.isNegative ? -1 : 1;
     }
@@ -2268,11 +2306,13 @@ class _GameControls extends StatelessWidget {
   const _GameControls({
     required this.onPause,
     required this.onHint,
+    required this.onHowToPlay,
     required this.onSettings,
   });
 
   final VoidCallback onPause;
   final VoidCallback onHint;
+  final VoidCallback onHowToPlay;
   final VoidCallback onSettings;
 
   @override
@@ -2319,7 +2359,23 @@ class _GameControls extends StatelessWidget {
           Expanded(
             child: Center(
               child: IconButton.filled(
-                tooltip: 'Aturan',
+                tooltip: 'Cara bermain',
+                onPressed: onHowToPlay,
+                style: IconButton.styleFrom(
+                  minimumSize: const Size.square(46),
+                  maximumSize: const Size.square(46),
+                  foregroundColor: Colors.white,
+                  backgroundColor: const Color(0xff4b246f),
+                  side: const BorderSide(color: Color(0xff9e6bc2), width: 1.2),
+                ),
+                icon: const Icon(Icons.help_outline_rounded, size: 24),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Center(
+              child: IconButton.filled(
+                tooltip: 'Pengaturan',
                 onPressed: onSettings,
                 style: IconButton.styleFrom(
                   minimumSize: const Size.square(46),
