@@ -2268,41 +2268,69 @@ class _GameHeader extends StatelessWidget {
   final int remainingMistakes;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    height: 62,
-    child: DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xff12051f).withValues(alpha: .9),
-        border: const Border(bottom: BorderSide(color: Colors.white12)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: _HudValue(label: 'SCORE', value: '$score'),
+  Widget build(BuildContext context) {
+    final screen = MediaQuery.sizeOf(context);
+    final headerHeight = (screen.height * .095).clamp(78.0, 96.0);
+    final labelSize = (screen.width * .027).clamp(10.0, 12.0);
+    final valueSize = (screen.width * .052).clamp(20.0, 23.0);
+
+    return MediaQuery.withClampedTextScaling(
+      minScaleFactor: 1,
+      maxScaleFactor: 1.15,
+      child: SizedBox(
+        height: headerHeight,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: const Color(0xff12051f).withValues(alpha: .9),
+            border: const Border(bottom: BorderSide(color: Colors.white12)),
+          ),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: (screen.width * .018).clamp(7.0, 12.0),
+              vertical: 10,
             ),
-            Expanded(
-              child: _HudValue(
-                label: 'LEVEL',
-                value: level.toString().padLeft(2, '0'),
-              ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: _HudValue(
+                    label: 'SCORE',
+                    value: '$score',
+                    labelSize: labelSize,
+                    valueSize: valueSize,
+                  ),
+                ),
+                Expanded(
+                  child: _HudValue(
+                    label: 'LEVEL',
+                    value: level.toString().padLeft(2, '0'),
+                    labelSize: labelSize,
+                    valueSize: valueSize,
+                  ),
+                ),
+                Expanded(
+                  child: _HudValue(
+                    label: timeLabel,
+                    value: time,
+                    labelSize: labelSize,
+                    valueSize: valueSize,
+                  ),
+                ),
+                Expanded(
+                  child: _HudValue(
+                    label: 'SISA SALAH',
+                    value: '$remainingMistakes/$_maximumAllowedMistakes',
+                    labelSize: labelSize,
+                    valueSize: valueSize,
+                  ),
+                ),
+              ],
             ),
-            Expanded(
-              child: _HudValue(label: timeLabel, value: time),
-            ),
-            Expanded(
-              child: _HudValue(
-                label: 'SISA SALAH',
-                value: '$remainingMistakes/$_maximumAllowedMistakes',
-              ),
-            ),
-          ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _GameControls extends StatelessWidget {
@@ -2319,88 +2347,131 @@ class _GameControls extends StatelessWidget {
   final VoidCallback onSettings;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    height: 68,
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-      child: Row(
-        children: [
-          Expanded(
-            child: Center(
-              child: IconButton.filled(
+  Widget build(BuildContext context) {
+    final screen = MediaQuery.sizeOf(context);
+    final footerHeight = (screen.height * .11).clamp(84.0, 104.0);
+    final buttonSize = (screen.width * .135).clamp(52.0, 64.0);
+    final iconSize = (buttonSize * .5).clamp(25.0, 31.0);
+
+    return SizedBox(
+      height: footerHeight,
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: (screen.width * .025).clamp(10.0, 18.0),
+          vertical: 10,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: _GameControlButton(
                 tooltip: 'Pause',
                 onPressed: onPause,
-                style: IconButton.styleFrom(
-                  minimumSize: const Size.square(46),
-                  maximumSize: const Size.square(46),
-                  foregroundColor: Colors.white,
-                  backgroundColor: const Color(0xff9d4edd),
-                  side: const BorderSide(color: Color(0xffd8b4fe), width: 1.3),
-                  shadowColor: const Color(0xffb66aff),
-                  elevation: 5,
-                ),
-                icon: const Icon(Icons.pause, size: 24),
+                buttonSize: buttonSize,
+                iconSize: iconSize,
+                icon: Icons.pause,
+                foregroundColor: Colors.white,
+                backgroundColor: const Color(0xff9d4edd),
+                borderColor: const Color(0xffd8b4fe),
+                elevation: 5,
               ),
             ),
-          ),
-          Expanded(
-            child: Center(
-              child: IconButton.filled(
+            Expanded(
+              child: _GameControlButton(
                 tooltip: 'Petunjuk',
                 onPressed: onHint,
-                style: IconButton.styleFrom(
-                  minimumSize: const Size.square(46),
-                  maximumSize: const Size.square(46),
-                  foregroundColor: const Color(0xffffefad),
-                  backgroundColor: const Color(0xff5d2d91),
-                  side: const BorderSide(color: Color(0xffb985e8), width: 1.2),
-                ),
-                icon: const Icon(Icons.lightbulb_rounded, size: 22),
+                buttonSize: buttonSize,
+                iconSize: iconSize,
+                icon: Icons.lightbulb_rounded,
+                foregroundColor: const Color(0xffffefad),
+                backgroundColor: const Color(0xff5d2d91),
+                borderColor: const Color(0xffb985e8),
               ),
             ),
-          ),
-          Expanded(
-            child: Center(
-              child: IconButton.filled(
+            Expanded(
+              child: _GameControlButton(
                 tooltip: 'Cara bermain',
                 onPressed: onHowToPlay,
-                style: IconButton.styleFrom(
-                  minimumSize: const Size.square(46),
-                  maximumSize: const Size.square(46),
-                  foregroundColor: Colors.white,
-                  backgroundColor: const Color(0xff4b246f),
-                  side: const BorderSide(color: Color(0xff9e6bc2), width: 1.2),
-                ),
-                icon: const Icon(Icons.help_outline_rounded, size: 24),
+                buttonSize: buttonSize,
+                iconSize: iconSize,
+                icon: Icons.help_outline_rounded,
+                foregroundColor: Colors.white,
+                backgroundColor: const Color(0xff4b246f),
+                borderColor: const Color(0xff9e6bc2),
               ),
             ),
-          ),
-          Expanded(
-            child: Center(
-              child: IconButton.filled(
+            Expanded(
+              child: _GameControlButton(
                 tooltip: 'Pengaturan',
                 onPressed: onSettings,
-                style: IconButton.styleFrom(
-                  minimumSize: const Size.square(46),
-                  maximumSize: const Size.square(46),
-                  foregroundColor: Colors.white,
-                  backgroundColor: const Color(0xff4b246f),
-                  side: const BorderSide(color: Color(0xff9e6bc2), width: 1.2),
-                ),
-                icon: const Icon(Icons.settings_rounded, size: 22),
+                buttonSize: buttonSize,
+                iconSize: iconSize,
+                icon: Icons.settings_rounded,
+                foregroundColor: Colors.white,
+                backgroundColor: const Color(0xff4b246f),
+                borderColor: const Color(0xff9e6bc2),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
+    );
+  }
+}
+
+class _GameControlButton extends StatelessWidget {
+  const _GameControlButton({
+    required this.tooltip,
+    required this.onPressed,
+    required this.buttonSize,
+    required this.iconSize,
+    required this.icon,
+    required this.foregroundColor,
+    required this.backgroundColor,
+    required this.borderColor,
+    this.elevation = 0,
+  });
+
+  final String tooltip;
+  final VoidCallback onPressed;
+  final double buttonSize;
+  final double iconSize;
+  final IconData icon;
+  final Color foregroundColor;
+  final Color backgroundColor;
+  final Color borderColor;
+  final double elevation;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: IconButton.filled(
+      tooltip: tooltip,
+      onPressed: onPressed,
+      style: IconButton.styleFrom(
+        minimumSize: Size.square(buttonSize),
+        maximumSize: Size.square(buttonSize),
+        foregroundColor: foregroundColor,
+        backgroundColor: backgroundColor,
+        side: BorderSide(color: borderColor, width: 1.3),
+        shadowColor: elevation > 0 ? const Color(0xffb66aff) : null,
+        elevation: elevation,
+      ),
+      icon: Icon(icon, size: iconSize),
     ),
   );
 }
 
 class _HudValue extends StatelessWidget {
-  const _HudValue({required this.label, required this.value});
+  const _HudValue({
+    required this.label,
+    required this.value,
+    required this.labelSize,
+    required this.valueSize,
+  });
+
   final String label;
   final String value;
+  final double labelSize;
+  final double valueSize;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -2408,31 +2479,32 @@ class _HudValue extends StatelessWidget {
     mainAxisAlignment: MainAxisAlignment.center,
     children: [
       SizedBox(
-        height: 10,
+        height: labelSize * 1.25,
+        width: double.infinity,
         child: FittedBox(
           fit: BoxFit.scaleDown,
           child: Text(
             label,
             maxLines: 1,
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.white54,
-              fontSize: 8,
+              fontSize: labelSize,
               letterSpacing: 1.1,
               fontWeight: FontWeight.w800,
             ),
           ),
         ),
       ),
-      const SizedBox(height: 4),
+      const SizedBox(height: 5),
       SizedBox(
-        height: 22,
+        height: valueSize * 1.25,
         width: double.infinity,
         child: FittedBox(
           fit: BoxFit.scaleDown,
           child: Text(
             value,
             maxLines: 1,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+            style: TextStyle(fontSize: valueSize, fontWeight: FontWeight.w900),
           ),
         ),
       ),
