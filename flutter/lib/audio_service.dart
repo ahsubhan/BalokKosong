@@ -13,8 +13,7 @@ class GameAudio with WidgetsBindingObserver {
 
   static final GameAudio instance = GameAudio._();
   static const double _openingVolume = .40;
-  static const double _gameplayVolume = .60;
-  static const double _gameplayDuckedVolume = .07;
+  static const double _gameplayVolume = .50;
   static const double _slideVolume = 1;
 
   final AudioPlayer _music = AudioPlayer();
@@ -130,11 +129,6 @@ class GameAudio with WidgetsBindingObserver {
         if (session != _activeSlideSession) return;
         await _ready;
         if (session != _activeSlideSession) return;
-        if (_activeTrack == _MusicTrack.gameplay &&
-            _music.state == PlayerState.playing) {
-          await _music.setVolume(_gameplayDuckedVolume);
-        }
-        if (session != _activeSlideSession) return;
         await _slide.stop();
         if (session != _activeSlideSession) return;
         await _slide.setVolume(_slideVolume);
@@ -169,7 +163,6 @@ class GameAudio with WidgetsBindingObserver {
         if (!_gamePaused &&
             !_jinglePlaying &&
             _activeTrack == _MusicTrack.gameplay) {
-          await _music.setVolume(_gameplayVolume);
           if (_music.state == PlayerState.paused) {
             await _music.resume();
           } else if (_music.state == PlayerState.stopped ||

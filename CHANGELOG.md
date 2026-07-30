@@ -6,7 +6,36 @@ Format versi aplikasi adalah `MAJOR.MINOR.PATCH+BUILD`.
 
 ## [Unreleased]
 
-Belum ada perubahan setelah kandidat Build 3.
+Belum ada perubahan setelah kandidat Build 6.
+
+## [1.0.3+6] - 2026-07-30
+
+### Changed
+
+- Musik gameplay diputar stabil pada volume 50% tanpa berubah saat balok
+  digeret.
+- Efek suara geret diperkuat agar tetap jelas di atas musik latar.
+- Ukuran informasi Score, Level, Waktu, dan Sisa Salah dibuat responsif.
+- Ukuran empat tombol permainan dibuat responsif dengan jarak yang konsisten
+  pada berbagai ukuran HP Android.
+
+### Fixed
+
+- HUD tidak lagi terlalu kecil pada perangkat Android dengan rasio atau skala
+  tampilan tertentu.
+- Musik latar tidak lagi mengecil atau terputus sesaat ketika efek geret
+  dimainkan.
+
+## [1.0.3+5] - 2026-07-29
+
+### Changed
+
+- Kontrol geret dan area sentuh disempurnakan untuk Android dan iPhone.
+- Cara Bermain tersedia setelah pembuka dan dari halaman permainan.
+- Footer permainan memakai empat aksi: Pause, Petunjuk, Cara Bermain, dan
+  Pengaturan.
+- Volume musik gameplay dan suara kemenangan diseimbangkan.
+- Tampilan Help & Feedback dirapikan.
 
 ## [1.0.2+3] - 2026-07-28
 

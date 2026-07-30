@@ -789,15 +789,12 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
             style: const TextStyle(color: Color(0xffd8a5ff)),
           ),
           const SizedBox(height: 14),
-          const Text('• Kontrol geret lebih responsif di Android dan iPhone'),
+          const Text('• Tampilan permainan responsif di berbagai ukuran HP'),
           const Text(
-            '• Cara Bermain tersedia setelah pembuka dan dari permainan',
+            '• Angka dan tombol permainan lebih besar serta proporsional',
           ),
-          const Text(
-            '• Footer baru: Pause, Petunjuk, Cara Bermain, dan Pengaturan',
-          ),
-          const Text('• Penyempurnaan volume musik dan suara kemenangan'),
-          const Text('• Tampilan Help & Feedback dirapikan'),
+          const Text('• Efek suara geret lebih jelas di atas musik latar'),
+          const Text('• Musik permainan steady pada volume 50%'),
         ],
       ),
       actions: [
