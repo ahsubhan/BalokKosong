@@ -5,6 +5,7 @@ Dokumen ini menjawab: fitur atau perbaikan apa terdapat pada build tertentu?
 | Versi | Build | Tanggal | Jenis | Ringkasan | Status | Git |
 |---|---:|---|---|---|---|---|
 <!-- NEXT_BUILD_ROW -->
+| 1.0.3 | 7 | 2026-07-31 | Fix | Google Login Closed Testing diperbaiki dengan sertifikat Play App Signing lama dan aktif | Draft | `pending` |
 | 1.0.3 | 6 | 2026-07-30 | Fix | HUD responsif lintas perangkat, musik gameplay steady 50%, dan efek geret lebih jelas | Tested | `develop` |
 | 1.0.3 | 5 | 2026-07-29 | Fix | Kontrol sentuh, Cara Bermain, footer permainan, audio, dan Help & Feedback disempurnakan | Closed Testing | `2231c29` |
 | 1.0.3 | 4 | 2026-07-28 | Fix | Penyempurnaan onboarding, kontrol sentuh, audio gameplay, dan layout permainan | Tested | `20eea6b` |

@@ -22,6 +22,38 @@
           }
         },
         {
+          "client_id": "456475995990-mebml2q8ua86n1m6kvcj79i6ka06qbdo.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ahmadss.balokkosong",
+            "certificate_hash": "3e440f3def424a7c8b9489daf2dd24377613c85d"
+          }
+        },
+        {
+          "client_id": "456475995990-td6hs6o6rg938l147nnlq9fg57fhmqoo.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ahmadss.balokkosong",
+            "certificate_hash": "cec2f8285cb8b206491a3fc4f6c7c669f3000a89"
+          }
+        },
+        {
+          "client_id": "456475995990-v9na0vet7mq2eea5nrdmf0mua1jr53pv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ahmadss.balokkosong",
+            "certificate_hash": "697613dd7fc22b70352a41b539461595e1b541d9"
+          }
+        },
+        {
+          "client_id": "456475995990-vfs3lognmb49i8b547j48j8s4d6uv79b.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ahmadss.balokkosong",
+            "certificate_hash": "72228fc7e2db864f21bd16e381f311d9978fe214"
+          }
+        },
+        {
           "client_id": "456475995990-ci3pvtvq6v4hh5gpf0pq50n5sun8pv84.apps.googleusercontent.com",
           "client_type": 3
         }

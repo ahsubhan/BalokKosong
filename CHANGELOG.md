@@ -6,7 +6,17 @@ Format versi aplikasi adalah `MAJOR.MINOR.PATCH+BUILD`.
 
 ## [Unreleased]
 
-Belum ada perubahan setelah kandidat Build 6.
+Belum ada perubahan setelah kandidat Build 7.
+
+## [1.0.3+7] - 2026-07-31
+
+### Fixed
+
+- Google Login pada build Closed Testing kini mengenali sertifikat lama dan
+  sertifikat aktif Google Play App Signing.
+- Konfigurasi OAuth Android disinkronkan ulang dari Firebase.
+- Google Sign-In memakai server client ID secara eksplisit dan hanya
+  diinisialisasi satu kali selama aplikasi berjalan.
 
 ## [1.0.3+6] - 2026-07-30
 
