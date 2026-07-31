@@ -1,4 +1,4 @@
-Build 7:
+Build 8:
 • Memperbaiki Google Login pada aplikasi dari Google Play Closed Testing.
 • Menyinkronkan sertifikat Play App Signing dan konfigurasi OAuth Firebase.
 • Membuat proses inisialisasi Google Login lebih stabil.
