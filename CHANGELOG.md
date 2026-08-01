@@ -6,9 +6,9 @@ Format versi aplikasi adalah `MAJOR.MINOR.PATCH+BUILD`.
 
 ## [Unreleased]
 
-Belum ada perubahan setelah kandidat Build 10.
+Belum ada perubahan setelah kandidat Build 11.
 
-## [1.0.3+10] - 2026-08-01
+## [1.0.3+11] - 2026-08-01
 
 ### Fixed
 

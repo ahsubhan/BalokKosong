@@ -15,7 +15,7 @@ concurrency:
 env:
   PACKAGE_NAME: com.ahmadss.balokkosong
   PLAY_TRACK: alpha
-  TARGET_BUILD: '10'
+  TARGET_BUILD: '11'
 
 jobs:
   monitor:
