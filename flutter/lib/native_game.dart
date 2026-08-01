@@ -17,6 +17,7 @@ import 'developer_access.dart';
 import 'feedback_inbox.dart';
 import 'firebase_service.dart';
 import 'game_engine.dart';
+import 'gameplay_system_ui.dart';
 import 'help_feedback.dart';
 import 'how_to_play.dart';
 import 'mode_selection.dart';
@@ -138,6 +139,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
       unawaited(_openSettingsOnly());
       return;
     }
+    unawaited(GameplaySystemUi.enter());
     unawaited(_loadAppInfo());
     unawaited(GameAudio.instance.playGameplay());
     _loadSettings();
@@ -274,6 +276,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
   @override
   void dispose() {
     timer?.cancel();
+    if (!widget.settingsOnly) unawaited(GameplaySystemUi.leave());
     super.dispose();
   }
 
@@ -795,6 +798,13 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
           ),
           const Text('• Efek suara geret lebih jelas di atas musik latar'),
           const Text('• Musik permainan steady pada volume 50%'),
+          const Text(
+            '• Musik permainan berhenti saat menang dan musik kemenangan '
+            'diputar dua kali',
+          ),
+          const Text('• Efek 3D serta feedback tabrakan diperkuat'),
+          const Text('• Drag tepi Android tidak lagi memicu gesture Back'),
+          const Text('• Tutorial awal dipindahkan setelah pemilihan mode'),
         ],
       ),
       actions: [
@@ -1882,7 +1892,7 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
   void _triggerBump(double direction) {
     if (bumpController.isAnimating) return;
     collisionDirection = direction;
-    unawaited(HapticFeedback.lightImpact());
+    unawaited(HapticFeedback.mediumImpact());
     bumpController.forward(from: 0);
   }
 
@@ -2062,14 +2072,14 @@ class _PuzzlePainter extends CustomPainter {
         final bounds = silhouette.getBounds();
         final topColor = hinted
             ? Color.lerp(color, Colors.white, .60)!
-            : Color.lerp(color, Colors.white, .36)!;
+            : Color.lerp(color, Colors.white, .48)!;
         final bottomColor = hinted
             ? Color.lerp(color, Colors.white, .36)!
-            : Color.lerp(color, Colors.black, .24)!;
+            : Color.lerp(color, Colors.black, .38)!;
         canvas.drawShadow(
           silhouette,
           Colors.black87,
-          cell * (denseBoard ? .24 : .40),
+          cell * (denseBoard ? .32 : .52),
           false,
         );
         canvas.drawPath(
@@ -2090,7 +2100,7 @@ class _PuzzlePainter extends CustomPainter {
                 center: const Alignment(-.65, -.72),
                 radius: .9,
                 colors: [
-                  Colors.white.withValues(alpha: hinted ? .34 : .18),
+                  Colors.white.withValues(alpha: hinted ? .42 : .27),
                   Colors.transparent,
                 ],
               ).createShader(bounds),
@@ -2141,21 +2151,27 @@ class _PuzzlePainter extends CustomPainter {
         }
         canvas.restore();
         if (isActive && bumpAnimation.value > 0) {
+          final impact = math.sin(bumpAnimation.value * math.pi);
           canvas.drawPath(
             silhouette,
             Paint()
               ..style = PaintingStyle.stroke
-              ..strokeWidth = 2.4
-              ..color = Colors.white.withValues(
-                alpha: math.sin(bumpAnimation.value * math.pi) * .72,
-              ),
+              ..strokeWidth = 5.2
+              ..color = const Color(0xffff496f).withValues(alpha: impact * .86),
+          );
+          canvas.drawPath(
+            silhouette,
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 2.2
+              ..color = Colors.white.withValues(alpha: impact * .92),
           );
         }
         canvas.drawPath(
           silhouette,
           Paint()
             ..style = PaintingStyle.stroke
-            ..strokeWidth = hinted ? 2.8 : 1.35
+            ..strokeWidth = hinted ? 2.8 : 1.9
             ..color = hinted
                 ? const Color(0xffffffb0)
                 : Color.lerp(color, Colors.black, .28)!,

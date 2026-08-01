@@ -6,7 +6,29 @@ Format versi aplikasi adalah `MAJOR.MINOR.PATCH+BUILD`.
 
 ## [Unreleased]
 
-Belum ada perubahan setelah kandidat Build 8.
+Belum ada perubahan setelah kandidat Build 9.
+
+## [1.0.3+9] - 2026-08-01
+
+### Changed
+
+- Cara Bermain tidak lagi muncul sebelum halaman login dan tetap tersedia
+  setelah pemain memilih mode.
+- Indikator proses setelah login menggunakan animasi balok berwarna yang
+  selaras dengan identitas visual BalokKosong.
+- Efek 3D balok, getaran, dan kilatan visual ketika tabrakan dibuat lebih
+  menonjol.
+- Halaman terakhir Cara Bermain menjelaskan bahwa setiap tabrakan mengurangi
+  satu kesempatan tanpa menghapus penjelasan lama.
+
+### Fixed
+
+- Musik permainan berhenti sepenuhnya saat level selesai sebelum musik
+  kemenangan diputar dua kali.
+- Musik permainan hanya aktif ketika papan permainan sedang dimainkan.
+- Drag balok di tepi layar Android tidak lagi diperebutkan oleh gesture Back
+  melalui mode immersive dan gesture exclusion.
+- Ikon tanda tanya di halaman login dihapus agar onboarding tidak berulang.
 
 ## [1.0.3+8] - 2026-07-31
 

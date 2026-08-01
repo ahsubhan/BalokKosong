@@ -53,6 +53,13 @@ void main() {
       expect(find.text('CARA BERMAIN · ${page + 1}/4'), findsOneWidget);
     }
 
+    expect(
+      find.textContaining('Tabrakan mengurangi kesempatan'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('mendapat 3 bintang'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Lanjut'));
     await tester.tap(find.text('Lanjut'));
     await tester.pumpAndSettle();
 

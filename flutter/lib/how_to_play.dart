@@ -39,7 +39,7 @@ class _HowToPlayScreenState extends State<HowToPlayScreen> {
       icon: '★',
       title: 'Siap bermain!',
       text:
-          'Pilih mode Santai atau Tantangan. Selesaikan lebih cepat dan gunakan sedikit petunjuk untuk mendapat 3 bintang.',
+          'Pilih mode Santai atau Tantangan. Main cepat dan gunakan sedikit petunjuk untuk mendapat 3 bintang. Tabrakan mengurangi kesempatan; jika habis, level diulang.',
     ),
   ];
 

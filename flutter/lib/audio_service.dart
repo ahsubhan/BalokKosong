@@ -26,6 +26,7 @@ class GameAudio with WidgetsBindingObserver {
   bool? _enabled;
   bool _gamePaused = false;
   bool _jinglePlaying = false;
+  int _victorySession = 0;
   bool _openingStoppedByChoice = false;
   _MusicTrack _desiredTrack = _MusicTrack.opening;
   _MusicTrack? _activeTrack;
@@ -89,6 +90,7 @@ class GameAudio with WidgetsBindingObserver {
     if (track == _MusicTrack.gameplay && _gamePaused) return;
     try {
       await _ready;
+      _victorySession++;
       _jinglePlaying = false;
       await _jingle.stop();
       final targetVolume = track == _MusicTrack.opening
@@ -187,17 +189,37 @@ class GameAudio with WidgetsBindingObserver {
   }
 
   Future<void> playVictory() async {
-    if (!await _isEnabled()) return;
+    final victorySession = ++_victorySession;
+    _jinglePlaying = true;
     try {
       await _ready;
-      await Future.wait([_music.pause(), stopBlockSlide()]);
+      await _music.stop();
+      _activeTrack = null;
+      await stopBlockSlide();
       await _jingle.stop();
+      if (!await _isEnabled()) {
+        _jinglePlaying = false;
+        return;
+      }
       await _jingle.setReleaseMode(ReleaseMode.stop);
       await _jingle.setVolume(.90);
-      await _jingle.play(AssetSource('audio/victory_jingle.wav'));
-      _jinglePlaying = true;
+      for (var repeat = 0; repeat < 2; repeat++) {
+        if (victorySession != _victorySession || !_jinglePlaying) return;
+        final completed = _jingle.onPlayerComplete.first;
+        await _jingle.play(AssetSource('audio/victory_jingle.wav'));
+        await completed.timeout(const Duration(seconds: 12));
+      }
     } catch (error) {
       debugPrint('BalokKosong gagal memutar musik kemenangan: $error');
+    } finally {
+      if (victorySession == _victorySession) {
+        _jinglePlaying = false;
+        try {
+          await _jingle.stop();
+        } catch (_) {
+          // The jingle may already have completed naturally.
+        }
+      }
     }
   }
 
@@ -233,6 +255,7 @@ class GameAudio with WidgetsBindingObserver {
     _enabled = value;
     try {
       if (!value) {
+        _victorySession++;
         await Future.wait([_music.stop(), _jingle.stop(), stopBlockSlide()]);
         _activeTrack = null;
         _jinglePlaying = false;
