@@ -1,0 +1,5 @@
+Build 6:
+• Tampilan skor, level, waktu, dan sisa salah lebih besar serta responsif.
+• Ukuran dan jarak tombol permainan lebih konsisten di berbagai HP Android.
+• Efek suara geret lebih jelas.
+• Musik permainan tetap stabil saat balok digeret.

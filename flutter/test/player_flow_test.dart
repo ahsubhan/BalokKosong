@@ -53,6 +53,13 @@ void main() {
       expect(find.text('CARA BERMAIN · ${page + 1}/4'), findsOneWidget);
     }
 
+    expect(
+      find.textContaining('Tabrakan mengurangi kesempatan'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('mendapat 3 bintang'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Lanjut'));
     await tester.tap(find.text('Lanjut'));
     await tester.pumpAndSettle();
 
@@ -246,6 +253,36 @@ void main() {
     await tester.pump();
     expect(find.text('Aturan'), findsNothing);
     expect(find.text('Toko &\nHadiah'), findsOneWidget);
+  });
+
+  testWidgets('game HUD keeps readable minimum sizes on a small phone', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    SharedPreferences.setMockInitialValues({});
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NativeGameScreen(homeBuilder: (_) => const HomeScreen()),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      tester.getSize(find.byTooltip('Pause')).width,
+      greaterThanOrEqualTo(52),
+    );
+    expect(
+      tester.widget<Text>(find.text('SCORE')).style?.fontSize,
+      greaterThanOrEqualTo(10),
+    );
+    expect(
+      tester.widget<Text>(find.text('01')).style?.fontSize,
+      greaterThanOrEqualTo(20),
+    );
   });
 
   testWidgets('hint dialog uses Batal and Lanjut actions', (tester) async {

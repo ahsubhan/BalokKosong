@@ -6,7 +6,68 @@ Format versi aplikasi adalah `MAJOR.MINOR.PATCH+BUILD`.
 
 ## [Unreleased]
 
-Belum ada perubahan setelah kandidat Build 3.
+Belum ada perubahan setelah kandidat Build 9.
+
+## [1.0.3+9] - 2026-08-01
+
+### Changed
+
+- Cara Bermain tidak lagi muncul sebelum halaman login dan tetap tersedia
+  setelah pemain memilih mode.
+- Indikator proses setelah login menggunakan animasi balok berwarna yang
+  selaras dengan identitas visual BalokKosong.
+- Efek 3D balok, getaran, dan kilatan visual ketika tabrakan dibuat lebih
+  menonjol.
+- Halaman terakhir Cara Bermain menjelaskan bahwa setiap tabrakan mengurangi
+  satu kesempatan tanpa menghapus penjelasan lama.
+
+### Fixed
+
+- Musik permainan berhenti sepenuhnya saat level selesai sebelum musik
+  kemenangan diputar dua kali.
+- Musik permainan hanya aktif ketika papan permainan sedang dimainkan.
+- Drag balok di tepi layar Android tidak lagi diperebutkan oleh gesture Back
+  melalui mode immersive dan gesture exclusion.
+- Ikon tanda tanya di halaman login dihapus agar onboarding tidak berulang.
+
+## [1.0.3+8] - 2026-07-31
+
+### Fixed
+
+- Google Login pada build Closed Testing kini mengenali sertifikat lama dan
+  sertifikat aktif Google Play App Signing.
+- Konfigurasi OAuth Android disinkronkan ulang dari Firebase.
+- Google Sign-In memakai server client ID secara eksplisit dan hanya
+  diinisialisasi satu kali selama aplikasi berjalan.
+
+## [1.0.3+6] - 2026-07-30
+
+### Changed
+
+- Musik gameplay diputar stabil pada volume 50% tanpa berubah saat balok
+  digeret.
+- Efek suara geret diperkuat agar tetap jelas di atas musik latar.
+- Ukuran informasi Score, Level, Waktu, dan Sisa Salah dibuat responsif.
+- Ukuran empat tombol permainan dibuat responsif dengan jarak yang konsisten
+  pada berbagai ukuran HP Android.
+
+### Fixed
+
+- HUD tidak lagi terlalu kecil pada perangkat Android dengan rasio atau skala
+  tampilan tertentu.
+- Musik latar tidak lagi mengecil atau terputus sesaat ketika efek geret
+  dimainkan.
+
+## [1.0.3+5] - 2026-07-29
+
+### Changed
+
+- Kontrol geret dan area sentuh disempurnakan untuk Android dan iPhone.
+- Cara Bermain tersedia setelah pembuka dan dari halaman permainan.
+- Footer permainan memakai empat aksi: Pause, Petunjuk, Cara Bermain, dan
+  Pengaturan.
+- Volume musik gameplay dan suara kemenangan diseimbangkan.
+- Tampilan Help & Feedback dirapikan.
 
 ## [1.0.2+3] - 2026-07-28
 

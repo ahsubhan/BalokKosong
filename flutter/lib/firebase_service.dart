@@ -16,6 +16,8 @@ import 'player_progress.dart';
 
 const int welcomeTokenBonus = 10;
 const int guestStarterTokenBonus = 3;
+const String _googleServerClientId =
+    '456475995990-ci3pvtvq6v4hh5gpf0pq50n5sun8pv84.apps.googleusercontent.com';
 
 class FeedbackAttachment {
   const FeedbackAttachment({
@@ -131,6 +133,7 @@ class FirebaseService {
   bool _ready = false;
   Future<void>? _initializing;
   Future<void>? _sessionRestore;
+  Future<void>? _googleSignInInitialization;
   bool get isReady => _ready;
   User? get user => _ready ? FirebaseAuth.instance.currentUser : null;
 
@@ -200,7 +203,9 @@ class FirebaseService {
   Future<UserCredential> signInWithGoogle() async {
     await initialize();
     _requireReady();
-    await GoogleSignIn.instance.initialize();
+    await (_googleSignInInitialization ??= GoogleSignIn.instance.initialize(
+      serverClientId: _googleServerClientId,
+    ));
     final account = await GoogleSignIn.instance.authenticate();
     final authentication = account.authentication;
     final result = await FirebaseAuth.instance.signInWithCredential(

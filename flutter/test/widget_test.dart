@@ -16,18 +16,17 @@ void main() {
     expect(find.text('Mendaftar'), findsOneWidget);
     expect(find.textContaining('APPLE'), findsNothing);
     expect(find.textContaining('FACEBOOK'), findsNothing);
-    expect(find.byTooltip('Cara bermain'), findsOneWidget);
+    expect(find.byTooltip('Cara bermain'), findsNothing);
   });
 
-  testWidgets('home help button opens the four-page guide', (tester) async {
+  testWidgets('login page does not show a duplicate tutorial shortcut', (
+    tester,
+  ) async {
     await tester.pumpWidget(const BalokKosongApp(showSplash: false));
 
-    await tester.tap(find.byTooltip('Cara bermain'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('CARA BERMAIN · 1/4'), findsOneWidget);
-    expect(find.text('Kosongkan papan'), findsOneWidget);
-    expect(find.text('Kembali'), findsOneWidget);
+    expect(find.byTooltip('Cara bermain'), findsNothing);
+    expect(find.text('?'), findsNothing);
+    expect(find.text('MASUK DENGAN GOOGLE'), findsOneWidget);
   });
 
   testWidgets('opens email registration form', (tester) async {
@@ -92,7 +91,7 @@ void main() {
     expect(find.text('MAIN SEBAGAI TAMU'), findsOneWidget);
   });
 
-  testWidgets('shows opening animation and guide before the home screen', (
+  testWidgets('shows opening animation then opens login without the guide', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -107,18 +106,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(OpeningSplashScreen), findsNothing);
-    expect(find.text('CARA BERMAIN · 1/4'), findsOneWidget);
-    expect(find.text('MASUK DENGAN EMAIL'), findsNothing);
-
-    for (var page = 1; page < 4; page++) {
-      await tester.ensureVisible(find.text('Berikutnya'));
-      await tester.tap(find.text('Berikutnya'));
-      await tester.pumpAndSettle();
-    }
-    await tester.ensureVisible(find.text('Lanjut'));
-    await tester.tap(find.text('Lanjut'));
-    await tester.pumpAndSettle();
-
+    expect(find.text('CARA BERMAIN · 1/4'), findsNothing);
     expect(find.text('MASUK DENGAN EMAIL'), findsOneWidget);
   });
 
@@ -149,6 +137,8 @@ void main() {
 
     expect(find.text('Welcome, ah.subhan'), findsOneWidget);
     expect(find.textContaining('Menyiapkan progres'), findsOneWidget);
+    expect(find.byKey(const Key('loginProgressAnimation')), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
     expect(finished, isFalse);
 
     await tester.pump(const Duration(milliseconds: 4100));

@@ -13,8 +13,7 @@ class GameAudio with WidgetsBindingObserver {
 
   static final GameAudio instance = GameAudio._();
   static const double _openingVolume = .40;
-  static const double _gameplayVolume = .60;
-  static const double _gameplayDuckedVolume = .07;
+  static const double _gameplayVolume = .50;
   static const double _slideVolume = 1;
 
   final AudioPlayer _music = AudioPlayer();
@@ -27,6 +26,7 @@ class GameAudio with WidgetsBindingObserver {
   bool? _enabled;
   bool _gamePaused = false;
   bool _jinglePlaying = false;
+  int _victorySession = 0;
   bool _openingStoppedByChoice = false;
   _MusicTrack _desiredTrack = _MusicTrack.opening;
   _MusicTrack? _activeTrack;
@@ -90,6 +90,7 @@ class GameAudio with WidgetsBindingObserver {
     if (track == _MusicTrack.gameplay && _gamePaused) return;
     try {
       await _ready;
+      _victorySession++;
       _jinglePlaying = false;
       await _jingle.stop();
       final targetVolume = track == _MusicTrack.opening
@@ -130,11 +131,6 @@ class GameAudio with WidgetsBindingObserver {
         if (session != _activeSlideSession) return;
         await _ready;
         if (session != _activeSlideSession) return;
-        if (_activeTrack == _MusicTrack.gameplay &&
-            _music.state == PlayerState.playing) {
-          await _music.setVolume(_gameplayDuckedVolume);
-        }
-        if (session != _activeSlideSession) return;
         await _slide.stop();
         if (session != _activeSlideSession) return;
         await _slide.setVolume(_slideVolume);
@@ -169,7 +165,6 @@ class GameAudio with WidgetsBindingObserver {
         if (!_gamePaused &&
             !_jinglePlaying &&
             _activeTrack == _MusicTrack.gameplay) {
-          await _music.setVolume(_gameplayVolume);
           if (_music.state == PlayerState.paused) {
             await _music.resume();
           } else if (_music.state == PlayerState.stopped ||
@@ -194,17 +189,37 @@ class GameAudio with WidgetsBindingObserver {
   }
 
   Future<void> playVictory() async {
-    if (!await _isEnabled()) return;
+    final victorySession = ++_victorySession;
+    _jinglePlaying = true;
     try {
       await _ready;
-      await Future.wait([_music.pause(), stopBlockSlide()]);
+      await _music.stop();
+      _activeTrack = null;
+      await stopBlockSlide();
       await _jingle.stop();
+      if (!await _isEnabled()) {
+        _jinglePlaying = false;
+        return;
+      }
       await _jingle.setReleaseMode(ReleaseMode.stop);
       await _jingle.setVolume(.90);
-      await _jingle.play(AssetSource('audio/victory_jingle.wav'));
-      _jinglePlaying = true;
+      for (var repeat = 0; repeat < 2; repeat++) {
+        if (victorySession != _victorySession || !_jinglePlaying) return;
+        final completed = _jingle.onPlayerComplete.first;
+        await _jingle.play(AssetSource('audio/victory_jingle.wav'));
+        await completed.timeout(const Duration(seconds: 12));
+      }
     } catch (error) {
       debugPrint('BalokKosong gagal memutar musik kemenangan: $error');
+    } finally {
+      if (victorySession == _victorySession) {
+        _jinglePlaying = false;
+        try {
+          await _jingle.stop();
+        } catch (_) {
+          // The jingle may already have completed naturally.
+        }
+      }
     }
   }
 
@@ -240,6 +255,7 @@ class GameAudio with WidgetsBindingObserver {
     _enabled = value;
     try {
       if (!value) {
+        _victorySession++;
         await Future.wait([_music.stop(), _jingle.stop(), stopBlockSlide()]);
         _activeTrack = null;
         _jinglePlaying = false;

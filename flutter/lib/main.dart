@@ -135,12 +135,7 @@ class _OpeningSplashScreenState extends State<OpeningSplashScreen>
                   email: user.email,
                 ),
               )
-            : HowToPlayScreen(
-                finalLabel: 'Lanjut',
-                onFinished: () => Navigator.of(routeContext).pushReplacement(
-                  MaterialPageRoute(builder: (_) => const HomeScreen()),
-                ),
-              ),
+            : const HomeScreen(),
         transitionsBuilder: (_, animation, _, child) => FadeTransition(
           opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
           child: child,
@@ -256,10 +251,12 @@ class ReturningPlayerWelcomeScreen extends StatefulWidget {
     super.key,
     required this.playerName,
     this.onFinished,
+    this.forceProgressChoices = true,
   });
 
   final String playerName;
   final VoidCallback? onFinished;
+  final bool forceProgressChoices;
 
   @override
   State<ReturningPlayerWelcomeScreen> createState() =>
@@ -289,7 +286,7 @@ class _ReturningPlayerWelcomeScreenState
     await HomeScreen._enterGame(
       context,
       replaceCurrent: true,
-      forceProgressChoices: true,
+      forceProgressChoices: widget.forceProgressChoices,
     );
   }
 
@@ -332,16 +329,85 @@ class _ReturningPlayerWelcomeScreenState
                 ),
               ),
               const SizedBox(height: 22),
-              const SizedBox(
-                width: 28,
-                height: 28,
-                child: CircularProgressIndicator(
-                  strokeWidth: 3,
-                  color: Color(0xffb35cff),
-                ),
-              ),
+              const _ProgressBlocks(),
             ],
           ),
+        ),
+      ),
+    ),
+  );
+}
+
+class _ProgressBlocks extends StatefulWidget {
+  const _ProgressBlocks();
+
+  @override
+  State<_ProgressBlocks> createState() => _ProgressBlocksState();
+}
+
+class _ProgressBlocksState extends State<_ProgressBlocks>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 960),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    label: 'Memproses login',
+    child: SizedBox(
+      key: const Key('loginProgressAnimation'),
+      width: 92,
+      height: 42,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (_, _) => Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(3, (index) {
+            final phase = (_controller.value - index * .16) % 1;
+            final lift = math.sin(phase * math.pi).clamp(0.0, 1.0).toDouble();
+            return Transform.translate(
+              offset: Offset(0, -8 * lift),
+              child: Transform.rotate(
+                angle: (lift - .5) * .12,
+                child: Container(
+                  width: 20,
+                  height: 20,
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Color.lerp(
+                          const Color(0xffffdca8),
+                          Colors.white,
+                          lift * .35,
+                        )!,
+                        const Color(0xffa855f7),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.white70, width: 1.2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(
+                          0xffb45cff,
+                        ).withValues(alpha: .25 + lift * .45),
+                        blurRadius: 10 + lift * 8,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
         ),
       ),
     ),
@@ -417,21 +483,6 @@ class HomeScreen extends StatelessWidget {
               ),
             )
           : null,
-      floatingActionButton: FloatingActionButton.small(
-        key: const Key('homeHowToPlayButton'),
-        tooltip: 'Cara bermain',
-        onPressed: () => _openHowToPlay(context),
-        backgroundColor: const Color(0xff7436ad),
-        foregroundColor: Colors.white,
-        shape: const CircleBorder(
-          side: BorderSide(color: Color(0xffc67cff), width: 1.5),
-        ),
-        child: const Text(
-          '?',
-          style: TextStyle(fontSize: 23, fontWeight: FontWeight.w900),
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: SafeArea(
         child: Stack(
           children: [
@@ -564,17 +615,6 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  static void _openHowToPlay(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (guideContext) => HowToPlayScreen(
-          finalLabel: 'Kembali',
-          onFinished: () => Navigator.pop(guideContext),
         ),
       ),
     );
@@ -884,7 +924,7 @@ class HomeScreen extends StatelessWidget {
         await FirebaseService.instance.signInAsGuest();
       }
       if (!context.mounted) return;
-      await _enterGame(context);
+      _showSignedInWelcome(context);
     } catch (error) {
       if (!context.mounted) return;
       unawaited(GameAudio.instance.playOpening(restart: true));
@@ -907,7 +947,7 @@ class HomeScreen extends StatelessWidget {
     unawaited(GameAudio.instance.stopOpening());
     final signedIn = await loginResult;
     if (signedIn == true && context.mounted) {
-      await _enterGame(context);
+      _showSignedInWelcome(context);
     } else {
       unawaited(GameAudio.instance.playOpening(restart: true));
     }
@@ -925,6 +965,21 @@ class HomeScreen extends StatelessWidget {
       return 'Firebase belum tersambung pada perangkat ini.';
     }
     return 'Silakan coba kembali.';
+  }
+
+  static void _showSignedInWelcome(BuildContext context) {
+    final user = FirebaseService.instance.user;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => ReturningPlayerWelcomeScreen(
+          playerName: returningPlayerName(
+            displayName: user?.displayName,
+            email: user?.email,
+          ),
+          forceProgressChoices: false,
+        ),
+      ),
+    );
   }
 
   static void _policy(BuildContext context, String title) =>
