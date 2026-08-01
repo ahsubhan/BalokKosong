@@ -5,6 +5,7 @@ Dokumen ini menjawab: fitur atau perbaikan apa terdapat pada build tertentu?
 | Versi | Build | Tanggal | Jenis | Ringkasan | Status | Git |
 |---|---:|---|---|---|---|---|
 <!-- NEXT_BUILD_ROW -->
+| 1.0.3 | 10 | 2026-08-01 | Critical Fix | Musik menang dua kali, getaran benturan, dan kontrol geret tepi Android diperkuat | Closed Testing candidate | `febd119` |
 | 1.0.3 | 9 | 2026-08-01 | UX/Fix | Onboarding, audio kemenangan, efek bump/3D, tutorial, dan gesture tepi Android disempurnakan | Closed Testing (in review) | `13472c4` |
 | 1.0.3 | 8 | 2026-07-31 | Fix | Google Login Closed Testing diperbaiki dengan sertifikat Play App Signing lama dan aktif | Closed Testing (in review) | `111eb27` |
 | 1.0.3 | 7 | 2026-07-31 | Fix | Nomor build sudah pernah digunakan di Play Console; tidak dirilis | Rejected | `8af155a` |

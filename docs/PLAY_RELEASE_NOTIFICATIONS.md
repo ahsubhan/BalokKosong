@@ -1,6 +1,6 @@
 # Notifikasi status Google Play
 
-Workflow `.github/workflows/play-release-telegram.yml` memeriksa Build 9 pada
+Workflow `.github/workflows/play-release-telegram.yml` memeriksa Build 10 pada
 track Closed Testing `alpha` setiap 10 menit. Telegram hanya diberi tahu satu
 kali ketika rilis tersedia untuk tester atau tidak disetujui.
 
@@ -18,5 +18,5 @@ harus memiliki akses baca aplikasi BalokKosong dan scope Android Publisher.
 Setelah pesan berhasil dikirim, workflow membuat tag berikut agar pesan tidak
 terkirim berulang kali:
 
-- `notifications/play-build-9-available`
-- `notifications/play-build-9-not-approved`
+- `notifications/play-build-10-available`
+- `notifications/play-build-10-not-approved`

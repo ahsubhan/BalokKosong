@@ -32,4 +32,18 @@ class GameplaySystemUi {
     }
     await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   }
+
+  static Future<void> collisionHaptic() async {
+    if (Platform.isAndroid) {
+      try {
+        await _channel.invokeMethod<void>('playCollisionHaptic');
+        return;
+      } on PlatformException {
+        // Fall through to Flutter's cross-platform haptic implementation.
+      } on MissingPluginException {
+        // Widget tests and non-Android hosts do not register the native channel.
+      }
+    }
+    await HapticFeedback.heavyImpact();
+  }
 }

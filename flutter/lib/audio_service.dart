@@ -208,6 +208,10 @@ class GameAudio with WidgetsBindingObserver {
         final completed = _jingle.onPlayerComplete.first;
         await _jingle.play(AssetSource('audio/victory_jingle.wav'));
         await completed.timeout(const Duration(seconds: 12));
+        // Explicitly reset the native player between the two plays. This
+        // prevents vendor-specific Android players from retaining a looped
+        // state inherited from a previous audio source.
+        await _jingle.stop();
       }
     } catch (error) {
       debugPrint('BalokKosong gagal memutar musik kemenangan: $error');
