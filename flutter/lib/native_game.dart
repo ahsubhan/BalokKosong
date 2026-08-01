@@ -5,7 +5,6 @@ import 'dart:math' as math;
 import 'package:app_settings/app_settings.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -1892,7 +1891,7 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
   void _triggerBump(double direction) {
     if (bumpController.isAnimating) return;
     collisionDirection = direction;
-    unawaited(HapticFeedback.mediumImpact());
+    unawaited(GameplaySystemUi.collisionHaptic());
     bumpController.forward(from: 0);
   }
 

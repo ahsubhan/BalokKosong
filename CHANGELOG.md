@@ -6,7 +6,17 @@ Format versi aplikasi adalah `MAJOR.MINOR.PATCH+BUILD`.
 
 ## [Unreleased]
 
-Belum ada perubahan setelah kandidat Build 9.
+Belum ada perubahan setelah kandidat Build 10.
+
+## [1.0.3+10] - 2026-08-01
+
+### Fixed
+
+- Musik kemenangan dipastikan hanya diputar dua kali lalu berhenti.
+- Benturan balok memicu getaran yang lebih jelas pada Android dan haptic pada
+  iPhone.
+- Navigasi sistem Android disembunyikan ulang selama gameplay dan area gesture
+  tepi dikecualikan agar balok di pinggir layar tetap dapat digeret.
 
 ## [1.0.3+9] - 2026-08-01
 

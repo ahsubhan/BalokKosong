@@ -1,0 +1,4 @@
+Perbaikan penting:
+- Musik kemenangan kini diputar dua kali lalu berhenti.
+- Benturan balok memberikan getaran yang lebih jelas.
+- Geret balok di tepi layar Android tidak lagi terganggu navigasi sistem.
