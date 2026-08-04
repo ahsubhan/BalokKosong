@@ -255,6 +255,25 @@ void main() {
     expect(find.text('Toko &\nHadiah'), findsOneWidget);
   });
 
+  testWidgets('backgrounding the app pauses gameplay until user continues', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NativeGameScreen(homeBuilder: (_) => const HomeScreen()),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Ulangi'), findsNothing);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+
+    expect(find.text('Ulangi'), findsOneWidget);
+  });
+
   testWidgets('game HUD keeps readable minimum sizes on a small phone', (
     tester,
   ) async {

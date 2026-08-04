@@ -6,7 +6,14 @@ Format versi aplikasi adalah `MAJOR.MINOR.PATCH+BUILD`.
 
 ## [Unreleased]
 
-Belum ada perubahan setelah kandidat Build 12.
+### Fixed
+
+- Permainan otomatis masuk mode pause dan seluruh audio berhenti ketika app
+  masuk background, ditutup, atau pengguna berpindah aplikasi.
+- Musik tidak lagi menyala kembali akibat penyelesaian efek geret saat app
+  sudah berada di background.
+- Setelah kembali ke app, pemain tetap melihat layar pause dan harus menekan
+  tombol play untuk melanjutkan permainan serta musik.
 
 ## [1.0.4+12] - 2026-08-04
 

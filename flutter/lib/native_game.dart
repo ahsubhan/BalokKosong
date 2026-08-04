@@ -99,7 +99,8 @@ class NativeGameScreen extends StatefulWidget {
   State<NativeGameScreen> createState() => _NativeGameScreenState();
 }
 
-class _NativeGameScreenState extends State<NativeGameScreen> {
+class _NativeGameScreenState extends State<NativeGameScreen>
+    with WidgetsBindingObserver {
   int levelIndex = 0;
   int highestUnlockedLevel = 1;
   int score = 0;
@@ -131,6 +132,7 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     challengeMode = widget.challengeMode;
     _loadLevel(0);
     if (widget.settingsOnly) {
@@ -274,9 +276,23 @@ class _NativeGameScreenState extends State<NativeGameScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     timer?.cancel();
     if (!widget.settingsOnly) unawaited(GameplaySystemUi.leave());
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (widget.settingsOnly ||
+        (state != AppLifecycleState.inactive &&
+            state != AppLifecycleState.paused &&
+            state != AppLifecycleState.detached &&
+            state != AppLifecycleState.hidden)) {
+      return;
+    }
+    if (mounted && !paused) setState(() => paused = true);
+    unawaited(GameAudio.instance.pauseGameplay());
   }
 
   void _loadLevel(int next, {bool keepPaused = false}) {
