@@ -1733,6 +1733,64 @@ class PuzzleCanvas extends StatefulWidget {
   State<PuzzleCanvas> createState() => _PuzzleCanvasState();
 }
 
+PuzzlePiece? selectPuzzlePieceAt({
+  required List<PuzzlePiece> pieces,
+  required Offset point,
+  required double cellSize,
+  required bool sensitiveTouch,
+}) {
+  final touchX = point.dx / cellSize;
+  final touchY = point.dy / cellSize;
+
+  // Always prefer the piece whose real painted cell is under the finger.
+  // Expanded hit areas may overlap when pieces are packed tightly, so using
+  // padding in this first pass can select a neighbouring piece instead.
+  for (final piece in pieces.reversed) {
+    if (pieceCells(piece).any(
+      (cell) =>
+          touchX >= cell.x &&
+          touchX < cell.x + 1 &&
+          touchY >= cell.y &&
+          touchY < cell.y + 1,
+    )) {
+      return piece;
+    }
+  }
+
+  // Keep forgiving touch input for small pieces, but choose the closest cell
+  // instead of whichever overlapping padded hitbox happens to be last.
+  final hitPadding = sensitiveTouch ? .66 : .40;
+  PuzzlePiece? closest;
+  var closestDistanceSquared = double.infinity;
+  for (final piece in pieces.reversed) {
+    for (final cell in pieceCells(piece)) {
+      final dx = touchX < cell.x
+          ? cell.x - touchX
+          : touchX > cell.x + 1
+          ? touchX - (cell.x + 1)
+          : 0.0;
+      final dy = touchY < cell.y
+          ? cell.y - touchY
+          : touchY > cell.y + 1
+          ? touchY - (cell.y + 1)
+          : 0.0;
+      if (dx > hitPadding || dy > hitPadding) continue;
+      final distanceSquared = dx * dx + dy * dy;
+      if (distanceSquared < closestDistanceSquared) {
+        closestDistanceSquared = distanceSquared;
+        closest = piece;
+      }
+    }
+  }
+  return closest;
+}
+
+bool shouldRecordWrongMove({
+  required bool dragAttempted,
+  required bool collisionAttempted,
+  required bool moved,
+}) => dragAttempted && collisionAttempted && !moved;
+
 class _PuzzleCanvasState extends State<PuzzleCanvas>
     with SingleTickerProviderStateMixin {
   bool get _useSensitiveTouchInput => Platform.isAndroid || Platform.isIOS;
@@ -1742,6 +1800,7 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
   double maxNegative = 0;
   double maxPositive = 0;
   bool dragAttempted = false;
+  bool collisionAttempted = false;
   bool slideSoundPlaying = false;
   int? slideSoundSession;
   int? activePointer;
@@ -1840,27 +1899,21 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
   );
 
   void _start(Offset point, double cellSize) {
-    final touchX = point.dx / cellSize;
-    final touchY = point.dy / cellSize;
-    final hitPadding = _useSensitiveTouchInput ? .66 : .40;
-    for (final piece in widget.engine.pieces.reversed) {
-      if (pieceCells(piece).any(
-        (cell) =>
-            touchX >= cell.x - hitPadding &&
-            touchX <= cell.x + 1 + hitPadding &&
-            touchY >= cell.y - hitPadding &&
-            touchY <= cell.y + 1 + hitPadding,
-      )) {
-        setState(() {
-          active = piece;
-          dragCells = 0;
-          maxNegative = widget.engine.maxTravel(piece, -1).toDouble();
-          maxPositive = widget.engine.maxTravel(piece, 1).toDouble();
-          dragAttempted = false;
-        });
-        return;
-      }
-    }
+    final piece = selectPuzzlePieceAt(
+      pieces: widget.engine.pieces,
+      point: point,
+      cellSize: cellSize,
+      sensitiveTouch: _useSensitiveTouchInput,
+    );
+    if (piece == null) return;
+    setState(() {
+      active = piece;
+      dragCells = 0;
+      maxNegative = widget.engine.maxTravel(piece, -1).toDouble();
+      maxPositive = widget.engine.maxTravel(piece, 1).toDouble();
+      dragAttempted = false;
+      collisionAttempted = false;
+    });
   }
 
   void _update(Offset delta, double cellSize) {
@@ -1881,6 +1934,7 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
     final dragGain = _useSensitiveTouchInput ? 1.62 : 1.36;
     final proposed = dragCells + (rawDelta / cellSize) * dragGain;
     if (proposed < -maxNegative - .03 || proposed > maxPositive + .03) {
+      collisionAttempted = true;
       _triggerBump(rawDelta.sign);
     }
     setState(() {
@@ -1918,11 +1972,18 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
       moved = true;
       widget.onMove();
     }
-    if (dragAttempted && !moved) widget.onWrong();
+    if (shouldRecordWrongMove(
+      dragAttempted: dragAttempted,
+      collisionAttempted: collisionAttempted,
+      moved: moved,
+    )) {
+      widget.onWrong();
+    }
     setState(() {
       active = null;
       dragCells = 0;
       dragAttempted = false;
+      collisionAttempted = false;
       slideSoundPlaying = false;
     });
   }
@@ -1934,6 +1995,7 @@ class _PuzzleCanvasState extends State<PuzzleCanvas>
       active = null;
       dragCells = 0;
       dragAttempted = false;
+      collisionAttempted = false;
       slideSoundPlaying = false;
     });
   }
