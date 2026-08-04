@@ -1,0 +1,4 @@
+Perbaikan penting:
+• Permainan otomatis pause saat app ditutup atau masuk background.
+• Musik dan efek suara langsung berhenti ketika app ditinggalkan.
+• Permainan dan musik hanya berlanjut setelah tombol play ditekan.

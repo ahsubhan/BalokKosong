@@ -6,6 +6,10 @@ Format versi aplikasi adalah `MAJOR.MINOR.PATCH+BUILD`.
 
 ## [Unreleased]
 
+Belum ada perubahan setelah kandidat Build 13.
+
+## [1.0.4+13] - 2026-08-04
+
 ### Fixed
 
 - Permainan otomatis masuk mode pause dan seluruh audio berhenti ketika app
