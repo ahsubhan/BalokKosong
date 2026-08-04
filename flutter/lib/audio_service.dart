@@ -25,6 +25,7 @@ class GameAudio with WidgetsBindingObserver {
 
   bool? _enabled;
   bool _gamePaused = false;
+  bool _appInForeground = true;
   bool _jinglePlaying = false;
   int _victorySession = 0;
   bool _openingStoppedByChoice = false;
@@ -163,6 +164,7 @@ class GameAudio with WidgetsBindingObserver {
         if (stopSession != _activeSlideSession) return;
         await _slide.stop();
         if (!_gamePaused &&
+            _appInForeground &&
             !_jinglePlaying &&
             _activeTrack == _MusicTrack.gameplay) {
           if (_music.state == PlayerState.paused) {
@@ -277,6 +279,7 @@ class GameAudio with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      _appInForeground = true;
       if (_desiredTrack == _MusicTrack.opening && _openingStoppedByChoice) {
         return;
       }
@@ -289,6 +292,7 @@ class GameAudio with WidgetsBindingObserver {
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached ||
         state == AppLifecycleState.hidden) {
+      _appInForeground = false;
       unawaited(_pauseAll());
     }
   }

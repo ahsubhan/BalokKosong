@@ -5,6 +5,7 @@ Dokumen ini menjawab: fitur atau perbaikan apa terdapat pada build tertentu?
 | Versi | Build | Tanggal | Jenis | Ringkasan | Status | Git |
 |---|---:|---|---|---|---|---|
 <!-- NEXT_BUILD_ROW -->
+| 1.0.4 | 13 | 2026-08-04 | Critical Fix | App otomatis pause dan seluruh audio berhenti saat masuk background; musik hanya lanjut setelah tombol play ditekan | Closed Testing candidate | `d08a56b` |
 | 1.0.4 | 12 | 2026-08-04 | Critical Fix | Salah pilih balok dan kesalahan palsu saat drag diperbaiki; getaran bump diperkuat | Closed Testing (in review) | `44c245c` |
 | 1.0.3 | 11 | 2026-08-01 | Critical Fix | Musik menang dua kali, getaran benturan, dan kontrol geret tepi Android diperkuat | Closed Testing (in review) | `1ddefc9` |
 | 1.0.3 | 10 | 2026-08-01 | Critical Fix | Nomor build sudah pernah digunakan di Play Console; tidak dirilis | Rejected | `febd119` |

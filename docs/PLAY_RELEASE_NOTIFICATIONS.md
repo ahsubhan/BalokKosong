@@ -1,6 +1,6 @@
 # Notifikasi status Google Play
 
-Workflow `.github/workflows/play-release-telegram.yml` memeriksa Build 12 pada
+Workflow `.github/workflows/play-release-telegram.yml` memeriksa Build 13 pada
 track Closed Testing `alpha` setiap 10 menit. Telegram hanya diberi tahu satu
 kali ketika rilis tersedia untuk tester atau tidak disetujui.
 
