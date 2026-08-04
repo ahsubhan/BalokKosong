@@ -6,7 +6,16 @@ Format versi aplikasi adalah `MAJOR.MINOR.PATCH+BUILD`.
 
 ## [Unreleased]
 
-Belum ada perubahan setelah kandidat Build 11.
+Belum ada perubahan setelah kandidat Build 12.
+
+## [1.0.4+12] - 2026-08-04
+
+### Fixed
+
+- Sentuhan pada balok yang berdempetan kini selalu mengutamakan balok yang
+  benar-benar berada di bawah jari.
+- Gerakan kecil yang tidak menabrak balok tidak lagi mengurangi kesempatan.
+- Getaran ketika bump diperkuat pada Android agar benturan terasa jelas.
 
 ## [1.0.3+11] - 2026-08-01
 

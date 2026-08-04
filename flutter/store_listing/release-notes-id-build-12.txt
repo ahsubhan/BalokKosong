@@ -1,0 +1,4 @@
+Perbaikan penting:
+- Geret balok yang berdempetan kini memilih balok yang tepat.
+- Gerakan tanpa benturan tidak lagi mengurangi kesempatan.
+- Getaran benturan dibuat lebih kuat dan jelas.

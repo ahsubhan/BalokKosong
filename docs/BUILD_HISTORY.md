@@ -5,6 +5,7 @@ Dokumen ini menjawab: fitur atau perbaikan apa terdapat pada build tertentu?
 | Versi | Build | Tanggal | Jenis | Ringkasan | Status | Git |
 |---|---:|---|---|---|---|---|
 <!-- NEXT_BUILD_ROW -->
+| 1.0.4 | 12 | 2026-08-04 | Critical Fix | Salah pilih balok dan kesalahan palsu saat drag diperbaiki; getaran bump diperkuat | Closed Testing candidate | `44c245c` |
 | 1.0.3 | 11 | 2026-08-01 | Critical Fix | Musik menang dua kali, getaran benturan, dan kontrol geret tepi Android diperkuat | Closed Testing (in review) | `1ddefc9` |
 | 1.0.3 | 10 | 2026-08-01 | Critical Fix | Nomor build sudah pernah digunakan di Play Console; tidak dirilis | Rejected | `febd119` |
 | 1.0.3 | 9 | 2026-08-01 | UX/Fix | Onboarding, audio kemenangan, efek bump/3D, tutorial, dan gesture tepi Android disempurnakan | Closed Testing (in review) | `13472c4` |

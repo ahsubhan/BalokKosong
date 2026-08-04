@@ -94,9 +94,9 @@ class MainActivity : FlutterActivity() {
         }
         if (!vibrator.hasVibrator()) return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            vibrator.vibrate(VibrationEffect.createOneShot(55, 150))
+            vibrator.vibrate(VibrationEffect.createOneShot(70, 255))
         } else {
-            vibrator.vibrate(55)
+            vibrator.vibrate(70)
         }
     }
 
